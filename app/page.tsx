@@ -2,10 +2,11 @@ import { supabase } from '../utils/supabase'
 
 // Next.js Server Component - SEO ke liye best hai
 export default async function Home() {
-  // Supabase database se listings fetch karna
+  // Supabase database se sirf 'approved' listings fetch karna
   const { data: listings, error } = await supabase
     .from('listings')
     .select('*')
+    .eq('status', 'approved') // <-- Nayi line yahan add hui hai
     .order('created_at', { ascending: false })
 
   if (error) {
