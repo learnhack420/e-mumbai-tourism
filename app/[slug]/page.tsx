@@ -144,9 +144,9 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
               </div>
             )}
 
-            {/* 🔥 FIXED PROSE STYLING FOR BACKEND LISTS & TABLES */}
+            {/* 🔥 FORCED CSS FOR BULLETS & NUMBERS (By-passing Tailwind Preflight) */}
             <div 
-              className="prose prose-lg md:prose-xl max-w-none w-full break-words overflow-x-auto text-slate-700 leading-loose prose-headings:font-black prose-headings:text-slate-900 prose-h2:text-4xl md:prose-h2:text-5xl prose-h3:text-3xl prose-a:text-teal-600 hover:prose-a:text-teal-700 prose-img:rounded-2xl prose-img:shadow-md prose-img:max-w-full prose-ul:list-disc prose-ol:list-decimal prose-li:my-2 prose-ul:pl-6 prose-ol:pl-6 prose-table:border-collapse prose-th:border prose-th:bg-slate-50 prose-td:border prose-th:p-3 prose-td:p-3"
+              className="prose prose-lg md:prose-xl max-w-none w-full break-words overflow-x-auto text-slate-700 leading-loose prose-headings:font-black prose-headings:text-slate-900 prose-h2:text-4xl md:prose-h2:text-5xl prose-h3:text-3xl prose-a:text-teal-600 hover:prose-a:text-teal-700 prose-img:rounded-2xl prose-img:shadow-md prose-img:max-w-full [&_ul]:list-disc [&_ul]:ml-8 [&_ul]:mb-6 [&_ol]:list-decimal [&_ol]:ml-8 [&_ol]:mb-6 [&_li]:my-2 [&_li]:marker:text-slate-800 [&_p]:mb-6 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:bg-slate-50 [&_td]:border [&_th]:p-3 [&_td]:p-3"
               dangerouslySetInnerHTML={{ __html: place.description || '' }}
             />
           </section>
