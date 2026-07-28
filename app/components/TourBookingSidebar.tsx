@@ -1,0 +1,368 @@
+"use client"
+import { useState, useEffect } from 'react'
+import { supabase } from '../../utils/supabase'
+
+export default function TourBookingSidebar({ tour, meta, destinations }: { tour: any, meta: any, destinations: string }) {
+  // Modal state ab do tarah ki modals handle karega: 'book' ya 'inquiry'
+  const [activeModal, setActiveModal] = useState<'book' | 'inquiry' | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  
+  // Date validation (Same day booking not allowed)
+  const [minDate, setMinDate] = useState('')
+  useEffect(() => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    setMinDate(tomorrow.toISOString().split('T')[0])
+  }, [])
+
+  // ==========================================
+  // 1. BOOKING FORM STATE & HANDLERS
+  // ==========================================
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    date: '',
+    time: '',
+    pickup: '',
+    selectedPackage: ''
+  })
+  
+  const [consent1, setConsent1] = useState(false)
+  const [consent2, setConsent2] = useState(false)
+
+  // Places to Visit array ko string mein convert karna
+  const placesToVisitStr = meta.placesToVisit && meta.placesToVisit.length > 0 
+    ? meta.placesToVisit.join(', ') 
+    : destinations
+
+  // Pricing Options List banana
+  const packageOptions = []
+  if (meta.personPrices) {
+    if (meta.personPrices.min2) packageOptions.push(`Min 2 Pax: ₹${meta.personPrices.min2}`)
+    if (meta.personPrices.min4) packageOptions.push(`Min 4 Pax: ₹${meta.personPrices.min4}`)
+    if (meta.personPrices.min6) packageOptions.push(`Min 6 Pax: ₹${meta.personPrices.min6}`)
+    if (meta.personPrices.min8) packageOptions.push(`Min 8+ Pax: ₹${meta.personPrices.min8}`)
+  }
+  if (meta.cabPrices) {
+    if (meta.cabPrices.hatchback) packageOptions.push(`Hatchback Cab: ₹${meta.cabPrices.hatchback}`)
+    if (meta.cabPrices.sedan) packageOptions.push(`Sedan Cab: ₹${meta.cabPrices.sedan}`)
+    if (meta.cabPrices.suv) packageOptions.push(`SUV Cab: ₹${meta.cabPrices.suv}`)
+    if (meta.cabPrices.innova) packageOptions.push(`Innova Cab: ₹${meta.cabPrices.innova}`)
+    if (meta.cabPrices.tempo) packageOptions.push(`Tempo Traveller: ₹${meta.cabPrices.tempo}`)
+  }
+
+  const handleBookNow = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!consent1 || !consent2) {
+      alert("Please accept both terms to proceed with booking.")
+      return
+    }
+    setSubmitting(true)
+
+    // 1. Backend (Supabase) mein save karna (Admin Leads Dashboard Format me)
+    const bookingDataPayload = {
+      customer_name: formData.name,
+      customer_mobile: formData.phone,
+      booking_type: 'tour',
+      listing_title: tour.title,
+      booking_details: {
+        tour_id: tour.id,
+        vendor_id: tour.vendor_id,
+        date: formData.date,
+        time: formData.time,
+        pickup: formData.pickup,
+        selectedPackage: formData.selectedPackage,
+        placesToVisit: placesToVisitStr,
+        inclusions: meta.inclusions || 'Not specified',
+        exclusions: meta.exclusions || 'Not specified'
+      }
+    }
+
+    // Insert into database
+    const { error } = await supabase.from('bookings').insert([bookingDataPayload])
+    if (error) console.error("Booking save error:", error)
+
+    // 🌟 NEW: EMAIL TRIGGER API CALL
+    fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'New Tour Booking Lead', data: bookingDataPayload })
+    }).catch(err => console.error("Email bhejte waqt error aaya:", err))
+
+    // 2. WhatsApp Message Format
+    const waNumber = '919867600452' // Aapka helpline/vendor number
+    const text = `🚀 *New Booking Request*
+-----------------------------
+*Tour Name:* ${tour.title}
+*Customer Name:* ${formData.name}
+*Contact No:* ${formData.phone}
+*Date & Time:* ${formData.date} at ${formData.time}
+*Pickup Loc:* ${formData.pickup}
+*Package Selected:* ${formData.selectedPackage}
+
+📍 *Places to Visit:* 
+${placesToVisitStr || 'As per itinerary'}
+
+✅ *Included:* 
+${meta.inclusions || 'N/A'}
+
+❌ *Excluded:* 
+${meta.exclusions || 'N/A'}
+
+✔️ Customer agreed to ₹1000 advance payment.
+✔️ Customer agreed to cancellation policy.`
+
+    const encodedText = encodeURIComponent(text)
+    
+    setSubmitting(false)
+    setActiveModal(null)
+    
+    // 3. Redirect to WhatsApp
+    window.open(`https://wa.me/${waNumber}?text=${encodedText}`, '_blank')
+  }
+
+  // ==========================================
+  // 2. INQUIRY FORM STATE & HANDLERS
+  // ==========================================
+  const [inquiryData, setInquiryData] = useState({
+    name: '',
+    mobile: '',
+    purpose: ''
+  })
+
+  const handleInquiryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setInquiryData({ ...inquiryData, [e.target.name]: e.target.value })
+  }
+
+  const handleInquirySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+
+    const waNumber = '919867600452'
+
+    // Save Inquiry to DB (Admin Leads)
+    const inquiryPayload = {
+      customer_name: inquiryData.name,
+      customer_mobile: inquiryData.mobile,
+      booking_type: 'tour_inquiry', // Separate type for admin dashboard
+      listing_title: tour.title,
+      booking_details: {
+        requestType: 'Inquiry',
+        purpose: inquiryData.purpose,
+        pageUrl: typeof window !== 'undefined' ? window.location.href : 'Unknown'
+      }
+    }
+
+    const { error } = await supabase.from('bookings').insert([inquiryPayload])
+    if (error) console.error("Inquiry save error:", error)
+
+    // 🌟 NEW: EMAIL TRIGGER API CALL
+    fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'New Tour Inquiry Alert', data: inquiryPayload })
+    }).catch(err => console.error("Email bhejte waqt error aaya:", err))
+
+    // Redirect to WhatsApp
+    const message = `*New Tour Inquiry* 💬
+    
+*Customer Details:*
+👤 Name: ${inquiryData.name}
+📞 Mobile: ${inquiryData.mobile}
+
+*Inquiring For:* 
+🗺️ ${tour.title}
+
+*Purpose / Question:*
+${inquiryData.purpose}
+
+Kindly provide more details.`.trim()
+
+    const encodedMessage = encodeURIComponent(message)
+    window.open(`https://wa.me/${waNumber}?text=${encodedMessage}`, '_blank')
+
+    setSubmitting(false)
+    setActiveModal(null)
+  }
+
+  return (
+    <>
+      <div className="bg-white p-6 rounded-2xl shadow-xl border border-blue-100 sticky top-24">
+        
+        {/* Available Packages Pricing Section */}
+        <div className="mb-8">
+          <h3 className="text-gray-900 font-extrabold text-xl border-b pb-2 mb-4">Available Packages</h3>
+          
+          {/* Per Person Pricing List */}
+          {meta.personPrices && (meta.personPrices.min2 || meta.personPrices.min4 || meta.personPrices.min6 || meta.personPrices.min8) && (
+            <div className="mb-5 space-y-2">
+              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Per Person Pricing</h4>
+              {meta.personPrices.min2 && <div className="flex justify-between items-center text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100"><span className="text-gray-700 font-medium">Min 2 Pax:</span> <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min2}</span></div>}
+              {meta.personPrices.min4 && <div className="flex justify-between items-center text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100"><span className="text-gray-700 font-medium">Min 4 Pax:</span> <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min4}</span></div>}
+              {meta.personPrices.min6 && <div className="flex justify-between items-center text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100"><span className="text-gray-700 font-medium">Min 6 Pax:</span> <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min6}</span></div>}
+              {meta.personPrices.min8 && <div className="flex justify-between items-center text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100"><span className="text-gray-700 font-medium">Min 8+ Pax:</span> <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min8}</span></div>}
+            </div>
+          )}
+
+          {/* Cab Wise Pricing List */}
+          {meta.cabPrices && (meta.cabPrices.hatchback || meta.cabPrices.sedan || meta.cabPrices.suv || meta.cabPrices.innova || meta.cabPrices.tempo) && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cab Wise Pricing (Total)</h4>
+              {meta.cabPrices.hatchback && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">Hatchback:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.hatchback}</span></div>}
+              {meta.cabPrices.sedan && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">Sedan:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.sedan}</span></div>}
+              {meta.cabPrices.suv && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">SUV / Ertiga:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.suv}</span></div>}
+              {meta.cabPrices.innova && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">Innova / Crysta:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.innova}</span></div>}
+              {meta.cabPrices.tempo && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">Tempo Traveller:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.tempo}</span></div>}
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-3 mt-6">
+          <button 
+            onClick={() => setActiveModal('book')}
+            className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 transition-colors shadow-lg text-lg flex items-center justify-center gap-2"
+          >
+            🗓️ Book Now
+          </button>
+          
+          <button 
+            onClick={() => setActiveModal('inquiry')}
+            className="w-full bg-green-50 border border-green-200 text-green-700 font-bold py-3 px-4 rounded-xl hover:bg-green-100 transition-colors text-lg flex items-center justify-center gap-2"
+          >
+            💬 Send Inquiry
+          </button>
+        </div>
+      </div>
+
+      {/* ========================================== */}
+      {/* MODAL 1: BOOKING FORM                      */}
+      {/* ========================================== */}
+      {activeModal === 'book' && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl relative my-8">
+            
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
+              <h2 className="text-xl font-extrabold text-gray-900">Book: {tour.title}</h2>
+              <button onClick={() => setActiveModal(null)} className="text-gray-400 hover:text-gray-800 font-bold text-xl">✕</button>
+            </div>
+
+            <div className="p-6">
+              {/* Reference Info (Places, Inclusions, Exclusions) POORA DIKHANA HAI */}
+              <div className="bg-gray-50 p-5 rounded-xl text-sm space-y-4 border border-gray-200 mb-6">
+                <div>
+                  <span className="font-bold text-blue-900 block mb-1">📍 Places to Visit:</span> 
+                  <span className="text-gray-700">{placesToVisitStr || 'As per itinerary'}</span>
+                </div>
+                {meta.inclusions && (
+                  <div>
+                    <span className="font-bold text-green-700 block mb-1">✅ Included:</span> 
+                    <span className="text-gray-700 whitespace-pre-wrap">{meta.inclusions}</span>
+                  </div>
+                )}
+                {meta.exclusions && (
+                  <div>
+                    <span className="font-bold text-red-700 block mb-1">❌ Excluded:</span> 
+                    <span className="text-gray-700 whitespace-pre-wrap">{meta.exclusions}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Form Fields */}
+              <form onSubmit={handleBookNow} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Your Name</label>
+                    <input type="text" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} placeholder="Full Name" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Contact Number</label>
+                    <input type="tel" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="WhatsApp Number" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Date of Travel</label>
+                    <input type="date" required min={minDate} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Pickup Time</label>
+                    <input type="time" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.time} onChange={(e) => setFormData({...formData, time: e.target.value})} />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Pickup Address (Hotel / Airport / Station)</label>
+                    <input type="text" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.pickup} onChange={(e) => setFormData({...formData, pickup: e.target.value})} placeholder="Exact pickup location" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Select Package / Vehicle</label>
+                    <select required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-700 bg-white" value={formData.selectedPackage} onChange={(e) => setFormData({...formData, selectedPackage: e.target.value})}>
+                      <option value="">-- Choose from available options --</option>
+                      {packageOptions.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Consent Checkboxes */}
+                <div className="space-y-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" required checked={consent1} onChange={(e) => setConsent1(e.target.checked)} className="mt-1 w-4 h-4 text-blue-600 rounded" />
+                    <span className="text-sm font-bold text-gray-800">Your booking will be confirmed only after an advance payment of ₹1000.</span>
+                  </label>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" required checked={consent2} onChange={(e) => setConsent2(e.target.checked)} className="mt-1 w-4 h-4 text-blue-600 rounded" />
+                    <span className="text-sm font-medium text-gray-700">I agree to the <a href="/cancellation-policy" target="_blank" className="text-blue-600 underline font-bold">Cancellation Policy</a>.</span>
+                  </label>
+                </div>
+
+                {/* Submit Button */}
+                <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 disabled:bg-blue-300 transition-colors shadow-lg text-lg">
+                  {submitting ? 'Processing...' : 'Confirm & Proceed to WhatsApp ➔'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* MODAL 2: INQUIRY FORM                      */}
+      {/* ========================================== */}
+      {activeModal === 'inquiry' && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            <div className="bg-slate-800 p-6 flex justify-between items-center text-white">
+              <h3 className="text-xl font-black">Send Inquiry</h3>
+              <button onClick={() => setActiveModal(null)} className="text-white hover:bg-slate-700 rounded-full p-2 font-bold transition">✕</button>
+            </div>
+
+            <form onSubmit={handleInquirySubmit} className="p-6 md:p-8 space-y-5">
+              
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Your Name</label>
+                <input type="text" name="name" required className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-slate-500" placeholder="John Doe" onChange={handleInquiryChange} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mobile Number</label>
+                <input type="tel" name="mobile" required className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-slate-500" placeholder="+91 XXXXX XXXXX" onChange={handleInquiryChange} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Purpose / Your Question</label>
+                <textarea name="purpose" required rows={3} className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-slate-500 resize-none" placeholder="What details would you like to know?" onChange={handleInquiryChange}></textarea>
+              </div>
+
+              <div className="pt-4 mt-6 border-t border-slate-100">
+                <button type="submit" disabled={submitting} className="w-full bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white font-black py-4 rounded-xl shadow-lg transition-all active:scale-95 text-lg">
+                  {submitting ? 'Processing...' : 'Send Inquiry via WhatsApp →'}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+    </>
+  )
+}

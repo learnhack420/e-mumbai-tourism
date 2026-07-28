@@ -1,49 +1,182 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { supabase } from '../../utils/supabase'
+import { supabase } from '../../utils/supabase' // path check kar lijiye agar alag ho
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState('bookings') // Default tab now 'bookings'
+  const [activeListingCategory, setActiveListingCategory] = useState('all') // Sub-tab state for listings
+  
   const [listings, setListings] = useState<any[]>([])
+  const [vendors, setVendors] = useState<any[]>([])
+  const [bookings, setBookings] = useState<any[]>([]) // STATE FOR BOOKINGS
   const [isLoading, setIsLoading] = useState(true)
+
+  // Edit Vendor Modal States (UPDATED WITH PROFILE FIELDS)
+  const [editingVendor, setEditingVendor] = useState<any>(null)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editCompany, setEditCompany] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+
   const router = useRouter()
 
   useEffect(() => {
     checkAdmin()
   }, [])
 
-  // Check karna ki admin logged in hai ya nahi
   async function checkAdmin() {
     const { data: { session } } = await supabase.auth.getSession()
-    
     if (!session) {
-      // Agar login nahi hai, toh wapas login page par bhej do
       router.push('/login')
-    } else {
-      // Agar login hai, tabhi listings fetch karo
-      fetchListings()
+      return
     }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', session.user.id)
+      .single()
+
+    if (!profile || profile.role !== 'admin') {
+      router.push('/')
+      return
+    }
+
+    // Call all fetch functions
+    fetchVendors()
+    fetchListings()
+    fetchBookings()
   }
 
+  // 1. Fetch Bookings 
+  async function fetchBookings() {
+    const { data } = await supabase
+      .from('bookings')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setBookings(data)
+  }
+
+  // 2. Update Booking Status 
+  async function updateBookingStatus(id: string, newStatus: string) {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status: newStatus })
+      .eq('id', id)
+    if (!error) fetchBookings()
+  }
+
+  // 3. Fetch Vendors (Partners)
+  async function fetchVendors() {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'vendor')
+      .order('created_at', { ascending: false })
+    if (data) setVendors(data)
+  }
+
+  // 4. Fetch Listings
   async function fetchListings() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('listings')
       .select('*')
       .order('created_at', { ascending: false })
-    
     if (data) setListings(data)
     setIsLoading(false)
   }
 
+  // 5. Update Vendor Account Status
+  async function updateVendorStatus(id: string, newStatus: string) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ approval_status: newStatus })
+      .eq('id', id)
+    if (!error) fetchVendors()
+  }
+
+  // 6. Delete Vendor
+  async function deleteVendor(id: string) {
+    if (!window.confirm("WARNING: Kya aap sach mein is vendor ko delete karna chahte hain? Inki saari listings bhi remove ho sakti hain.")) return
+
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      alert("Error deleting vendor: " + error.message)
+    } else {
+      fetchVendors()
+    }
+  }
+
+  // Open Edit Vendor Modal (UPDATED)
+  const openEditVendorModal = (vendor: any) => {
+    setEditingVendor(vendor)
+    setEditName(vendor.full_name || '')
+    setEditEmail(vendor.email || '')
+    setEditPhone(vendor.phone || '')
+    setEditCompany(vendor.company_name || '')
+    setEditAddress(vendor.address || '')
+  }
+
+  // Save Edited Vendor Details (UPDATED)
+  async function handleUpdateVendor(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingVendor) return
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        full_name: editName, 
+        email: editEmail,
+        phone: editPhone,
+        company_name: editCompany,
+        address: editAddress
+      })
+      .eq('id', editingVendor.id)
+
+    if (error) {
+      alert("Error updating vendor: " + error.message)
+    } else {
+      setEditingVendor(null)
+      fetchVendors()
+    }
+  }
+
+  // 7. Update Listing Status
   async function updateListingStatus(id: string, newStatus: string) {
     const { error } = await supabase
       .from('listings')
       .update({ status: newStatus })
       .eq('id', id)
-    
-    if (!error) {
-      fetchListings()
-    }
+    if (!error) fetchListings()
+  }
+
+  // Helper to determine Edit URL based on category
+  const getEditUrl = (listing: any) => {
+    const cat = listing.category
+    if (cat === 'tour') return `/add-listing/tour?edit=${listing.id}`
+    if (cat === 'hotel') return `/add-listing/hotel?edit=${listing.id}`
+    if (cat === 'cab') return `/add-listing/cab?edit=${listing.id}`
+    if (cat === 'destination') return `/admin/edit-place/${listing.id}`
+    if (cat === 'blog') return `/admin/blog/edit/${listing.id}`
+    return `/vendor`
+  }
+
+  // Helper to determine View URL based on custom routing rules
+  const getViewUrl = (listing: any) => {
+    const slug = listing.slug || listing.id
+    if (listing.category === 'tour') return `/tour/${slug}`
+    if (listing.category === 'hotel') return `/hotel/${slug}`
+    if (listing.category === 'cab') return `/cabs/${slug}`
+    if (listing.category === 'destination') return `/places/${slug}`
+    if (listing.category === 'blog') return `/${slug}`
+    return `/listing/${slug}`
   }
 
   async function handleLogout() {
@@ -51,63 +184,275 @@ export default function AdminDashboard() {
     router.push('/login')
   }
 
+  // Sub-tabs categories configuration
+  const listingCategories = [
+    { id: 'all', label: 'All Listings' },
+    { id: 'destination', label: 'Tourist Places' },
+    { id: 'tour', label: 'Tour Packages' },
+    { id: 'hotel', label: 'Hotels' },
+    { id: 'cab', label: 'Cabs' },
+    { id: 'blog', label: 'Blogs' }
+  ]
+
+  // Filter listings based on active sub-tab
+  const displayedListings = activeListingCategory === 'all' 
+    ? listings 
+    : listings.filter(listing => listing.category === activeListingCategory)
+
   if (isLoading) return <div className="min-h-screen flex items-center justify-center text-xl font-bold">Checking Security...</div>
 
   return (
-    <div className="min-h-screen p-8 bg-gray-100">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900">Admin Dashboard</h1>
-          <button onClick={handleLogout} className="bg-red-100 text-red-600 font-bold px-4 py-2 rounded-lg hover:bg-red-200">
-            Logout
+    <div className="min-h-screen p-8 bg-gray-100 relative font-sans">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <h1 className="text-3xl font-extrabold text-gray-900">Admin Control Panel</h1>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/admin/add-place" className="bg-teal-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors text-sm">+ Add Tourist Place</Link>
+            <Link href="/add-listing/tour" className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm">+ Add Tour</Link>
+            <Link href="/add-listing/hotel" className="bg-amber-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors text-sm">+ Add Hotel</Link>
+            <Link href="/add-listing/cab" className="bg-blue-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">+ Add Cab</Link>
+            <Link href="/admin/blog/add" className="bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm">+ Add Blog Article</Link>
+            <button onClick={handleLogout} className="bg-red-100 text-red-600 font-bold px-4 py-2 rounded-lg hover:bg-red-200 transition-colors text-sm">Logout</button>
+          </div>
+        </div>
+
+        {/* Primary Tab Buttons */}
+        <div className="flex space-x-4 mb-8">
+          <button onClick={() => setActiveTab('bookings')} className={`px-6 py-3 font-bold rounded-lg transition-colors ${activeTab === 'bookings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+            📋 Customer Bookings / Leads
+          </button>
+          <button onClick={() => setActiveTab('vendors')} className={`px-6 py-3 font-bold rounded-lg transition-colors ${activeTab === 'vendors' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+            👥 Manage Partners
+          </button>
+          <button onClick={() => setActiveTab('listings')} className={`px-6 py-3 font-bold rounded-lg transition-colors ${activeTab === 'listings' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}>
+            📑 Manage Listings
           </button>
         </div>
         
         <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title & Location</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Price</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {listings.map((listing) => (
-                <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-bold text-gray-900">{listing.title}</div>
-                    <div className="text-sm text-gray-500 mt-1">📍 {listing.location}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-600">₹{listing.price}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full uppercase tracking-wide ${
-                      listing.status === 'approved' ? 'bg-green-100 text-green-800' : 
-                      listing.status === 'declined' ? 'bg-red-100 text-red-800' : 
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {listing.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {listing.status === 'pending' && (
-                      <>
-                        <button onClick={() => updateListingStatus(listing.id, 'approved')} className="text-green-600 hover:text-green-900 mr-5">Approve</button>
-                        <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900">Decline</button>
-                      </>
-                    )}
-                    {listing.status === 'approved' && (
-                      <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900">Decline</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {listings.length === 0 && <div className="p-6 text-center text-gray-500">Abhi koi data majood nahi hai.</div>}
+          
+          {/* TAB 1: BOOKINGS & INQUIRIES (NEW TAB) */}
+          {activeTab === 'bookings' && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Customer Details</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Service Inquired</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Extra Details</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {bookings.map((booking) => (
+                    <tr key={booking.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(booking.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        <br/>
+                        <span className="text-xs">{new Date(booking.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-bold text-gray-900">{booking.customer_name}</div>
+                        <div className="text-sm font-bold text-green-600">{booking.customer_mobile}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 inline-flex text-xs leading-5 font-bold rounded-full bg-blue-100 text-blue-800 uppercase mb-1">
+                          {booking.booking_type}
+                        </span>
+                        <div className="text-sm text-gray-800 font-bold">{booking.listing_title}</div>
+                      </td>
+                      <td className="px-6 py-4 text-xs text-gray-600">
+                        {/* JSON Data display logic */}
+                        {booking.booking_details && (
+                          <div className="space-y-1">
+                            {booking.booking_details.date && <div>📅 <span className="font-semibold">{booking.booking_details.date}</span></div>}
+                            {booking.booking_details.pickup && <div>📍 {booking.booking_details.pickup} ➔ {booking.booking_details.drop}</div>}
+                            {booking.booking_details.selectedCab && <div>🚘 {booking.booking_details.selectedCab}</div>}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-medium">
+                        <select 
+                          className={`text-xs font-bold rounded-lg px-2 py-1 outline-none border-2 ${
+                            booking.status === 'New' ? 'border-red-200 bg-red-50 text-red-700' : 
+                            booking.status === 'Contacted' ? 'border-yellow-200 bg-yellow-50 text-yellow-700' : 
+                            'border-green-200 bg-green-50 text-green-700'
+                          }`}
+                          value={booking.status || 'New'}
+                          onChange={(e) => updateBookingStatus(booking.id, e.target.value)}
+                        >
+                          <option value="New">🔴 New Lead</option>
+                          <option value="Contacted">🟡 Contacted</option>
+                          <option value="Completed">🟢 Completed</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {bookings.length === 0 && <div className="p-8 text-center text-gray-500 font-bold text-lg">Koi bookings ya leads abhi tak nahi aayi hain.</div>}
+            </div>
+          )}
+
+          {/* TAB 2: VENDORS TABLE */}
+          {activeTab === 'vendors' && (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Partner Info</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact & Agency</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {vendors.map((vendor) => (
+                    <tr key={vendor.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-bold text-gray-900">{vendor.full_name}</div>
+                        <div className="text-sm text-gray-500">{vendor.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-bold text-gray-700">{vendor.company_name || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{vendor.phone || 'No Phone'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${
+                          vendor.approval_status === 'approved' ? 'bg-green-100 text-green-800' : 
+                          vendor.approval_status === 'declined' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {vendor.approval_status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
+                        <button onClick={() => openEditVendorModal(vendor)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</button>
+                        <button onClick={() => deleteVendor(vendor.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md inline-block">🗑️ Del</button>
+
+                        {vendor.approval_status === 'pending' && (
+                          <>
+                            <button onClick={() => updateVendorStatus(vendor.id, 'approved')} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
+                            <button onClick={() => updateVendorStatus(vendor.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
+                          </>
+                        )}
+                        {vendor.approval_status === 'approved' && (
+                           <button onClick={() => updateVendorStatus(vendor.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Revoke</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {vendors.length === 0 && <div className="p-8 text-center text-gray-500">Is section mein abhi koi vendor nahi hai.</div>}
+            </div>
+          )}
+
+          {/* TAB 3: LISTINGS TABLE */}
+          {activeTab === 'listings' && (
+            <div>
+              <div className="bg-gray-50 border-b border-gray-200 p-4 flex gap-2 overflow-x-auto whitespace-nowrap">
+                {listingCategories.map(cat => (
+                  <button key={cat.id} onClick={() => setActiveListingCategory(cat.id)} className={`px-4 py-2 text-sm font-bold rounded-full transition-colors ${activeListingCategory === cat.id ? 'bg-blue-100 text-blue-700 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-200 border border-gray-200'}`}>
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title & Location</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Category & Price</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {displayedListings.map((listing) => (
+                      <tr key={listing.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-bold text-gray-900">{listing.title}</div>
+                          <div className="text-sm text-gray-500">📍 {listing.location || 'Online / Blog'}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm font-bold text-blue-600 uppercase">{listing.category}</div>
+                          <div className="text-sm text-gray-600 font-bold">{listing.category === 'destination' || listing.category === 'blog' ? 'Free / Info' : `₹${listing.price}`}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${listing.status === 'approved' ? 'bg-green-100 text-green-800' : listing.status === 'declined' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            {listing.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
+                          <Link href={getViewUrl(listing)} target="_blank" className="text-purple-600 hover:text-purple-900 font-bold bg-purple-50 px-3 py-1 rounded-md inline-block">👁️ View</Link>
+                          <Link href={getEditUrl(listing)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</Link>
+                          {listing.status === 'pending' && (
+                            <>
+                              <button onClick={() => updateListingStatus(listing.id, 'approved')} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
+                              <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
+                            </>
+                          )}
+                          {listing.status === 'approved' && (
+                            <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {displayedListings.length === 0 && <div className="p-8 text-center text-gray-500">Is category mein abhi koi listing/content nahi hai.</div>}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
+
+      {/* EDIT VENDOR MODAL POPUP */}
+      {editingVendor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-extrabold text-gray-900">Edit Vendor Profile</h2>
+              <button onClick={() => setEditingVendor(null)} className="text-gray-400 hover:text-red-500 text-xl font-bold">✕</button>
+            </div>
+            
+            <form onSubmit={handleUpdateVendor} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Full Name</label>
+                  <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editName} onChange={(e) => setEditName(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+                  <input type="email" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
+                  <input type="tel" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Agency Name</label>
+                  <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} placeholder="Travel Agency" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Full Address</label>
+                <textarea rows={2} className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 resize-none" value={editAddress} onChange={(e) => setEditAddress(e.target.value)} placeholder="Office location..."></textarea>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100">
+                <button type="button" onClick={() => setEditingVendor(null)} className="bg-gray-100 text-gray-700 font-bold px-5 py-2.5 rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                <button type="submit" className="bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl hover:bg-blue-700 shadow-md transition-all active:scale-95">Save Changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
