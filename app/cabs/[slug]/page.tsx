@@ -304,6 +304,8 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
 
         </div>
 
+        <div> <VendorInfoCard vendorId={cab?.vendor_id || 'default-fallback'} /> </div>
+
         {/* ========================================= */}
         {/* RIGHT COLUMN: SIDEBAR                     */}
         {/* ========================================= */}
