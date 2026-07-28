@@ -179,18 +179,34 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               <div className="bg-emerald-50 p-6 md:p-8 rounded-3xl border border-emerald-100 shadow-sm">
                 <h3 className="text-xl font-black text-emerald-950 mb-4 flex items-center gap-2">Included:</h3>
                 <ul className="text-emerald-900 font-medium space-y-3">
+                  {/* Default/Base Inclusions */}
                   {meta.tollCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Toll Charges</li>}
                   {meta.parkingCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Parking Charges</li>}
                   {meta.driverDa === 'Yes' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Driver Allowance</li>}
+                  
+                  {/* 🔥 DYNAMIC/CUSTOM INCLUSIONS MAPPED HERE */}
+                  {meta.customInclusions && meta.customInclusions.length > 0 && meta.customInclusions.map((item: string, idx: number) => (
+                    <li key={`inc-${idx}`} className="flex items-center gap-2">
+                      <span className="text-emerald-500 text-lg leading-none">✓</span> {item}
+                    </li>
+                  ))}
                 </ul>
               </div>
               
               <div className="bg-rose-50 p-6 md:p-8 rounded-3xl border border-rose-100 shadow-sm">
                 <h3 className="text-xl font-black text-rose-950 mb-4 flex items-center gap-2">Not Included:</h3>
                 <ul className="text-rose-900 font-medium space-y-3">
+                  {/* Default/Base Exclusions */}
                   {meta.tollCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Toll Charges</li>}
                   {meta.parkingCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Parking Charges</li>}
                   {meta.driverDa === 'No' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Driver Allowance</li>}
+                  
+                  {/* 🔥 DYNAMIC/CUSTOM EXCLUSIONS MAPPED HERE */}
+                  {meta.customExclusions && meta.customExclusions.length > 0 && meta.customExclusions.map((item: string, idx: number) => (
+                    <li key={`exc-${idx}`} className="flex items-center gap-2">
+                      <span className="text-rose-500 text-lg leading-none">✕</span> {item}
+                    </li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -267,7 +283,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               </div>
             )}
 
-            {/* 🔥 7. VENDOR INFO CARD MOVED HERE (Right after FAQs inside Main Content Column) */}
+            {/* 7. VENDOR INFO CARD */}
             <div className="mt-10 pt-6 border-t border-slate-100">
               <VendorInfoCard vendorId={cab?.vendor_id || 'default-fallback'} />
             </div>
