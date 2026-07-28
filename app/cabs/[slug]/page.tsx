@@ -1,9 +1,9 @@
-import { supabase } from '@/utils/supabase' // Path alias
+import { supabase } from '@/utils/supabase'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import CabBookingSidebar from '@/app/components/CabBookingSidebar' // Ensure this path is correct
-import AIAutoRoutePlanner from '@/app/components/AIAutoRoutePlanner' // Aapke AI Route Planner ka path
+import CabBookingSidebar from '@/app/components/CabBookingSidebar'
+import AIAutoRoutePlanner from '@/app/components/AIAutoRoutePlanner'
 import VendorInfoCard from '@/app/components/VendorInfoCard'
 
 export const revalidate = 60
@@ -41,18 +41,6 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
   const gallery = meta.gallery && meta.gallery.length > 0 
     ? meta.gallery 
     : ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=1200']
-
-  // Format Trip Details Based on Trip Type
-  let tripDetailsText = ''
-  if (meta.subType === 'Point to Point') {
-    tripDetailsText = `${meta.pickupPoint || 'N/A'} ➔ ${meta.dropPoint || 'N/A'}`
-  } else if (meta.subType === 'Local Rental') {
-    tripDetailsText = meta.rentalPackage || 'N/A'
-  } else if (meta.subType === 'One Way') {
-    tripDetailsText = `${meta.distance ? meta.distance + ' KM' : 'Distance N/A'}`
-  } else if (meta.subType === 'Round Trip') {
-    tripDetailsText = `${meta.distance ? meta.distance + ' KM' : 'Distance N/A'} (Min ${meta.minKmPerDay || 250} KM/Day)`
-  }
 
   // Generate Google Maps Search Query for Local Map
   const isLocal = meta.mainType === 'Local';
@@ -195,7 +183,6 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                   {meta.parkingCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Parking Charges</li>}
                   {meta.driverDa === 'Yes' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Driver Allowance</li>}
                 </ul>
-                {(!meta.tollCharges || meta.tollCharges === 'No') && (!meta.parkingCharges || meta.parkingCharges === 'No') && (!meta.driverDa || meta.driverDa === 'No') && <p className="text-emerald-800 text-sm mt-2 font-medium">Please check description for inclusions.</p>}
               </div>
               
               <div className="bg-rose-50 p-6 md:p-8 rounded-3xl border border-rose-100 shadow-sm">
@@ -204,14 +191,11 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                   {meta.tollCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Toll Charges</li>}
                   {meta.parkingCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Parking Charges</li>}
                   {meta.driverDa === 'No' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Driver Allowance</li>}
-                  {meta.subType !== 'One Way' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Night Charges (9PM - 6AM)</li>}
-                  <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> State Border Tax (If any)</li>
-                  <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Tourist Attraction Fees</li>
                 </ul>
               </div>
             </div>
 
-            {/* 5. Map & Route Section (Conditional based on Local/Outstation) */}
+            {/* 5. Map & Route Section */}
             <div className="mb-10 border-t border-slate-100 pt-10">
               {isOutstation ? (
                 <>
@@ -222,7 +206,6 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                     </div>
                   )}
                   
-                  {/* 🔥 SAFE AI Auto Route Planner for Outstation Trips */}
                   {(meta.pickupCity || cab.location) && (meta.dropCity) && (
                     <div className="mb-8 bg-slate-50 p-6 rounded-3xl border border-slate-200">
                       <AIAutoRoutePlanner 
@@ -232,7 +215,6 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                     </div>
                   )}
 
-                  {/* Outstation Google Map */}
                   <h3 className="text-2xl font-black text-slate-900 mb-6 tracking-tight">Travel Route Map</h3>
                   <div className="w-full h-[350px] bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200">
                     <iframe 
@@ -304,12 +286,12 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
         </div>
 
         {/* ========================================= */}
-        {/* RIGHT COLUMN: SIDEBAR (CLIENT COMPONENT)  */}
+        {/* RIGHT COLUMN: SIDEBAR                     */}
         {/* ========================================= */}
         <div className="lg:col-span-1 space-y-6">
           <CabBookingSidebar cab={cab} meta={meta} />
           
-          {/* 🏢 Vendor / Host Info Card */}
+          {/* Vendor / Host Info Card */}
           {cab?.vendor_id && <VendorInfoCard vendorId={cab.vendor_id} />}
         </div>
 
