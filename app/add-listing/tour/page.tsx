@@ -1,19 +1,22 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '../../../utils/supabase'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
 
-export default function AddTourListing() {
+function TourFormContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('edit') // Fetch ID from URL for Edit Mode
+
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [vendorId, setVendorId] = useState('')
-  const [userRole, setUserRole] = useState('') // Admin/Vendor ko identify karne ke liye
+  const [userRole, setUserRole] = useState('') 
   const [message, setMessage] = useState({ type: '', text: '' })
 
   // 1. Basic Info & SEO States
@@ -72,11 +75,10 @@ export default function AddTourListing() {
   const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
   useEffect(() => {
-    checkVendorStatus()
-  }, [])
+    checkVendorAndLoadData()
+  }, [editId])
 
-  // UPDATE: Admin aur Approved Vendor dono is form ko access kar sakte hain
-  async function checkVendorStatus() {
+  async function checkVendorAndLoadData() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       router.push('/login')
@@ -89,20 +91,83 @@ export default function AddTourListing() {
       .eq('id', session.user.id)
       .single()
 
-    // Sirf admin ya vendor hone par hi entry milegi
     if (!profile || (profile.role !== 'vendor' && profile.role !== 'admin')) {
       router.push('/login')
       return
     }
 
-    // Agar user vendor hai, toh uska 'approved' hona zaroori hai
     if (profile.role === 'vendor' && profile.approval_status !== 'approved') {
       router.push('/login')
       return
     }
 
     setVendorId(session.user.id)
-    setUserRole(profile.role) // Save role for later redirection
+    setUserRole(profile.role)
+
+    // 🔥 FETCH EXISTING DATA IF IN EDIT MODE
+    if (editId) {
+      const { data: listing, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', editId)
+        .single()
+
+      if (error || !listing) {
+        setMessage({ type: 'error', text: 'Listing nahi mili!' })
+        setLoading(false)
+        return
+      }
+
+      setTitle(listing.title || '')
+      setSlug(listing.slug || '')
+      setSlugEdited(true)
+      setPrice(listing.price?.toString() || '')
+
+      const meta = listing.metadata || {}
+      
+      // Basic Metadata
+      setThumbnail(meta.thumbnail || '')
+      setMetaTitle(meta.seo?.metaTitle || '')
+      setMetaDescription(meta.seo?.metaDescription || '')
+      setMetaKeywords(meta.seo?.metaKeywords || '')
+
+      // Locations extraction
+      setStartLocation(meta.startLocation || (listing.location?.split(' ➔ ')[0]) || '')
+      setDestinations(meta.destinations || (listing.location?.split(' ➔ ')[1]) || '')
+
+      // Duration extraction
+      if (meta.durationRaw) {
+        setDurationDays(meta.durationRaw.d || '0')
+        setDurationNights(meta.durationRaw.n || '0')
+        setDurationHours(meta.durationRaw.h || '0')
+      } else if (meta.duration) {
+        // Fallback parser if durationRaw missing
+        const dMatch = meta.duration.match(/(\d+)\s+Day/);
+        const nMatch = meta.duration.match(/(\d+)\s+Night/);
+        const hMatch = meta.duration.match(/(\d+)\s+Hour/);
+        if (dMatch) setDurationDays(dMatch[1]);
+        if (nMatch) setDurationNights(nMatch[1]);
+        if (hMatch) setDurationHours(hMatch[1]);
+      }
+
+      if (meta.pickupTimes?.length > 0) setPickupTimes(meta.pickupTimes)
+      setBestTimeToVisit(meta.bestTimeToVisit || '')
+      if (meta.bestMonths?.length > 0) setBestMonths(meta.bestMonths)
+      
+      setOverview(meta.overview || '')
+      if (meta.personPrices) setPersonPrices(meta.personPrices)
+      if (meta.cabPrices) setCabPrices(meta.cabPrices)
+      
+      if (meta.placesToVisit?.length > 0) setPlacesToVisit(meta.placesToVisit)
+      if (meta.itineraryDays?.length > 0) setItineraryDays(meta.itineraryDays)
+      
+      setInclusions(meta.inclusions || '')
+      setExclusions(meta.exclusions || '')
+
+      if (meta.gallery?.length > 0) setGallery(meta.gallery)
+      if (meta.faqs?.length > 0) setFaqs(meta.faqs)
+    }
+
     setLoading(false)
   }
 
@@ -126,7 +191,6 @@ export default function AddTourListing() {
     setSlug(manualSlug)
     setSlugEdited(true)
   }
-  // ------------------
 
   // Handlers for dynamic lists
   const handlePickupTimeChange = (index: number, value: string) => {
@@ -167,7 +231,6 @@ export default function AddTourListing() {
   const addFaq = () => setFaqs([...faqs, { question: '', answer: '' }])
   const removeFaq = (index: number) => { if (faqs.length > 1) setFaqs(faqs.filter((_, i) => i !== index)) }
 
-  // Handler for Month Selection
   const toggleMonth = (month: string) => {
     if (bestMonths.includes(month)) {
       setBestMonths(bestMonths.filter(m => m !== month))
@@ -265,10 +328,52 @@ ${formattedFaqs}
     const cleanPlaces = placesToVisit.filter(p => p.trim() !== '')
     const cleanItinerary = itineraryDays.filter(d => d.title.trim() !== '')
 
-    const { error } = await supabase
-      .from('listings')
-      .insert([
-        {
+    const metadata = {
+      duration: finalDuration,
+      durationRaw: { d: durationDays, n: durationNights, h: durationHours },
+      startLocation,
+      destinations,
+      pickupTimes: cleanPickupTimes,
+      overview,
+      placesToVisit: cleanPlaces,
+      itineraryDays: cleanItinerary,
+      personPrices,
+      cabPrices,
+      inclusions,
+      exclusions,
+      thumbnail,
+      gallery: cleanGallery,
+      faqs,
+      bestTimeToVisit,
+      bestMonths,
+      seo: {
+        metaTitle,
+        metaDescription,
+        metaKeywords
+      }
+    }
+
+    let error;
+
+    if (editId) {
+      // UPDATE EXISTING TOUR
+      const res = await supabase
+        .from('listings')
+        .update({
+          title: title,
+          slug: slug,
+          location: `${startLocation} ➔ ${destinations}`,
+          price: parseFloat(price),
+          description: detailedDescription,
+          metadata: metadata
+        })
+        .eq('id', editId)
+      error = res.error
+    } else {
+      // INSERT NEW TOUR
+      const res = await supabase
+        .from('listings')
+        .insert([{
           vendor_id: vendorId,
           title: title,
           slug: slug,
@@ -277,67 +382,49 @@ ${formattedFaqs}
           price: parseFloat(price),
           description: detailedDescription,
           status: 'pending',
-          metadata: {
-            duration: finalDuration,
-            pickupTimes: cleanPickupTimes,
-            overview,
-            placesToVisit: cleanPlaces,
-            itineraryDays: cleanItinerary,
-            personPrices,
-            cabPrices,
-            inclusions,
-            exclusions,
-            thumbnail,
-            gallery: cleanGallery,
-            faqs,
-            bestTimeToVisit,
-            bestMonths,
-            seo: {
-              metaTitle,
-              metaDescription,
-              metaKeywords
-            }
-          }
-        }
-      ])
+          metadata: metadata
+        }])
+      error = res.error
+    }
 
     if (error) {
       if (error.code === '23505') {
         setMessage({ type: 'error', text: 'Error: Yeh SEO Slug pehle se kisi aur package ne use kiya hua hai. Kripya thoda alag slug banayein.' })
       } else {
-        setMessage({ type: 'error', text: 'Error adding tour: ' + error.message })
+        setMessage({ type: 'error', text: 'Error: ' + error.message })
       }
       setSubmitting(false)
     } else {
 
-      // 🌟 NEW: EMAIL TRIGGER API CALL FOR NEW TOUR LISTING
-      fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'New Tour Package Added 🗺️',
-          data: {
-            Package_Name: title,
-            Duration: finalDuration,
-            Route: `${startLocation} to ${destinations}`,
-            Starting_Price: `₹${price}`,
-            Vendor_ID: vendorId,
-            Action: 'Please review and approve from Admin Panel'
-          }
-        })
-      }).catch(err => console.error("Email bhejte waqt error aaya:", err))
+      if (!editId) {
+        // Trigger Email Only for New Listing
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'New Tour Package Added 🗺️',
+            data: {
+              Package_Name: title,
+              Duration: finalDuration,
+              Route: `${startLocation} to ${destinations}`,
+              Starting_Price: `₹${price}`,
+              Vendor_ID: vendorId,
+              Action: 'Please review and approve from Admin Panel'
+            }
+          })
+        }).catch(err => console.error("Email bhejte waqt error aaya:", err))
+      }
 
-      setMessage({ type: 'success', text: 'Tour package successfully add ho gaya hai! Admin approval ke liye bhej diya gaya hai.' })
+      setMessage({ type: 'success', text: editId ? 'Tour package successfully update ho gaya hai!' : 'Tour package successfully add ho gaya hai! Admin approval ke liye bhej diya gaya hai.' })
       setSubmitting(false)
       
-      // Redirect based on role
       setTimeout(() => {
         router.push(userRole === 'admin' ? '/admin' : '/vendor')
-      }, 2500)
+      }, 2000)
     }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-xl">Loading...</div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-xl">Loading Form...</div>
 
   return (
     <div className="min-h-screen p-8 bg-gray-50">
@@ -345,7 +432,7 @@ ${formattedFaqs}
         
         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-extrabold">Add New Tour Package</h1>
+            <h1 className="text-2xl font-extrabold">{editId ? 'Edit Tour Package' : 'Add New Tour Package'}</h1>
             <p className="text-blue-100 text-sm mt-1">Apne tour ki details bharein</p>
           </div>
           <Link href={userRole === 'admin' ? '/admin' : '/add-listing'} className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
@@ -639,11 +726,19 @@ ${formattedFaqs}
             </div>
 
             <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors disabled:bg-blue-400 text-lg shadow-lg">
-              {submitting ? 'Adding Tour...' : 'Submit Tour Package'}
+              {submitting ? 'Saving...' : (editId ? 'Update Tour Package' : 'Submit Tour Package')}
             </button>
           </form>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AddTourListing() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center font-bold text-xl">Loading Form...</div>}>
+      <TourFormContent />
+    </Suspense>
   )
 }

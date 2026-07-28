@@ -1,11 +1,14 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/utils/supabase' // Use Path alias
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function AddCabListing() {
+function CabFormContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('edit') // Check if editing
+
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [vendorId, setVendorId] = useState('')
@@ -60,16 +63,17 @@ export default function AddCabListing() {
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
 
   useEffect(() => {
-    checkVendorStatus()
-  }, [])
+    checkVendorAndLoadData()
+  }, [editId])
 
   useEffect(() => {
-    if (mainType === 'Local') setSubType('Point to Point')
-    else if (mainType === 'Outstation') setSubType('One Way')
+    if (!editId) {
+      if (mainType === 'Local') setSubType('Point to Point')
+      else if (mainType === 'Outstation') setSubType('One Way')
+    }
   }, [mainType])
 
-  // Admin aur Approved Vendor dono is form ko access kar sakte hain
-  async function checkVendorStatus() {
+  async function checkVendorAndLoadData() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       router.push('/login')
@@ -82,19 +86,70 @@ export default function AddCabListing() {
       .eq('id', session.user.id)
       .single()
 
-    // Sirf admin ya vendor hone par hi entry milegi
     if (!profile || (profile.role !== 'vendor' && profile.role !== 'admin')) {
       router.push('/login')
       return
     }
 
-    // Agar user vendor hai, toh uska 'approved' hona zaroori hai
     if (profile.role === 'vendor' && profile.approval_status !== 'approved') {
       router.push('/login')
       return
     }
 
     setVendorId(session.user.id)
+
+    // 🔥 FETCH EXISTING DATA IF EDITING
+    if (editId) {
+      const { data: listing, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', editId)
+        .single()
+
+      if (error || !listing) {
+        setMessage({ type: 'error', text: 'Listing nahi mili!' })
+        setLoading(false)
+        return
+      }
+
+      setTitle(listing.title || '')
+      setSlug(listing.slug || '')
+      setSlugEdited(true)
+
+      const meta = listing.metadata || {}
+      setMainType(meta.mainType || 'Local')
+      setSubType(meta.subType || 'Point to Point')
+      if (meta.cabPrices) setCabPrices(meta.cabPrices)
+      setDescription(meta.description || '')
+
+      setServiceCity(meta.serviceCity || '')
+      setPickupPoint(meta.pickupPoint || '')
+      setDropPoint(meta.dropPoint || '')
+      setRentalPackage(meta.rentalPackage || '8 Hour 80km')
+      setPickupCity(meta.pickupCity || '')
+      setDropCity(meta.dropCity || '')
+      setDistance(meta.distance || '')
+      setNightCharge(meta.nightCharge || '')
+      setMinKmPerDay(meta.minKmPerDay || '250')
+
+      setTollCharges(meta.tollCharges || 'Yes')
+      setParkingCharges(meta.parkingCharges || 'Yes')
+      setDriverDa(meta.driverDa || 'Yes')
+
+      if (meta.customInclusions && meta.customInclusions.length > 0) {
+        setCustomInclusions(meta.customInclusions)
+      }
+      if (meta.customExclusions && meta.customExclusions.length > 0) {
+        setCustomExclusions(meta.customExclusions)
+      }
+      if (meta.gallery && meta.gallery.length > 0) {
+        setGallery(meta.gallery)
+      }
+      if (meta.faqs && meta.faqs.length > 0) {
+        setFaqs(meta.faqs)
+      }
+    }
+
     setLoading(false)
   }
 
@@ -168,7 +223,6 @@ export default function AddCabListing() {
     setSubmitting(true)
     setMessage({ type: '', text: '' })
 
-    // Filter active cabs where at least the base amount is provided
     const activeCabs = Object.entries(cabPrices).filter(([_, data]) => data.amount.trim() !== '')
     
     if (activeCabs.length === 0) {
@@ -179,7 +233,6 @@ export default function AddCabListing() {
 
     const lowestPrice = Math.min(...activeCabs.map(([_, data]) => parseFloat(data.amount)))
     
-    // Format pricing details dynamically for the description
     const formattedCabPricing = activeCabs.map(([cab, data]) => {
       if (subType === 'Round Trip') {
         let text = `• ${cab}: ₹${data.amount} / KM`
@@ -208,7 +261,6 @@ export default function AddCabListing() {
     if (parkingCharges === 'Yes') incl.push('Parking charges')
     else excl.push('Parking charges')
 
-    // Handle general driver DA logic
     if (subType !== 'Round Trip') {
       if (driverDa === 'Yes') incl.push('Driver DA')
       else excl.push('Driver DA')
@@ -218,7 +270,6 @@ export default function AddCabListing() {
       excl.push('Night charges (if traveling between 9PM-6AM)')
     }
 
-    // Append Custom Inclusions/Exclusions
     const cleanCustomIncl = customInclusions.filter(item => item.trim() !== '')
     const cleanCustomExcl = customExclusions.filter(item => item.trim() !== '')
     
@@ -279,9 +330,27 @@ ${formattedFaqs}
       gallery: cleanGallery, faqs
     }
 
-    const { error } = await supabase
-      .from('listings')
-      .insert([{
+    let error;
+
+    if (editId) {
+      // UPDATE EXISTING
+      const res = await supabase
+        .from('listings')
+        .update({
+          title: title,
+          slug: slug,
+          description: detailedDescription,
+          location: displayLocation,
+          price: lowestPrice,
+          metadata: metadata
+        })
+        .eq('id', editId)
+      error = res.error
+    } else {
+      // INSERT NEW
+      const res = await supabase
+        .from('listings')
+        .insert([{
           vendor_id: vendorId,
           title: title,
           slug: slug,
@@ -289,41 +358,23 @@ ${formattedFaqs}
           category: 'cab',
           location: displayLocation,
           price: lowestPrice, 
-          status: 'pending', // Yahan admin ka tour form by default pending mein jayega.
+          status: 'pending',
           metadata: metadata
-      }])
+        }])
+      error = res.error
+    }
 
     if (error) {
       if (error.code === '23505') {
-        setMessage({ type: 'error', text: 'Error: Yeh SEO Slug pehle se kisi aur cab service ne use kiya hua hai. Kripya thoda alag slug banayein.' })
+        setMessage({ type: 'error', text: 'Error: Yeh SEO Slug pehle se kisi aur cab service ne use kiya hua hai.' })
       } else {
         setMessage({ type: 'error', text: 'Error: ' + error.message })
       }
       setSubmitting(false)
     } else {
-
-      // EMAIL TRIGGER API CALL FOR NEW LISTING
-      fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'New Cab Listing Added 🚖',
-          data: {
-            Title: title,
-            Trip_Type: `${mainType} (${subType})`,
-            Location: displayLocation,
-            Base_Price: `₹${lowestPrice}`,
-            Vendor_ID: vendorId,
-            Action: 'Please review and approve from Admin Panel'
-          }
-        })
-      }).catch(err => console.error("Email bhejte waqt error aaya:", err))
-
-      setMessage({ type: 'success', text: 'Cab Service successfully add ho gayi hai! Admin approval ke liye bhej di gayi hai.' })
+      setMessage({ type: 'success', text: editId ? 'Cab Service successfully update ho gayi hai!' : 'Cab Service successfully add ho gayi hai!' })
       setSubmitting(false)
-      
-      // Admin dashboard ya vendor panel par waapas bhejein
-      setTimeout(() => { router.push('/admin') }, 2500)
+      setTimeout(() => { router.push('/admin') }, 2000)
     }
   }
 
@@ -335,11 +386,11 @@ ${formattedFaqs}
         
         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-extrabold">Add Cab / Taxi Service</h1>
+            <h1 className="text-2xl font-extrabold">{editId ? 'Edit Cab / Taxi Service' : 'Add Cab / Taxi Service'}</h1>
             <p className="text-blue-100 text-sm mt-1">Apni gaadi aur trip ki details bharein</p>
           </div>
-          <Link href="/add-listing" className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
-            ← Back
+          <Link href="/admin" className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+            ← Back to Admin
           </Link>
         </div>
 
@@ -518,53 +569,49 @@ ${formattedFaqs}
                   <div key={cab} className="flex flex-col md:flex-row items-center gap-4 bg-white p-4 rounded-lg border border-green-200">
                     <span className="font-bold text-gray-700 md:w-1/4">{cab}</span>
                     
-                    {/* Primary Amount Input */}
                     <input 
                       type="number" min="0"
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 font-bold text-green-700"
                       placeholder={subType === 'Round Trip' ? "₹ Per KM Rate" : "₹ Amount"}
-                      value={cabPrices[cab as keyof typeof cabPrices].amount} 
+                      value={cabPrices[cab as keyof typeof cabPrices]?.amount || ''} 
                       onChange={(e) => handleCabPriceChange(cab, 'amount', e.target.value)}
                     />
                     
-                    {/* Fields for Local Rental */}
                     {subType === 'Local Rental' && (
                       <>
                         <input 
                           type="number" min="0"
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-sm"
                           placeholder="Extra KM (₹)"
-                          value={cabPrices[cab as keyof typeof cabPrices].extraKm} 
+                          value={cabPrices[cab as keyof typeof cabPrices]?.extraKm || ''} 
                           onChange={(e) => handleCabPriceChange(cab, 'extraKm', e.target.value)}
                         />
                         <input 
                           type="number" min="0"
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-sm"
                           placeholder="Extra Hour (₹)"
-                          value={cabPrices[cab as keyof typeof cabPrices].extraHour} 
+                          value={cabPrices[cab as keyof typeof cabPrices]?.extraHour || ''} 
                           onChange={(e) => handleCabPriceChange(cab, 'extraHour', e.target.value)}
                         />
                       </>
                     )}
 
-                    {/* Fields for Outstation One Way */}
                     {subType === 'One Way' && (
                       <input 
                         type="number" min="0"
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-sm"
                         placeholder="Extra KM (₹)"
-                        value={cabPrices[cab as keyof typeof cabPrices].extraKm} 
+                        value={cabPrices[cab as keyof typeof cabPrices]?.extraKm || ''} 
                         onChange={(e) => handleCabPriceChange(cab, 'extraKm', e.target.value)}
                       />
                     )}
 
-                    {/* Fields for Outstation Round Trip */}
                     {subType === 'Round Trip' && (
                       <input 
                         type="number" min="0"
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-sm"
                         placeholder="Driver DA / Day (₹)"
-                        value={cabPrices[cab as keyof typeof cabPrices].driverAllowance} 
+                        value={cabPrices[cab as keyof typeof cabPrices]?.driverAllowance || ''} 
                         onChange={(e) => handleCabPriceChange(cab, 'driverAllowance', e.target.value)}
                       />
                     )}
@@ -579,11 +626,10 @@ ${formattedFaqs}
               <textarea rows={3} className="w-full px-4 py-2 border rounded-lg outline-none resize-none bg-gray-50" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Details about car condition, AC etc."></textarea>
             </div>
 
-            {/* Inclusions / Exclusions WITH DYNAMIC COLUMNS */}
+            {/* Inclusions / Exclusions */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">6. Inclusions & Exclusions Setup</h2>
               
-              {/* Base Dropdowns */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 pb-6 border-b border-gray-200">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Toll Charges</label>
@@ -610,10 +656,7 @@ ${formattedFaqs}
                 )}
               </div>
 
-              {/* DYNAMIC TWO COLUMNS FOR INCLUSIONS AND EXCLUSIONS */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                
-                {/* 🟢 Custom Inclusions */}
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-bold text-green-700">✅ Additional Inclusions</label>
@@ -637,7 +680,6 @@ ${formattedFaqs}
                   </div>
                 </div>
 
-                {/* 🔴 Custom Exclusions */}
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-bold text-red-700">❌ Additional Exclusions</label>
@@ -719,11 +761,19 @@ ${formattedFaqs}
             </div>
 
             <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors disabled:bg-blue-400 text-lg shadow-lg">
-              {submitting ? 'Submitting Service...' : 'Submit Cab Service for Approval'}
+              {submitting ? 'Saving Changes...' : (editId ? 'Update Cab Service' : 'Submit Cab Service for Approval')}
             </button>
           </form>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AddCabListing() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center font-bold text-blue-600">Loading Form...</div>}>
+      <CabFormContent />
+    </Suspense>
   )
 }
