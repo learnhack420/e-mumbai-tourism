@@ -4,6 +4,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import CabBookingSidebar from '@/app/components/CabBookingSidebar' // Ensure this path is correct
 import AIAutoRoutePlanner from '@/app/components/AIAutoRoutePlanner' // Aapke AI Route Planner ka path
+import VendorInfoCard from '@/app/components/VendorInfoCard'
 
 export const revalidate = 60
 
@@ -305,8 +306,11 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
         {/* ========================================= */}
         {/* RIGHT COLUMN: SIDEBAR (CLIENT COMPONENT)  */}
         {/* ========================================= */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-6">
           <CabBookingSidebar cab={cab} meta={meta} />
+          
+          {/* 🏢 Vendor / Host Info Card */}
+          {cab?.vendor_id && <VendorInfoCard vendorId={cab.vendor_id} />}
         </div>
 
       </div>
