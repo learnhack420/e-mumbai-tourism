@@ -2,59 +2,43 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/utils/supabase' 
 
-export default function VendorInfoCard({ vendorId }: { vendorId: string }) {
-  const [vendor, setVendor] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+export default function VendorInfoCard({ vendorId }: { vendorId?: string }) {
+  const [vendor, setVendor] = useState<any>({
+    full_name: 'Raj Cabs & Tours',
+    company_name: 'Raj Cabs Official',
+    phone: '9892455466',
+    address: 'Mumbai, Maharashtra',
+    website: 'https://www.tourismdna.com'
+  })
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (vendorId) {
       fetchVendorDetails()
-    } else {
-      setLoading(false)
     }
   }, [vendorId])
 
   async function fetchVendorDetails() {
-    // 🔥 SAFE SELECT: Fetching all columns to prevent 400 Bad Request
-    let { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', vendorId)
-      .single()
+    try {
+      let { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', vendorId)
+        .single()
 
-    // Fallback logic & Error Logging
-    if (error || !data) {
-      console.error("Supabase Fetch Issue (Check RLS Policies or Vendor ID):", error?.message)
-      setVendor({
-        full_name: 'Raj Cabs & Tours',
-        company_name: 'Raj Cabs Official',
-        phone: '9892455466',
-        address: 'Mumbai, Maharashtra',
-        website: 'https://www.tourismdna.com' // Default fallback website
-      })
-    } else {
-      setVendor(data)
+      if (!error && data) {
+        setVendor(data)
+      }
+    } catch (err) {
+      console.error("Using default vendor fallback due to fetch error", err)
     }
-    setLoading(false)
   }
 
-  if (loading) {
-    return <div className="p-4 bg-slate-50 rounded-2xl animate-pulse text-xs text-slate-400">Loading Host/Vendor Info...</div>
-  }
-
-  if (!vendor) return null
-
-  const firmName = vendor.company_name || vendor.full_name || 'Verified Tour Operator'
-  const mobile = vendor.phone || '9892455466'
-  const address = vendor.address || vendor.location || 'Mumbai, Maharashtra'
-  
-  // 🛡️ EXTRA SAFETY: .trim() removes accidental spaces from database input
-  const website = (vendor.website || '').trim()
-
-  // URL clean formatting (agar https:// na ho toh laga dena)
-  const formattedWebsite = website 
-    ? (website.startsWith('http') ? website : `https://${website}`) 
-    : null
+  const firmName = vendor?.company_name || vendor?.full_name || 'Raj Cabs & Tours'
+  const mobile = vendor?.phone || '9892455466'
+  const address = vendor?.address || vendor?.location || 'Mumbai, Maharashtra'
+  const website = (vendor?.website || 'https://www.tourismdna.com').trim()
+  const formattedWebsite = website.startsWith('http') ? website : `https://${website}`
 
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-3xl shadow-xl border border-slate-700 my-6">
@@ -90,7 +74,7 @@ export default function VendorInfoCard({ vendorId }: { vendorId: string }) {
           </div>
         </div>
 
-        {/* 🌟 Website Link Row (Agar vendor ne website bhari hogi tabhi dikhega) */}
+        {/* Website Link Row */}
         {formattedWebsite && (
           <div className="flex items-center gap-3 pt-1">
             <span className="text-base">🌐</span>
