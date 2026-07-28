@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState, Suspense } from 'react'
-import { supabase } from '@/utils/supabase' // Path check kar lein
+import { supabase } from '@/utils/supabase' 
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -14,16 +14,13 @@ function CabFormContent() {
   const [vendorId, setVendorId] = useState('')
   const [message, setMessage] = useState({ type: '', text: '' })
 
-  // 1. Basic Info & SEO
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('') 
   const [slugEdited, setSlugEdited] = useState(false) 
 
-  // 2. Trip Type States
   const [mainType, setMainType] = useState('Local') 
   const [subType, setSubType] = useState('Point to Point') 
 
-  // 3. Cab Categories & Pricing
   const initialCabPrices = {
     'Bike': { amount: '', extraKm: '', extraHour: '', driverAllowance: '' },
     'Auto': { amount: '', extraKm: '', extraHour: '', driverAllowance: '' },
@@ -35,7 +32,6 @@ function CabFormContent() {
   const [cabPrices, setCabPrices] = useState(initialCabPrices)
   const [description, setDescription] = useState('')
 
-  // 4. Conditional Fields
   const [serviceCity, setServiceCity] = useState('')
   const [pickupPoint, setPickupPoint] = useState('')
   const [dropPoint, setDropPoint] = useState('')
@@ -46,7 +42,6 @@ function CabFormContent() {
   const [nightCharge, setNightCharge] = useState('') 
   const [minKmPerDay, setMinKmPerDay] = useState('250') 
 
-  // 5. Inclusions / Exclusions 
   const [tollCharges, setTollCharges] = useState('Yes')
   const [parkingCharges, setParkingCharges] = useState('Yes')
   const [driverDa, setDriverDa] = useState('Yes')
@@ -54,10 +49,7 @@ function CabFormContent() {
   const [customInclusions, setCustomInclusions] = useState([''])
   const [customExclusions, setCustomExclusions] = useState([''])
 
-  // 6. Image Gallery (Links)
   const [gallery, setGallery] = useState([''])
-
-  // 7. Dynamic FAQs
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
 
   useEffect(() => {
@@ -96,7 +88,7 @@ function CabFormContent() {
 
     setVendorId(session.user.id)
 
-    // 🔥 FETCH EXISTING DATA (Cache By-pass logic included)
+    // 🔥 FETCH EXISTING DATA (If Edit Mode)
     if (editId) {
       const { data: listing, error } = await supabase
         .from('listings')
@@ -114,7 +106,9 @@ function CabFormContent() {
       setSlug(listing.slug || '')
       setSlugEdited(true)
 
-      const meta = listing.metadata || {}
+      // Ensure metadata is safely parsed
+      const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
+      
       setMainType(meta.mainType || 'Local')
       setSubType(meta.subType || 'Point to Point')
       if (meta.cabPrices) setCabPrices(meta.cabPrices)
@@ -134,7 +128,7 @@ function CabFormContent() {
       setParkingCharges(meta.parkingCharges || 'Yes')
       setDriverDa(meta.driverDa || 'Yes')
 
-      // Ensure lists are properly populated or reset to empty row
+      // 🔥 SAFELY LOAD DYNAMIC INCLUSIONS/EXCLUSIONS
       if (meta.customInclusions && Array.isArray(meta.customInclusions) && meta.customInclusions.length > 0) {
         setCustomInclusions(meta.customInclusions)
       } else {
@@ -147,13 +141,13 @@ function CabFormContent() {
         setCustomExclusions([''])
       }
 
-      if (meta.gallery && meta.gallery.length > 0) {
+      if (meta.gallery && Array.isArray(meta.gallery) && meta.gallery.length > 0) {
         setGallery(meta.gallery)
       } else {
         setGallery([''])
       }
 
-      if (meta.faqs && meta.faqs.length > 0) {
+      if (meta.faqs && Array.isArray(meta.faqs) && meta.faqs.length > 0) {
         setFaqs(meta.faqs)
       } else {
         setFaqs([{ question: '', answer: '' }])
@@ -163,7 +157,6 @@ function CabFormContent() {
     setLoading(false)
   }
 
-  // --- Handlers ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
@@ -257,8 +250,8 @@ function CabFormContent() {
       excl.push('Night charges (if traveling between 9PM-6AM)')
     }
 
-    const cleanCustomIncl = customInclusions.filter(item => item.trim() !== '')
-    const cleanCustomExcl = customExclusions.filter(item => item.trim() !== '')
+    const cleanCustomIncl = customInclusions.filter(item => item && item.trim() !== '')
+    const cleanCustomExcl = customExclusions.filter(item => item && item.trim() !== '')
     
     incl = [...incl, ...cleanCustomIncl]
     excl = [...excl, ...cleanCustomExcl]
@@ -298,8 +291,9 @@ ${description || 'No additional details provided.'}
 ${formattedFaqs}
     `.trim()
 
-    const cleanGallery = gallery.filter(link => link.trim() !== '')
+    const cleanGallery = gallery.filter(link => link && link.trim() !== '')
 
+    // 🔥 This is the core metadata saved to database!
     const metadata = {
       mainType, subType, cabPrices, description,
       serviceCity, pickupPoint, dropPoint, rentalPackage,
@@ -335,10 +329,10 @@ ${formattedFaqs}
       setMessage({ type: 'success', text: editId ? 'Cab Service successfully update ho gayi hai!' : 'Cab Service successfully add ho gayi hai!' })
       setSubmitting(false)
       
-      // 🔥 FIX: Clear Cache taaki naya data turant dikhe
-      router.refresh() 
-      
-      setTimeout(() => { router.push('/admin') }, 2000)
+      // 🔥 MASTER FIX: Force clear the Next.js cache and do a hard reload to Admin Panel
+      setTimeout(() => { 
+        window.location.href = '/admin'
+      }, 1500)
     }
   }
 
@@ -577,7 +571,7 @@ ${formattedFaqs}
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-bold text-green-700">✅ Additional Inclusions</label>
-                    <button type="button" onClick={addCustomIncl} className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg">+ Add Item</button>
+                    <button type="button" onClick={addCustomIncl} className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg hover:bg-green-200">+ Add Item</button>
                   </div>
                   <div className="space-y-3">
                     {customInclusions.map((item, index) => (
@@ -594,7 +588,7 @@ ${formattedFaqs}
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-bold text-red-700">❌ Additional Exclusions</label>
-                    <button type="button" onClick={addCustomExcl} className="text-xs bg-red-100 text-red-700 font-bold px-3 py-1.5 rounded-lg">+ Add Item</button>
+                    <button type="button" onClick={addCustomExcl} className="text-xs bg-red-100 text-red-700 font-bold px-3 py-1.5 rounded-lg hover:bg-red-200">+ Add Item</button>
                   </div>
                   <div className="space-y-3">
                     {customExclusions.map((item, index) => (
@@ -610,7 +604,7 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* Gallery & FAQs Code Same as Before... */}
+            {/* Gallery */}
             <div className="border border-gray-200 p-6 rounded-xl bg-gray-50">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-800">7. Cab Gallery</h2>
