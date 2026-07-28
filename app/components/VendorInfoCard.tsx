@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { supabase } from '@/utils/supabase' // Path alias check kar lein
+import { supabase } from '@/utils/supabase' 
 
 export default function VendorInfoCard({ vendorId }: { vendorId: string }) {
   const [vendor, setVendor] = useState<any>(null)
@@ -15,21 +15,22 @@ export default function VendorInfoCard({ vendorId }: { vendorId: string }) {
   }, [vendorId])
 
   async function fetchVendorDetails() {
-    // 1. Pehle 'profiles' table se website ke sath data dhoondein
+    // 🔥 SAFE SELECT: Fetching all columns to prevent 400 Bad Request
     let { data, error } = await supabase
       .from('profiles')
-      .select('full_name, company_name, phone, address, location, website')
+      .select('*')
       .eq('id', vendorId)
       .single()
 
-    // 2. Agar profiles table mein data na mile, toh default fallback set karein
-    if (error || !data || (!data.company_name && !data.phone)) {
+    // Fallback logic & Error Logging
+    if (error || !data) {
+      console.error("Supabase Fetch Issue (Check RLS Policies or Vendor ID):", error?.message)
       setVendor({
         full_name: 'Raj Cabs & Tours',
         company_name: 'Raj Cabs Official',
         phone: '9892455466',
         address: 'Mumbai, Maharashtra',
-        website: 'https://www.example.com'
+        website: 'https://www.tourismdna.com' // Default fallback website
       })
     } else {
       setVendor(data)
@@ -46,12 +47,14 @@ export default function VendorInfoCard({ vendorId }: { vendorId: string }) {
   const firmName = vendor.company_name || vendor.full_name || 'Verified Tour Operator'
   const mobile = vendor.phone || '9892455466'
   const address = vendor.address || vendor.location || 'Mumbai, Maharashtra'
-  const website = vendor.website || ''
+  
+  // 🛡️ EXTRA SAFETY: .trim() removes accidental spaces from database input
+  const website = (vendor.website || '').trim()
 
   // URL clean formatting (agar https:// na ho toh laga dena)
   const formattedWebsite = website 
     ? (website.startsWith('http') ? website : `https://${website}`) 
-    : ''
+    : null
 
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-3xl shadow-xl border border-slate-700 my-6">
@@ -87,13 +90,18 @@ export default function VendorInfoCard({ vendorId }: { vendorId: string }) {
           </div>
         </div>
 
-        {/* 🌟 NEW: Website Link Row (Agar vendor ne website bhari hogi tabhi dikhega) */}
+        {/* 🌟 Website Link Row (Agar vendor ne website bhari hogi tabhi dikhega) */}
         {formattedWebsite && (
           <div className="flex items-center gap-3 pt-1">
             <span className="text-base">🌐</span>
             <div>
               <span className="text-xs font-semibold text-slate-400 block">Official Website</span>
-              <a href={formattedWebsite} target="_blank" rel="noopener noreferrer" className="font-bold text-blue-400 hover:underline truncate block max-w-[240px]">
+              <a 
+                href={formattedWebsite} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="font-bold text-blue-400 hover:underline truncate block max-w-[240px]"
+              >
                 {website.replace(/^https?:\/\//, '')}
               </a>
             </div>

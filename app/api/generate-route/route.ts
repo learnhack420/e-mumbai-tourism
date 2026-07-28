@@ -4,61 +4,65 @@ export const runtime = 'edge';
 
 export async function POST(req: Request) {
   try {
-    // 1. Hyper-safe JSON parsing (Agar frontend se galat data aaye toh crash nahi hoga)
-    let body;
-    try {
-      body = await req.json();
-    } catch (e) {
-      return NextResponse.json({ success: false, routes: [] });
-    }
-
+    // 1. Safe Body Parsing for Edge
+    const textBody = await req.text();
+    if (!textBody) return NextResponse.json({ success: false, routes: [] });
+    
+    const body = JSON.parse(textBody);
     const { origin, destination } = body;
     
     if (!origin || !destination || origin.toLowerCase() === destination.toLowerCase()) {
       return NextResponse.json({ success: false, routes: [] });
     }
 
-    // 2. Hyper-safe Environment Variable checking
-    let apiKey = '';
-    try {
-      apiKey = process.env.GEMINI_API_KEY || '';
-    } catch (e) {
-      console.error("Process is not defined in this edge environment");
-    }
-
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ success: false, routes: [] });
     }
 
-    const prompt = `Act as a travel transit expert. Provide realistic travel options from ${origin} to ${destination} including Train, Bus, Drive, and Taxi.
-    Return ONLY a valid JSON array. No explanations, no markdown formatting, just the array with objects containing: mode (string), icon (emoji string like 🚆, 🚌, 🚖), details (string route info), duration (string like "3h 13m"), and priceRange (string in INR like "₹638–₹2,532").`;
-
+    const prompt = `Act as a travel transit expert. Provide realistic travel options from ${origin} to ${destination} including Train, Bus, Drive, and Taxi. Return ONLY a valid JSON array of objects with: mode, icon, details, duration, priceRange.`;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    
-    const apiResponse = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    });
 
-    if (!apiResponse.ok) {
+    // 🔥 FIX: 8-Second Timeout Guard (Cloudflare kills at 10s)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    try {
+      const apiResponse = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId); // Clear timeout if response comes early
+
+      if (!apiResponse.ok) {
+        return NextResponse.json({ success: false, routes: [] });
+      }
+
+      const data = await apiResponse.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+      const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      
+      let routes = [];
+      try {
+        routes = JSON.parse(cleanedJson);
+      } catch (e) {
+        routes = [];
+      }
+
+      return NextResponse.json({ success: true, routes });
+
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      // Agar 8 second timeout ho jaye ya network error aaye
+      console.error("Fetch aborted or failed:", fetchError.message);
       return NextResponse.json({ success: false, routes: [] });
     }
 
-    const data = await apiResponse.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    let routes = [];
-    try {
-      routes = JSON.parse(cleanedJson);
-    } catch (parseErr) {
-      routes = []; 
-    }
-
-    return NextResponse.json({ success: true, routes })
   } catch (error: any) {
-    // Agar koi bhi unknown error aaye toh JSON bhejega, 500 nahi dega
-    return NextResponse.json({ success: false, routes: [] })
+    // Kisi bhi haalat mein 500 error return nahi karni hai
+    return NextResponse.json({ success: false, routes: [] });
   }
 }
