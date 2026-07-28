@@ -5,6 +5,21 @@ import type { Metadata } from 'next'
 
 export const revalidate = 60
 
+// Cloudflare build ke liye dynamic slugs pre-fetch karne ke liye
+export async function generateStaticParams() {
+  const { data: places } = await supabase
+    .from('listings')
+    .select('slug')
+    
+  if (!places) return []
+
+  return places.map((place) => ({
+    slug: place.slug,
+  }))
+}
+
+export const dynamicParams = true
+
 // Dynamic SEO Metadata for Tourist Attractions & Blogs
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
