@@ -215,16 +215,35 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               {isOutstation ? (
                 <>
                   {meta.howToReach && (
-                    <div className="mb-6 bg-slate-50 p-6 rounded-2xl">
-                      <h3 className="text-xl font-black text-slate-900 mb-3 tracking-tight">How to Reach</h3>
+                    <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                      <h3 className="text-xl font-black text-slate-900 mb-3 tracking-tight">Route Information</h3>
                       <p className="text-slate-700 leading-relaxed font-medium">{meta.howToReach}</p>
                     </div>
                   )}
-                  {/* AI Auto Route Planner for Outstation Trips */}
-                  <AIAutoRoutePlanner 
-                    origin={meta.pickupCity || cab.location} 
-                    destination={meta.dropCity || cab.location} 
-                  />
+                  
+                  {/* 🔥 SAFE AI Auto Route Planner for Outstation Trips */}
+                  {(meta.pickupCity || cab.location) && (meta.dropCity) && (
+                    <div className="mb-8 bg-slate-50 p-6 rounded-3xl border border-slate-200">
+                      <AIAutoRoutePlanner 
+                        origin={meta.pickupCity || cab.location} 
+                        destination={meta.dropCity} 
+                      />
+                    </div>
+                  )}
+
+                  {/* Outstation Google Map */}
+                  <h3 className="text-2xl font-black text-slate-900 mb-6 tracking-tight">Travel Route Map</h3>
+                  <div className="w-full h-[350px] bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200">
+                    <iframe 
+                      width="100%" 
+                      height="100%" 
+                      frameBorder="0" 
+                      style={{ border: 0 }} 
+                      src={`https://maps.google.com/maps?saddr=${encodeURIComponent(meta.pickupCity || cab.location)}&daddr=${encodeURIComponent(meta.dropCity || cab.location)}&output=embed`} 
+                      allowFullScreen 
+                      title="Outstation Route Map"
+                    />
+                  </div>
                 </>
               ) : (
                 <>
@@ -237,7 +256,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                       style={{ border: 0 }} 
                       src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&t=&z=10&ie=UTF8&iwloc=&output=embed`} 
                       allowFullScreen 
-                      title="Route Map"
+                      title="Local Route Map"
                     />
                   </div>
                 </>
