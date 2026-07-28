@@ -59,7 +59,7 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
     place = placeById
   }
 
-  // UPDATE: 'destination' aur 'blog' dono categories ko allow kiya gaya hai
+  // 'destination' aur 'blog' dono categories ko allow kiya gaya hai
   if (place.category !== 'destination' && place.category !== 'blog') {
     return notFound()
   }
@@ -144,8 +144,9 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
               </div>
             )}
 
+            {/* 🔥 FIXED PROSE STYLING FOR BACKEND LISTS & TABLES */}
             <div 
-              className="prose prose-lg md:prose-xl max-w-none w-full break-words overflow-x-auto text-slate-700 leading-loose prose-headings:font-black prose-headings:text-slate-900 prose-h2:text-4xl md:prose-h2:text-5xl prose-h3:text-3xl prose-a:text-teal-600 hover:prose-a:text-teal-700 prose-img:rounded-2xl prose-img:shadow-md prose-img:max-w-full prose-table:border-collapse prose-th:border prose-th:bg-slate-50 prose-td:border prose-th:p-3 prose-td:p-3"
+              className="prose prose-lg md:prose-xl max-w-none w-full break-words overflow-x-auto text-slate-700 leading-loose prose-headings:font-black prose-headings:text-slate-900 prose-h2:text-4xl md:prose-h2:text-5xl prose-h3:text-3xl prose-a:text-teal-600 hover:prose-a:text-teal-700 prose-img:rounded-2xl prose-img:shadow-md prose-img:max-w-full prose-ul:list-disc prose-ol:list-decimal prose-li:my-2 prose-ul:pl-6 prose-ol:pl-6 prose-table:border-collapse prose-th:border prose-th:bg-slate-50 prose-td:border prose-th:p-3 prose-td:p-3"
               dangerouslySetInnerHTML={{ __html: place.description || '' }}
             />
           </section>
