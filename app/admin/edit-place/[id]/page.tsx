@@ -54,15 +54,23 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
   useEffect(() => {
     fetchPlaceDetails()
 
-    const savedLocs = localStorage.getItem("adminSavedLocations")
+    const savedLocs = typeof window !== "undefined" ? localStorage.getItem("adminSavedLocations") : null
     if (savedLocs) {
-      const parsedLocs = JSON.parse(savedLocs)
-      const cities = new Set()
-      parsedLocs.forEach(loc => {
-        const parts = loc.split(">").map(p => p.trim())
-        if (parts.length >= 1) cities.add(parts[0])
-      })
-      setSavedCities([...cities])
+      try {
+        const parsedLocs = JSON.parse(savedLocs)
+        const cities = new Set<string>()
+        if (Array.isArray(parsedLocs)) {
+          parsedLocs.forEach((loc: any) => {
+            if (loc && typeof loc === "string") {
+              const parts = loc.split(">").map((p: string) => p.trim())
+              if (parts.length >= 1 && parts[0]) cities.add(parts[0])
+            }
+          })
+        }
+        setSavedCities(Array.from(cities))
+      } catch (e) {
+        console.error("Error parsing saved locations:", e)
+      }
     }
 
     const savedCats = localStorage.getItem("adminPlaceCategories")
