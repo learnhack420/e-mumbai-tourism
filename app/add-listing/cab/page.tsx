@@ -1,13 +1,13 @@
 "use client"
 import { useEffect, useState, Suspense } from 'react'
-import { supabase } from '@/utils/supabase' // Use Path alias
+import { supabase } from '@/utils/supabase' // Path check kar lein
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 function CabFormContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const editId = searchParams.get('edit') // Check if editing
+  const editId = searchParams.get('edit') 
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -20,10 +20,10 @@ function CabFormContent() {
   const [slugEdited, setSlugEdited] = useState(false) 
 
   // 2. Trip Type States
-  const [mainType, setMainType] = useState('Local') // Local | Outstation
+  const [mainType, setMainType] = useState('Local') 
   const [subType, setSubType] = useState('Point to Point') 
 
-  // 3. Cab Categories & Pricing (Dynamic structure)
+  // 3. Cab Categories & Pricing
   const initialCabPrices = {
     'Bike': { amount: '', extraKm: '', extraHour: '', driverAllowance: '' },
     'Auto': { amount: '', extraKm: '', extraHour: '', driverAllowance: '' },
@@ -39,16 +39,14 @@ function CabFormContent() {
   const [serviceCity, setServiceCity] = useState('')
   const [pickupPoint, setPickupPoint] = useState('')
   const [dropPoint, setDropPoint] = useState('')
-  
   const [rentalPackage, setRentalPackage] = useState('8 Hour 80km')
-
   const [pickupCity, setPickupCity] = useState('')
   const [dropCity, setDropCity] = useState('') 
   const [distance, setDistance] = useState('')
   const [nightCharge, setNightCharge] = useState('') 
-  const [minKmPerDay, setMinKmPerDay] = useState('250') // Standard Outstation Daily Limit
+  const [minKmPerDay, setMinKmPerDay] = useState('250') 
 
-  // 5. Inclusions / Exclusions (Base Dropdowns + Custom Columns)
+  // 5. Inclusions / Exclusions 
   const [tollCharges, setTollCharges] = useState('Yes')
   const [parkingCharges, setParkingCharges] = useState('Yes')
   const [driverDa, setDriverDa] = useState('Yes')
@@ -98,7 +96,7 @@ function CabFormContent() {
 
     setVendorId(session.user.id)
 
-    // 🔥 FETCH EXISTING DATA IF EDITING
+    // 🔥 FETCH EXISTING DATA (Cache By-pass logic included)
     if (editId) {
       const { data: listing, error } = await supabase
         .from('listings')
@@ -136,86 +134,76 @@ function CabFormContent() {
       setParkingCharges(meta.parkingCharges || 'Yes')
       setDriverDa(meta.driverDa || 'Yes')
 
-      if (meta.customInclusions && meta.customInclusions.length > 0) {
+      // Ensure lists are properly populated or reset to empty row
+      if (meta.customInclusions && Array.isArray(meta.customInclusions) && meta.customInclusions.length > 0) {
         setCustomInclusions(meta.customInclusions)
+      } else {
+        setCustomInclusions([''])
       }
-      if (meta.customExclusions && meta.customExclusions.length > 0) {
+      
+      if (meta.customExclusions && Array.isArray(meta.customExclusions) && meta.customExclusions.length > 0) {
         setCustomExclusions(meta.customExclusions)
+      } else {
+        setCustomExclusions([''])
       }
+
       if (meta.gallery && meta.gallery.length > 0) {
         setGallery(meta.gallery)
+      } else {
+        setGallery([''])
       }
+
       if (meta.faqs && meta.faqs.length > 0) {
         setFaqs(meta.faqs)
+      } else {
+        setFaqs([{ question: '', answer: '' }])
       }
     }
 
     setLoading(false)
   }
 
-  // --- SLUG LOGIC ---
+  // --- Handlers ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
     if (!slugEdited) {
-      const generatedSlug = newTitle
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-') 
-        .replace(/(^-|-$)+/g, '')    
+      const generatedSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')    
       setSlug(generatedSlug)
     }
   }
 
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const manualSlug = e.target.value
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '') 
-    setSlug(manualSlug)
+    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))
     setSlugEdited(true) 
   }
 
-  // Gallery Handlers
   const handleGalleryChange = (index: number, value: string) => {
     const newGallery = [...gallery]; newGallery[index] = value; setGallery(newGallery)
   }
   const addGalleryImage = () => setGallery([...gallery, ''])
   const removeGalleryImage = (index: number) => { if (gallery.length > 1) setGallery(gallery.filter((_, i) => i !== index)) }
 
-  // Custom Inclusions Handlers
   const handleCustomInclChange = (index: number, value: string) => {
     const newArr = [...customInclusions]; newArr[index] = value; setCustomInclusions(newArr)
   }
   const addCustomIncl = () => setCustomInclusions([...customInclusions, ''])
   const removeCustomIncl = (index: number) => setCustomInclusions(customInclusions.filter((_, i) => i !== index))
 
-  // Custom Exclusions Handlers
   const handleCustomExclChange = (index: number, value: string) => {
     const newArr = [...customExclusions]; newArr[index] = value; setCustomExclusions(newArr)
   }
   const addCustomExcl = () => setCustomExclusions([...customExclusions, ''])
   const removeCustomExcl = (index: number) => setCustomExclusions(customExclusions.filter((_, i) => i !== index))
 
-  // FAQ Handlers
   const handleFaqChange = (index: number, field: 'question' | 'answer', value: string) => {
-    const newFaqs = [...faqs]
-    newFaqs[index][field] = value
-    setFaqs(newFaqs)
+    const newFaqs = [...faqs]; newFaqs[index][field] = value; setFaqs(newFaqs)
   }
   const addFaq = () => setFaqs([...faqs, { question: '', answer: '' }])
-  const removeFaq = (index: number) => {
-    if (faqs.length > 1) {
-      setFaqs(faqs.filter((_, i) => i !== index))
-    }
-  }
+  const removeFaq = (index: number) => { if (faqs.length > 1) setFaqs(faqs.filter((_, i) => i !== index)) }
 
   const handleCabPriceChange = (cab: string, field: string, value: string) => {
-    setCabPrices(prev => ({
-      ...prev,
-      [cab]: {
-        ...prev[cab as keyof typeof cabPrices],
-        [field]: value
-      }
-    }))
+    setCabPrices(prev => ({ ...prev, [cab]: { ...prev[cab as keyof typeof cabPrices], [field]: value } }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -224,7 +212,6 @@ function CabFormContent() {
     setMessage({ type: '', text: '' })
 
     const activeCabs = Object.entries(cabPrices).filter(([_, data]) => data.amount.trim() !== '')
-    
     if (activeCabs.length === 0) {
       setMessage({ type: 'error', text: 'Error: Kam se kam ek gaadi (Cab Category) ka amount daalna zaroori hai!' })
       setSubmitting(false)
@@ -279,26 +266,19 @@ function CabFormContent() {
     const finalInclusions = incl.join(', ') || 'None'
     const finalExclusions = excl.join(', ') || 'None'
 
-    const formattedFaqs = faqs
-      .filter(f => f.question.trim() !== '' && f.answer.trim() !== '')
-      .map(f => `❓ Q: ${f.question}\n👉 A: ${f.answer}`)
-      .join('\n\n') || 'No FAQs provided';
+    const formattedFaqs = faqs.filter(f => f.question.trim() !== '' && f.answer.trim() !== '').map(f => `❓ Q: ${f.question}\n👉 A: ${f.answer}`).join('\n\n') || 'No FAQs provided';
 
     let displayLocation = ''
     let tripDetails = ''
 
     if (subType === 'Point to Point') {
-      displayLocation = serviceCity
-      tripDetails = `Pickup: ${pickupPoint} | Drop: ${dropPoint}`
+      displayLocation = serviceCity; tripDetails = `Pickup: ${pickupPoint} | Drop: ${dropPoint}`
     } else if (subType === 'Local Rental') {
-      displayLocation = serviceCity
-      tripDetails = `Package: ${rentalPackage}`
+      displayLocation = serviceCity; tripDetails = `Package: ${rentalPackage}`
     } else if (subType === 'One Way') {
-      displayLocation = `${pickupCity} to ${dropCity}`
-      tripDetails = `Distance: ${distance} km | Night Charges (9PM-6AM): ₹${nightCharge}`
+      displayLocation = `${pickupCity} to ${dropCity}`; tripDetails = `Distance: ${distance} km | Night Charges (9PM-6AM): ₹${nightCharge}`
     } else if (subType === 'Round Trip') {
-      displayLocation = `${pickupCity} to ${dropCity} (Round Trip)`
-      tripDetails = `Est. Distance: ${distance} km | Minimum Chargeable: ${minKmPerDay} KM/Day`
+      displayLocation = `${pickupCity} to ${dropCity} (Round Trip)`; tripDetails = `Est. Distance: ${distance} km | Minimum Chargeable: ${minKmPerDay} KM/Day`
     }
 
     const detailedDescription = `
@@ -333,40 +313,20 @@ ${formattedFaqs}
     let error;
 
     if (editId) {
-      // UPDATE EXISTING
-      const res = await supabase
-        .from('listings')
-        .update({
-          title: title,
-          slug: slug,
-          description: detailedDescription,
-          location: displayLocation,
-          price: lowestPrice,
-          metadata: metadata
-        })
-        .eq('id', editId)
+      const res = await supabase.from('listings').update({
+          title: title, slug: slug, description: detailedDescription, location: displayLocation, price: lowestPrice, metadata: metadata
+        }).eq('id', editId)
       error = res.error
     } else {
-      // INSERT NEW
-      const res = await supabase
-        .from('listings')
-        .insert([{
-          vendor_id: vendorId,
-          title: title,
-          slug: slug,
-          description: detailedDescription,
-          category: 'cab',
-          location: displayLocation,
-          price: lowestPrice, 
-          status: 'pending',
-          metadata: metadata
+      const res = await supabase.from('listings').insert([{
+          vendor_id: vendorId, title: title, slug: slug, description: detailedDescription, category: 'cab', location: displayLocation, price: lowestPrice, status: 'pending', metadata: metadata
         }])
       error = res.error
     }
 
     if (error) {
       if (error.code === '23505') {
-        setMessage({ type: 'error', text: 'Error: Yeh SEO Slug pehle se kisi aur cab service ne use kiya hua hai.' })
+        setMessage({ type: 'error', text: 'Error: Yeh SEO Slug pehle se use kiya hua hai.' })
       } else {
         setMessage({ type: 'error', text: 'Error: ' + error.message })
       }
@@ -374,6 +334,10 @@ ${formattedFaqs}
     } else {
       setMessage({ type: 'success', text: editId ? 'Cab Service successfully update ho gayi hai!' : 'Cab Service successfully add ho gayi hai!' })
       setSubmitting(false)
+      
+      // 🔥 FIX: Clear Cache taaki naya data turant dikhe
+      router.refresh() 
+      
       setTimeout(() => { router.push('/admin') }, 2000)
     }
   }
@@ -390,7 +354,7 @@ ${formattedFaqs}
             <p className="text-blue-100 text-sm mt-1">Apni gaadi aur trip ki details bharein</p>
           </div>
           <Link href="/admin" className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
-            ← Back to Admin
+            ← Back
           </Link>
         </div>
 
@@ -409,27 +373,13 @@ ${formattedFaqs}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Service Title</label>
-                  <input 
-                    type="text" required 
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-                    value={title} onChange={handleTitleChange} 
-                    placeholder="e.g. Mumbai to Pune Cab Service"
-                  />
+                  <input type="text" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50" value={title} onChange={handleTitleChange} placeholder="e.g. Mumbai to Pune Cab Service" />
                 </div>
-                
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">SEO URL (Slug)</label>
                   <div className="flex items-center">
-                    <span className="px-3 py-2 bg-gray-200 border border-gray-300 border-r-0 rounded-l-lg text-gray-500 text-sm select-none">
-                      /cabs/
-                    </span>
-                    <input 
-                      type="text" required 
-                      className="w-full px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-blue-700" 
-                      value={slug} 
-                      onChange={handleSlugChange} 
-                      placeholder="e.g. mumbai-to-pune-cab" 
-                    />
+                    <span className="px-3 py-2 bg-gray-200 border border-gray-300 border-r-0 rounded-l-lg text-gray-500 text-sm select-none">/cabs/</span>
+                    <input type="text" required className="w-full px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-blue-700" value={slug} onChange={handleSlugChange} placeholder="e.g. mumbai-to-pune-cab" />
                   </div>
                 </div>
               </div>
@@ -438,17 +388,12 @@ ${formattedFaqs}
             {/* Trip Type Selection */}
             <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
               <h2 className="text-lg font-bold text-blue-900 mb-4">2. Select Trip Type</h2>
-              
               <div className="flex gap-4 mb-4">
                 <label className="flex-1 cursor-pointer">
-                  <div className={`text-center py-3 rounded-lg border-2 font-bold transition-colors ${mainType === 'Local' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-300 text-gray-600'}`} onClick={() => setMainType('Local')}>
-                    🏙️ Local
-                  </div>
+                  <div className={`text-center py-3 rounded-lg border-2 font-bold transition-colors ${mainType === 'Local' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-300 text-gray-600'}`} onClick={() => setMainType('Local')}>🏙️ Local</div>
                 </label>
                 <label className="flex-1 cursor-pointer">
-                  <div className={`text-center py-3 rounded-lg border-2 font-bold transition-colors ${mainType === 'Outstation' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-300 text-gray-600'}`} onClick={() => setMainType('Outstation')}>
-                    🛣️ Outstation
-                  </div>
+                  <div className={`text-center py-3 rounded-lg border-2 font-bold transition-colors ${mainType === 'Outstation' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-gray-300 text-gray-600'}`} onClick={() => setMainType('Outstation')}>🛣️ Outstation</div>
                 </label>
               </div>
 
@@ -484,15 +429,15 @@ ${formattedFaqs}
                   <>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-bold text-gray-700 mb-1">Service City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={serviceCity} onChange={(e) => setServiceCity(e.target.value)} placeholder="e.g. Mumbai" />
+                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={serviceCity} onChange={(e) => setServiceCity(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Pickup Point</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupPoint} onChange={(e) => setPickupPoint(e.target.value)} placeholder="e.g. Andheri East" />
+                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupPoint} onChange={(e) => setPickupPoint(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Drop Point</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropPoint} onChange={(e) => setDropPoint(e.target.value)} placeholder="e.g. Airport T2" />
+                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropPoint} onChange={(e) => setDropPoint(e.target.value)} />
                     </div>
                   </>
                 )}
@@ -501,7 +446,7 @@ ${formattedFaqs}
                   <>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Service City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={serviceCity} onChange={(e) => setServiceCity(e.target.value)} placeholder="e.g. Mumbai" />
+                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={serviceCity} onChange={(e) => setServiceCity(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Rental Package</label>
@@ -519,19 +464,19 @@ ${formattedFaqs}
                   <>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Pickup City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} placeholder="e.g. Pune" />
+                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Drop City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropCity} onChange={(e) => setDropCity(e.target.value)} placeholder="e.g. Mumbai" />
+                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropCity} onChange={(e) => setDropCity(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Total Distance (km)</label>
-                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="e.g. 150" />
+                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={distance} onChange={(e) => setDistance(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Night Charge (9pm-6am) Amount ₹</label>
-                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={nightCharge} onChange={(e) => setNightCharge(e.target.value)} placeholder="e.g. 250" />
+                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={nightCharge} onChange={(e) => setNightCharge(e.target.value)} />
                     </div>
                   </>
                 )}
@@ -540,19 +485,19 @@ ${formattedFaqs}
                   <>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Pickup City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} placeholder="e.g. Delhi" />
+                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Destination City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropCity} onChange={(e) => setDropCity(e.target.value)} placeholder="e.g. Agra" />
+                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropCity} onChange={(e) => setDropCity(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Estimated Distance (km)</label>
-                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={distance} onChange={(e) => setDistance(e.target.value)} placeholder="e.g. 450" />
+                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={distance} onChange={(e) => setDistance(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Min KM per Day limit</label>
-                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={minKmPerDay} onChange={(e) => setMinKmPerDay(e.target.value)} placeholder="e.g. 250" />
+                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={minKmPerDay} onChange={(e) => setMinKmPerDay(e.target.value)} />
                     </div>
                   </>
                 )}
@@ -562,16 +507,13 @@ ${formattedFaqs}
             {/* Cab Categories & Pricing */}
             <div className="bg-green-50 p-6 rounded-xl border border-green-100">
               <h2 className="text-lg font-bold text-green-900 mb-2">4. Select Cabs & Add Prices</h2>
-              <p className="text-sm text-green-700 mb-5">Provide the base amount. Depending on the trip type, additional charge fields may appear.</p>
               
               <div className="grid grid-cols-1 gap-4">
                 {['Bike', 'Auto', 'Hatchback', 'Sedan cab', 'SUV cab', 'Innova cab'].map((cab) => (
                   <div key={cab} className="flex flex-col md:flex-row items-center gap-4 bg-white p-4 rounded-lg border border-green-200">
                     <span className="font-bold text-gray-700 md:w-1/4">{cab}</span>
-                    
                     <input 
-                      type="number" min="0"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 font-bold text-green-700"
+                      type="number" min="0" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 font-bold text-green-700"
                       placeholder={subType === 'Round Trip' ? "₹ Per KM Rate" : "₹ Amount"}
                       value={cabPrices[cab as keyof typeof cabPrices]?.amount || ''} 
                       onChange={(e) => handleCabPriceChange(cab, 'amount', e.target.value)}
@@ -579,41 +521,17 @@ ${formattedFaqs}
                     
                     {subType === 'Local Rental' && (
                       <>
-                        <input 
-                          type="number" min="0"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                          placeholder="Extra KM (₹)"
-                          value={cabPrices[cab as keyof typeof cabPrices]?.extraKm || ''} 
-                          onChange={(e) => handleCabPriceChange(cab, 'extraKm', e.target.value)}
-                        />
-                        <input 
-                          type="number" min="0"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                          placeholder="Extra Hour (₹)"
-                          value={cabPrices[cab as keyof typeof cabPrices]?.extraHour || ''} 
-                          onChange={(e) => handleCabPriceChange(cab, 'extraHour', e.target.value)}
-                        />
+                        <input type="number" min="0" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" placeholder="Extra KM (₹)" value={cabPrices[cab as keyof typeof cabPrices]?.extraKm || ''} onChange={(e) => handleCabPriceChange(cab, 'extraKm', e.target.value)} />
+                        <input type="number" min="0" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" placeholder="Extra Hour (₹)" value={cabPrices[cab as keyof typeof cabPrices]?.extraHour || ''} onChange={(e) => handleCabPriceChange(cab, 'extraHour', e.target.value)} />
                       </>
                     )}
 
                     {subType === 'One Way' && (
-                      <input 
-                        type="number" min="0"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                        placeholder="Extra KM (₹)"
-                        value={cabPrices[cab as keyof typeof cabPrices]?.extraKm || ''} 
-                        onChange={(e) => handleCabPriceChange(cab, 'extraKm', e.target.value)}
-                      />
+                      <input type="number" min="0" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" placeholder="Extra KM (₹)" value={cabPrices[cab as keyof typeof cabPrices]?.extraKm || ''} onChange={(e) => handleCabPriceChange(cab, 'extraKm', e.target.value)} />
                     )}
 
                     {subType === 'Round Trip' && (
-                      <input 
-                        type="number" min="0"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-green-500 text-sm"
-                        placeholder="Driver DA / Day (₹)"
-                        value={cabPrices[cab as keyof typeof cabPrices]?.driverAllowance || ''} 
-                        onChange={(e) => handleCabPriceChange(cab, 'driverAllowance', e.target.value)}
-                      />
+                      <input type="number" min="0" className="flex-1 px-3 py-2 border border-gray-300 rounded-lg outline-none" placeholder="Driver DA / Day (₹)" value={cabPrices[cab as keyof typeof cabPrices]?.driverAllowance || ''} onChange={(e) => handleCabPriceChange(cab, 'driverAllowance', e.target.value)} />
                     )}
                   </div>
                 ))}
@@ -623,24 +541,23 @@ ${formattedFaqs}
             {/* Description */}
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">5. Description (Optional Notes)</label>
-              <textarea rows={3} className="w-full px-4 py-2 border rounded-lg outline-none resize-none bg-gray-50" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Details about car condition, AC etc."></textarea>
+              <textarea rows={3} className="w-full px-4 py-2 border rounded-lg outline-none resize-none bg-gray-50" value={description} onChange={(e) => setDescription(e.target.value)}></textarea>
             </div>
 
             {/* Inclusions / Exclusions */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">6. Inclusions & Exclusions Setup</h2>
-              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 pb-6 border-b border-gray-200">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Toll Charges</label>
-                  <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={tollCharges} onChange={(e) => setTollCharges(e.target.value)}>
+                  <select className="w-full px-4 py-2 border rounded-lg outline-none" value={tollCharges} onChange={(e) => setTollCharges(e.target.value)}>
                     <option value="Yes">Yes (Included)</option>
                     <option value="No">No (Not Included)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Parking Charges</label>
-                  <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={parkingCharges} onChange={(e) => setParkingCharges(e.target.value)}>
+                  <select className="w-full px-4 py-2 border rounded-lg outline-none" value={parkingCharges} onChange={(e) => setParkingCharges(e.target.value)}>
                     <option value="Yes">Yes (Included)</option>
                     <option value="No">No (Not Included)</option>
                   </select>
@@ -648,7 +565,7 @@ ${formattedFaqs}
                 {subType !== 'Round Trip' && (
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Driver DA</label>
-                    <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={driverDa} onChange={(e) => setDriverDa(e.target.value)}>
+                    <select className="w-full px-4 py-2 border rounded-lg outline-none" value={driverDa} onChange={(e) => setDriverDa(e.target.value)}>
                       <option value="Yes">Yes (Included)</option>
                       <option value="No">No (Not Included)</option>
                     </select>
@@ -660,20 +577,14 @@ ${formattedFaqs}
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-bold text-green-700">✅ Additional Inclusions</label>
-                    <button type="button" onClick={addCustomIncl} className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors">+ Add Item</button>
+                    <button type="button" onClick={addCustomIncl} className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg">+ Add Item</button>
                   </div>
                   <div className="space-y-3">
                     {customInclusions.map((item, index) => (
                       <div key={index} className="flex gap-2">
-                        <input 
-                          type="text" 
-                          className="flex-1 px-4 py-2 border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-green-50" 
-                          value={item} 
-                          onChange={(e) => handleCustomInclChange(index, e.target.value)} 
-                          placeholder="e.g. Free Water Bottle" 
-                        />
+                        <input type="text" className="flex-1 px-4 py-2 border border-green-200 rounded-lg outline-none bg-green-50" value={item} onChange={(e) => handleCustomInclChange(index, e.target.value)} placeholder="e.g. Free Water Bottle" />
                         {customInclusions.length > 1 && (
-                          <button type="button" onClick={() => removeCustomIncl(index)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded-lg">✕</button>
+                          <button type="button" onClick={() => removeCustomIncl(index)} className="text-red-500 font-bold px-2">✕</button>
                         )}
                       </div>
                     ))}
@@ -683,85 +594,56 @@ ${formattedFaqs}
                 <div>
                   <div className="flex justify-between items-center mb-3">
                     <label className="block text-sm font-bold text-red-700">❌ Additional Exclusions</label>
-                    <button type="button" onClick={addCustomExcl} className="text-xs bg-red-100 text-red-700 font-bold px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors">+ Add Item</button>
+                    <button type="button" onClick={addCustomExcl} className="text-xs bg-red-100 text-red-700 font-bold px-3 py-1.5 rounded-lg">+ Add Item</button>
                   </div>
                   <div className="space-y-3">
                     {customExclusions.map((item, index) => (
                       <div key={index} className="flex gap-2">
-                        <input 
-                          type="text" 
-                          className="flex-1 px-4 py-2 border border-red-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500 bg-red-50" 
-                          value={item} 
-                          onChange={(e) => handleCustomExclChange(index, e.target.value)} 
-                          placeholder="e.g. Monument Entry Fees" 
-                        />
+                        <input type="text" className="flex-1 px-4 py-2 border border-red-200 rounded-lg outline-none bg-red-50" value={item} onChange={(e) => handleCustomExclChange(index, e.target.value)} placeholder="e.g. Entry Fees" />
                         {customExclusions.length > 1 && (
-                          <button type="button" onClick={() => removeCustomExcl(index)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded-lg">✕</button>
+                          <button type="button" onClick={() => removeCustomExcl(index)} className="text-red-500 font-bold px-2">✕</button>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
-
               </div>
             </div>
 
-            {/* Image Gallery */}
+            {/* Gallery & FAQs Code Same as Before... */}
             <div className="border border-gray-200 p-6 rounded-xl bg-gray-50">
               <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">7. Cab / Car Gallery (Images)</h2>
-                  <p className="text-xs text-gray-500">Gaadi ki images ke links (URLs) yahan add karein.</p>
-                </div>
-                <button type="button" onClick={addGalleryImage} className="text-sm bg-blue-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-700">+ Add Image Link</button>
+                <h2 className="text-lg font-bold text-gray-800">7. Cab Gallery</h2>
+                <button type="button" onClick={addGalleryImage} className="text-sm bg-blue-600 text-white font-bold px-4 py-2 rounded-lg">+ Add Link</button>
               </div>
               <div className="space-y-3">
                 {gallery.map((url, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <input 
-                      type="url" 
-                      className="flex-1 px-4 py-2 border rounded-lg outline-none bg-white" 
-                      placeholder="e.g. https://website.com/cab.jpg"
-                      value={url} 
-                      onChange={(e) => handleGalleryChange(index, e.target.value)} 
-                    />
-                    {gallery.length > 1 && (
-                      <button type="button" onClick={() => removeGalleryImage(index)} className="text-red-500 font-bold px-2 py-2">✕ Remove</button>
-                    )}
+                  <div key={index} className="flex gap-3">
+                    <input type="url" className="flex-1 px-4 py-2 border rounded-lg outline-none" value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
+                    {gallery.length > 1 && <button type="button" onClick={() => removeGalleryImage(index)} className="text-red-500 font-bold px-2">✕</button>}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* FAQs */}
             <div>
               <div className="flex justify-between items-center border-b pb-2 mb-4">
-                <h2 className="text-lg font-bold text-gray-800">8. Frequently Asked Questions (FAQs)</h2>
+                <h2 className="text-lg font-bold text-gray-800">8. FAQs</h2>
                 <button type="button" onClick={addFaq} className="text-sm bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full">+ Add FAQ</button>
               </div>
               <div className="space-y-4">
                 {faqs.map((faq, index) => (
-                  <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200 relative">
-                    {faqs.length > 1 && (
-                      <button type="button" onClick={() => removeFaq(index)} className="absolute top-4 right-4 text-red-500 text-sm font-bold">✕ Remove</button>
-                    )}
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-1">Question {index + 1}</label>
-                        <input type="text" className="w-full px-4 py-2 border rounded-lg bg-white" value={faq.question} onChange={(e) => handleFaqChange(index, 'question', e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-1">Answer</label>
-                        <textarea rows={2} className="w-full px-4 py-2 border rounded-lg bg-white" value={faq.answer} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)}></textarea>
-                      </div>
-                    </div>
+                  <div key={index} className="bg-gray-50 p-4 rounded-xl border relative">
+                    {faqs.length > 1 && <button type="button" onClick={() => removeFaq(index)} className="absolute top-4 right-4 text-red-500 text-sm font-bold">✕ Remove</button>}
+                    <input type="text" className="w-full px-4 py-2 border rounded-lg bg-white mb-2" value={faq.question} onChange={(e) => handleFaqChange(index, 'question', e.target.value)} placeholder="Question" />
+                    <textarea className="w-full px-4 py-2 border rounded-lg bg-white" value={faq.answer} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)} placeholder="Answer"></textarea>
                   </div>
                 ))}
               </div>
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors disabled:bg-blue-400 text-lg shadow-lg">
-              {submitting ? 'Saving Changes...' : (editId ? 'Update Cab Service' : 'Submit Cab Service for Approval')}
+            <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 text-lg">
+              {submitting ? 'Saving Changes...' : (editId ? 'Update Cab Service' : 'Submit Cab Service')}
             </button>
           </form>
         </div>
