@@ -42,14 +42,12 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
     ? meta.gallery 
     : ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=1200']
 
-  // Generate Google Maps Search Query for Local Map
   const isLocal = meta.mainType === 'Local';
   const isOutstation = meta.mainType === 'Outstation';
-  let mapQuery = cab.location || 'India';
-  
-  if (isLocal && meta.pickupPoint && meta.dropPoint) {
-      mapQuery = `${meta.pickupPoint} to ${meta.dropPoint}`;
-  }
+
+  // Origin aur Destination determine karne ke liye logic
+  const originCity = meta.pickupCity || cab.location || 'India';
+  const dropCity = meta.dropCity || meta.dropPoint || cab.location || 'Destination';
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-800">
@@ -179,12 +177,10 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               <div className="bg-emerald-50 p-6 md:p-8 rounded-3xl border border-emerald-100 shadow-sm">
                 <h3 className="text-xl font-black text-emerald-950 mb-4 flex items-center gap-2">Included:</h3>
                 <ul className="text-emerald-900 font-medium space-y-3">
-                  {/* Default/Base Inclusions */}
                   {meta.tollCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Toll Charges</li>}
                   {meta.parkingCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Parking Charges</li>}
                   {meta.driverDa === 'Yes' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Driver Allowance</li>}
                   
-                  {/* 🔥 DYNAMIC/CUSTOM INCLUSIONS MAPPED HERE */}
                   {meta.customInclusions && meta.customInclusions.length > 0 && meta.customInclusions.map((item: string, idx: number) => (
                     <li key={`inc-${idx}`} className="flex items-center gap-2">
                       <span className="text-emerald-500 text-lg leading-none">✓</span> {item}
@@ -196,12 +192,10 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               <div className="bg-rose-50 p-6 md:p-8 rounded-3xl border border-rose-100 shadow-sm">
                 <h3 className="text-xl font-black text-rose-950 mb-4 flex items-center gap-2">Not Included:</h3>
                 <ul className="text-rose-900 font-medium space-y-3">
-                  {/* Default/Base Exclusions */}
                   {meta.tollCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Toll Charges</li>}
                   {meta.parkingCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Parking Charges</li>}
                   {meta.driverDa === 'No' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Driver Allowance</li>}
                   
-                  {/* 🔥 DYNAMIC/CUSTOM EXCLUSIONS MAPPED HERE */}
                   {meta.customExclusions && meta.customExclusions.length > 0 && meta.customExclusions.map((item: string, idx: number) => (
                     <li key={`exc-${idx}`} className="flex items-center gap-2">
                       <span className="text-rose-500 text-lg leading-none">✕</span> {item}
@@ -211,55 +205,19 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               </div>
             </div>
 
-            {/* 5. Map & Route Section */}
+            {/* 5. Route & Map Section (Single Clean AIAutoRoutePlanner Component) */}
             <div className="mb-10 border-t border-slate-100 pt-10">
-              {isOutstation ? (
-                <>
-                  {meta.howToReach && (
-                    <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                      <h3 className="text-xl font-black text-slate-900 mb-3 tracking-tight">Route Information</h3>
-                      <p className="text-slate-700 leading-relaxed font-medium">{meta.howToReach}</p>
-                    </div>
-                  )}
-                  
-                  {(meta.pickupCity || cab.location) && (meta.dropCity) && (
-                    <div className="mb-8 bg-slate-50 p-6 rounded-3xl border border-slate-200">
-                      <AIAutoRoutePlanner 
-                        origin={meta.pickupCity || cab.location} 
-                        destination={meta.dropCity} 
-                      />
-                    </div>
-                  )}
-
-                  <h3 className="text-2xl font-black text-slate-900 mb-6 tracking-tight">Travel Route Map</h3>
-                  <div className="w-full h-[350px] bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200">
-                    <iframe 
-                      width="100%" 
-                      height="100%" 
-                      frameBorder="0" 
-                      style={{ border: 0 }} 
-                      src={`https://maps.google.com/maps?saddr=${encodeURIComponent(meta.pickupCity || cab.location)}&daddr=${encodeURIComponent(meta.dropCity || cab.location)}&output=embed`} 
-                      allowFullScreen 
-                      title="Outstation Route Map"
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-2xl font-black text-slate-900 mb-6 tracking-tight">Pickup & Drop Route Map</h3>
-                  <div className="w-full h-[350px] bg-slate-100 rounded-2xl overflow-hidden shadow-inner border border-slate-200">
-                    <iframe 
-                      width="100%" 
-                      height="100%" 
-                      frameBorder="0" 
-                      style={{ border: 0 }} 
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&t=&z=10&ie=UTF8&iwloc=&output=embed`} 
-                      allowFullScreen 
-                      title="Local Route Map"
-                    />
-                  </div>
-                </>
+              {meta.howToReach && (
+                <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                  <h3 className="text-xl font-black text-slate-900 mb-3 tracking-tight">Route Information</h3>
+                  <p className="text-slate-700 leading-relaxed font-medium">{meta.howToReach}</p>
+                </div>
               )}
+
+              <AIAutoRoutePlanner 
+                origin={originCity} 
+                destination={dropCity} 
+              />
             </div>
 
             {/* 6. Frequently Asked Questions */}

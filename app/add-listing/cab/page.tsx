@@ -81,14 +81,8 @@ function CabFormContent() {
       return
     }
 
-    if (profile.role === 'vendor' && profile.approval_status !== 'approved') {
-      router.push('/login')
-      return
-    }
-
     setVendorId(session.user.id)
 
-    // 🔥 FETCH EXISTING DATA (If Edit Mode)
     if (editId) {
       const { data: listing, error } = await supabase
         .from('listings')
@@ -106,7 +100,7 @@ function CabFormContent() {
       setSlug(listing.slug || '')
       setSlugEdited(true)
 
-      // Ensure metadata is safely parsed
+      // Safe metadata parsing
       const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
       
       setMainType(meta.mainType || 'Local')
@@ -128,13 +122,14 @@ function CabFormContent() {
       setParkingCharges(meta.parkingCharges || 'Yes')
       setDriverDa(meta.driverDa || 'Yes')
 
-      // 🔥 SAFELY LOAD DYNAMIC INCLUSIONS/EXCLUSIONS
+      // Load Custom Inclusions properly
       if (meta.customInclusions && Array.isArray(meta.customInclusions) && meta.customInclusions.length > 0) {
         setCustomInclusions(meta.customInclusions)
       } else {
         setCustomInclusions([''])
       }
       
+      // Load Custom Exclusions properly
       if (meta.customExclusions && Array.isArray(meta.customExclusions) && meta.customExclusions.length > 0) {
         setCustomExclusions(meta.customExclusions)
       } else {
@@ -293,45 +288,64 @@ ${formattedFaqs}
 
     const cleanGallery = gallery.filter(link => link && link.trim() !== '')
 
-    // 🔥 This is the core metadata saved to database!
     const metadata = {
-      mainType, subType, cabPrices, description,
-      serviceCity, pickupPoint, dropPoint, rentalPackage,
-      pickupCity, dropCity, distance, nightCharge, minKmPerDay,
-      tollCharges, parkingCharges, driverDa, 
+      mainType, 
+      subType, 
+      cabPrices, 
+      description,
+      serviceCity, 
+      pickupPoint, 
+      dropPoint, 
+      rentalPackage,
+      pickupCity, 
+      dropCity, 
+      distance, 
+      nightCharge, 
+      minKmPerDay,
+      tollCharges, 
+      parkingCharges, 
+      driverDa, 
       customInclusions: cleanCustomIncl, 
       customExclusions: cleanCustomExcl, 
-      gallery: cleanGallery, faqs
+      gallery: cleanGallery, 
+      faqs
     }
 
     let error;
 
     if (editId) {
       const res = await supabase.from('listings').update({
-          title: title, slug: slug, description: detailedDescription, location: displayLocation, price: lowestPrice, metadata: metadata
-        }).eq('id', editId)
+        title: title, 
+        slug: slug, 
+        description: detailedDescription, 
+        location: displayLocation, 
+        price: lowestPrice, 
+        metadata: metadata
+      }).eq('id', editId)
       error = res.error
     } else {
       const res = await supabase.from('listings').insert([{
-          vendor_id: vendorId, title: title, slug: slug, description: detailedDescription, category: 'cab', location: displayLocation, price: lowestPrice, status: 'pending', metadata: metadata
-        }])
+        vendor_id: vendorId, 
+        title: title, 
+        slug: slug, 
+        description: detailedDescription, 
+        category: 'cab', 
+        location: displayLocation, 
+        price: lowestPrice, 
+        status: 'pending', 
+        metadata: metadata
+      }])
       error = res.error
     }
 
     if (error) {
-      if (error.code === '23505') {
-        setMessage({ type: 'error', text: 'Error: Yeh SEO Slug pehle se use kiya hua hai.' })
-      } else {
-        setMessage({ type: 'error', text: 'Error: ' + error.message })
-      }
+      setMessage({ type: 'error', text: 'Error: ' + error.message })
       setSubmitting(false)
     } else {
       setMessage({ type: 'success', text: editId ? 'Cab Service successfully update ho gayi hai!' : 'Cab Service successfully add ho gayi hai!' })
       setSubmitting(false)
-      
-      // 🔥 MASTER FIX: Force clear the Next.js cache and do a hard reload to Admin Panel
       setTimeout(() => { 
-        window.location.href = '/admin'
+        router.push('/admin')
       }, 1500)
     }
   }

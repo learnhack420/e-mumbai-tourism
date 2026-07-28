@@ -273,7 +273,6 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </h2>
             
             <div className="flex flex-col gap-8">
-              {/* Transport Details or AI Route Planner */}
               <div className="space-y-4">
                 {isLocalTour ? (
                   <>
@@ -298,25 +297,11 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                     </div>
                   </>
                 ) : (
-                  <AIAutoRoutePlanner origin={origin} destination={destinationsCovered} />
+                  <AIAutoRoutePlanner 
+                    origin={origin} 
+                    destination={destinationsCovered} 
+                  />
                 )}
-              </div>
-
-              {/* Connected Google Maps Route View iframe placed below */}
-              <div className="w-full h-[300px] md:h-[400px] bg-gray-200 rounded-xl overflow-hidden border border-gray-300">
-                <iframe 
-                  width="100%" 
-                  height="100%" 
-                  style={{ border: 0 }} 
-                  loading="lazy" 
-                  allowFullScreen 
-                  referrerPolicy="no-referrer-when-downgrade" 
-                  src={
-                    isLocalTour
-                      ? `https://maps.google.com/maps?q=${encodeURIComponent(destinationsCovered + ' tourist attractions')}&t=&z=11&ie=UTF8&iwloc=&output=embed`
-                      : `https://maps.google.com/maps?saddr=${encodeURIComponent(origin)}&daddr=${encodeURIComponent(destinationsCovered)}&output=embed`
-                  }
-                ></iframe>
               </div>
             </div>
           </section>
