@@ -4,7 +4,6 @@ import { supabase } from '@/utils/supabase' // Use Path alias
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-
 export default function AddCabListing() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -46,10 +45,13 @@ export default function AddCabListing() {
   const [nightCharge, setNightCharge] = useState('') 
   const [minKmPerDay, setMinKmPerDay] = useState('250') // Standard Outstation Daily Limit
 
-  // 5. Inclusions / Exclusions (Yes/No Logic)
+  // 5. Inclusions / Exclusions (Base Dropdowns + Custom Columns)
   const [tollCharges, setTollCharges] = useState('Yes')
   const [parkingCharges, setParkingCharges] = useState('Yes')
   const [driverDa, setDriverDa] = useState('Yes')
+  
+  const [customInclusions, setCustomInclusions] = useState([''])
+  const [customExclusions, setCustomExclusions] = useState([''])
 
   // 6. Image Gallery (Links)
   const [gallery, setGallery] = useState([''])
@@ -66,7 +68,7 @@ export default function AddCabListing() {
     else if (mainType === 'Outstation') setSubType('One Way')
   }, [mainType])
 
-  // UPDATE: Admin aur Approved Vendor dono is form ko access kar sakte hain
+  // Admin aur Approved Vendor dono is form ko access kar sakte hain
   async function checkVendorStatus() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
@@ -124,6 +126,21 @@ export default function AddCabListing() {
   const addGalleryImage = () => setGallery([...gallery, ''])
   const removeGalleryImage = (index: number) => { if (gallery.length > 1) setGallery(gallery.filter((_, i) => i !== index)) }
 
+  // Custom Inclusions Handlers
+  const handleCustomInclChange = (index: number, value: string) => {
+    const newArr = [...customInclusions]; newArr[index] = value; setCustomInclusions(newArr)
+  }
+  const addCustomIncl = () => setCustomInclusions([...customInclusions, ''])
+  const removeCustomIncl = (index: number) => setCustomInclusions(customInclusions.filter((_, i) => i !== index))
+
+  // Custom Exclusions Handlers
+  const handleCustomExclChange = (index: number, value: string) => {
+    const newArr = [...customExclusions]; newArr[index] = value; setCustomExclusions(newArr)
+  }
+  const addCustomExcl = () => setCustomExclusions([...customExclusions, ''])
+  const removeCustomExcl = (index: number) => setCustomExclusions(customExclusions.filter((_, i) => i !== index))
+
+  // FAQ Handlers
   const handleFaqChange = (index: number, field: 'question' | 'answer', value: string) => {
     const newFaqs = [...faqs]
     newFaqs[index][field] = value
@@ -201,8 +218,15 @@ export default function AddCabListing() {
       excl.push('Night charges (if traveling between 9PM-6AM)')
     }
 
-    const finalInclusions = incl.join(', ')
-    const finalExclusions = excl.join(', ')
+    // Append Custom Inclusions/Exclusions
+    const cleanCustomIncl = customInclusions.filter(item => item.trim() !== '')
+    const cleanCustomExcl = customExclusions.filter(item => item.trim() !== '')
+    
+    incl = [...incl, ...cleanCustomIncl]
+    excl = [...excl, ...cleanCustomExcl]
+
+    const finalInclusions = incl.join(', ') || 'None'
+    const finalExclusions = excl.join(', ') || 'None'
 
     const formattedFaqs = faqs
       .filter(f => f.question.trim() !== '' && f.answer.trim() !== '')
@@ -249,7 +273,10 @@ ${formattedFaqs}
       mainType, subType, cabPrices, description,
       serviceCity, pickupPoint, dropPoint, rentalPackage,
       pickupCity, dropCity, distance, nightCharge, minKmPerDay,
-      tollCharges, parkingCharges, driverDa, gallery: cleanGallery, faqs
+      tollCharges, parkingCharges, driverDa, 
+      customInclusions: cleanCustomIncl, 
+      customExclusions: cleanCustomExcl, 
+      gallery: cleanGallery, faqs
     }
 
     const { error } = await supabase
@@ -275,7 +302,7 @@ ${formattedFaqs}
       setSubmitting(false)
     } else {
 
-      // 🌟 NEW: EMAIL TRIGGER API CALL FOR NEW LISTING
+      // EMAIL TRIGGER API CALL FOR NEW LISTING
       fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -552,10 +579,12 @@ ${formattedFaqs}
               <textarea rows={3} className="w-full px-4 py-2 border rounded-lg outline-none resize-none bg-gray-50" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Details about car condition, AC etc."></textarea>
             </div>
 
-            {/* Inclusions / Exclusions */}
+            {/* Inclusions / Exclusions WITH DYNAMIC COLUMNS */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">6. Inclusions & Exclusions Setup</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Base Dropdowns */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 pb-6 border-b border-gray-200">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Toll Charges</label>
                   <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={tollCharges} onChange={(e) => setTollCharges(e.target.value)}>
@@ -579,6 +608,59 @@ ${formattedFaqs}
                     </select>
                   </div>
                 )}
+              </div>
+
+              {/* DYNAMIC TWO COLUMNS FOR INCLUSIONS AND EXCLUSIONS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                {/* 🟢 Custom Inclusions */}
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-bold text-green-700">✅ Additional Inclusions</label>
+                    <button type="button" onClick={addCustomIncl} className="text-xs bg-green-100 text-green-700 font-bold px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors">+ Add Item</button>
+                  </div>
+                  <div className="space-y-3">
+                    {customInclusions.map((item, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input 
+                          type="text" 
+                          className="flex-1 px-4 py-2 border border-green-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-green-50" 
+                          value={item} 
+                          onChange={(e) => handleCustomInclChange(index, e.target.value)} 
+                          placeholder="e.g. Free Water Bottle" 
+                        />
+                        {customInclusions.length > 1 && (
+                          <button type="button" onClick={() => removeCustomIncl(index)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded-lg">✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 🔴 Custom Exclusions */}
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-sm font-bold text-red-700">❌ Additional Exclusions</label>
+                    <button type="button" onClick={addCustomExcl} className="text-xs bg-red-100 text-red-700 font-bold px-3 py-1.5 rounded-lg hover:bg-red-200 transition-colors">+ Add Item</button>
+                  </div>
+                  <div className="space-y-3">
+                    {customExclusions.map((item, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input 
+                          type="text" 
+                          className="flex-1 px-4 py-2 border border-red-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500 bg-red-50" 
+                          value={item} 
+                          onChange={(e) => handleCustomExclChange(index, e.target.value)} 
+                          placeholder="e.g. Monument Entry Fees" 
+                        />
+                        {customExclusions.length > 1 && (
+                          <button type="button" onClick={() => removeCustomExcl(index)} className="text-red-500 font-bold px-2 hover:bg-red-50 rounded-lg">✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
             </div>
 
