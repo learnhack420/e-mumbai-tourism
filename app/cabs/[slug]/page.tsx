@@ -37,10 +37,25 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
     return notFound()
   }
 
+  // 🐛 DEBUG LOG: F12 console me check karne ke liye ki vendor_id aa raha hai ya nahi
+  console.log(`Cab Details Fetched: ${cab.title} | Vendor ID: ${cab.vendor_id || 'NULL/EMPTY'}`);
+
   const meta = cab.metadata || {}
   const gallery = meta.gallery && meta.gallery.length > 0 
     ? meta.gallery 
     : ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=1200']
+
+  // Format Trip Details Based on Trip Type
+  let tripDetailsText = ''
+  if (meta.subType === 'Point to Point') {
+    tripDetailsText = `${meta.pickupPoint || 'N/A'} ➔ ${meta.dropPoint || 'N/A'}`
+  } else if (meta.subType === 'Local Rental') {
+    tripDetailsText = meta.rentalPackage || 'N/A'
+  } else if (meta.subType === 'One Way') {
+    tripDetailsText = `${meta.distance ? meta.distance + ' KM' : 'Distance N/A'}`
+  } else if (meta.subType === 'Round Trip') {
+    tripDetailsText = `${meta.distance ? meta.distance + ' KM' : 'Distance N/A'} (Min ${meta.minKmPerDay || 250} KM/Day)`
+  }
 
   // Generate Google Maps Search Query for Local Map
   const isLocal = meta.mainType === 'Local';
@@ -183,6 +198,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                   {meta.parkingCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Parking Charges</li>}
                   {meta.driverDa === 'Yes' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Driver Allowance</li>}
                 </ul>
+                {(!meta.tollCharges || meta.tollCharges === 'No') && (!meta.parkingCharges || meta.parkingCharges === 'No') && (!meta.driverDa || meta.driverDa === 'No') && <p className="text-emerald-800 text-sm mt-2 font-medium">Please check description for inclusions.</p>}
               </div>
               
               <div className="bg-rose-50 p-6 md:p-8 rounded-3xl border border-rose-100 shadow-sm">
@@ -191,6 +207,9 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                   {meta.tollCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Toll Charges</li>}
                   {meta.parkingCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Parking Charges</li>}
                   {meta.driverDa === 'No' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Driver Allowance</li>}
+                  {meta.subType !== 'One Way' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Night Charges (9PM - 6AM)</li>}
+                  <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> State Border Tax (If any)</li>
+                  <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Tourist Attraction Fees</li>
                 </ul>
               </div>
             </div>
@@ -291,8 +310,8 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
         <div className="lg:col-span-1 space-y-6">
           <CabBookingSidebar cab={cab} meta={meta} />
           
-          {/* Vendor / Host Info Card */}
-          {cab?.vendor_id && <VendorInfoCard vendorId={cab.vendor_id} />}
+          {/* 🔥 FORCED Vendor / Host Info Card (Runs even if vendor_id is empty) */}
+          <VendorInfoCard vendorId={cab?.vendor_id || 'default-fallback'} />
         </div>
 
       </div>
