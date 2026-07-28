@@ -38,13 +38,13 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
   })
 
   const [slugEdited, setSlugEdited] = useState(false)
-  const [savedCities, setSavedCities] = useState([])
+  const [savedCities, setSavedCities] = useState<string[]>([])
 
-  const [availableCategories, setAvailableCategories] = useState([])
+  const [availableCategories, setAvailableCategories] = useState<string[]>([])
   const [isManagingCategories, setIsManagingCategories] = useState(false)
   const [isAddingCategory, setIsAddingCategory] = useState(false)
   const [newCategory, setNewCategory] = useState("")
-  const [editingCatIndex, setEditingCatIndex] = useState(null)
+  const [editingCatIndex, setEditingCatIndex] = useState<number | null>(null)
   const [editingCatName, setEditingCatName] = useState("")
 
   const [topAttractions, setTopAttractions] = useState([""])
@@ -53,20 +53,32 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
   useEffect(() => {
     fetchPlaceDetails()
 
-    const savedLocs = localStorage.getItem("adminSavedLocations")
+    const savedLocs = typeof window !== "undefined" ? localStorage.getItem("adminSavedLocations") : null
     if (savedLocs) {
-      const parsedLocs = JSON.parse(savedLocs)
-      const cities = new Set()
-      parsedLocs.forEach(loc => {
-        const parts = loc.split(">").map(p => p.trim())
-        if (parts.length >= 1) cities.add(parts[0])
-      })
-      setSavedCities([...cities])
+      try {
+        const parsedLocs = JSON.parse(savedLocs)
+        const cities = new Set<string>()
+        if (Array.isArray(parsedLocs)) {
+          parsedLocs.forEach((loc: any) => {
+            if (loc && typeof loc === "string") {
+              const parts = loc.split(">").map((p: string) => p.trim())
+              if (parts.length >= 1 && parts[0]) cities.add(parts[0])
+            }
+          })
+        }
+        setSavedCities(Array.from(cities))
+      } catch (e) {
+        console.error("Error parsing saved locations:", e)
+      }
     }
 
-    const savedCats = localStorage.getItem("adminPlaceCategories")
+    const savedCats = typeof window !== "undefined" ? localStorage.getItem("adminPlaceCategories") : null
     if (savedCats) {
-      setAvailableCategories(JSON.parse(savedCats))
+      try {
+        setAvailableCategories(JSON.parse(savedCats))
+      } catch (e) {
+        setAvailableCategories(["Historical", "Pilgrimage", "Nature", "Beach", "Hill Station"])
+      }
     } else {
       setAvailableCategories(["Historical", "Pilgrimage", "Nature", "Beach", "Hill Station"])
     }
@@ -86,11 +98,10 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
       return
     }
 
-    // Split city and state from location string if formatted like "City, State"
     let city = data.location || ""
     let state = "Maharashtra"
     if (data.location && data.location.includes(",")) {
-      const parts = data.location.split(",").map(p => p.trim())
+      const parts = data.location.split(",").map((p: string) => p.trim())
       city = parts[0]
       state = parts[1] || "Maharashtra"
     }
@@ -128,7 +139,7 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
     setLoading(false)
   }
 
-  const generateSlug = (name) => {
+  const generateSlug = (name: string) => {
     return name
       .toLowerCase()
       .trim()
@@ -137,7 +148,7 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
       .replace(/^-+|-+$/g, "")
   }
 
-  const handleNameChange = (e) => {
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value
     setFormData(prev => ({
       ...prev,
@@ -146,7 +157,7 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
     }))
   }
 
-  const handleSlugChange = (e) => {
+  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))
     setSlugEdited(true)
   }
@@ -154,7 +165,7 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
   const handleAddNewCategory = () => {
     if (newCategory.trim() !== "") {
       const formattedCategory = newCategory.trim()
-      const updatedCategories = [...new Set([...availableCategories, formattedCategory])]
+      const updatedCategories = Array.from(new Set([...availableCategories, formattedCategory]))
       setAvailableCategories(updatedCategories)
       localStorage.setItem("adminPlaceCategories", JSON.stringify(updatedCategories))
       setFormData(prev => ({ ...prev, category: formattedCategory }))
@@ -163,7 +174,7 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
     }
   }
 
-  const handleDeleteCategory = (catToDelete) => {
+  const handleDeleteCategory = (catToDelete: string) => {
     if (window.confirm(`Are you sure you want to delete "${catToDelete}"?`)) {
       const updatedCategories = availableCategories.filter(c => c !== catToDelete)
       setAvailableCategories(updatedCategories)
@@ -174,12 +185,12 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
     }
   }
 
-  const startEditingCategory = (index, cat) => {
+  const startEditingCategory = (index: number, cat: string) => {
     setEditingCatIndex(index)
     setEditingCatName(cat)
   }
 
-  const saveEditedCategory = (index, oldCat) => {
+  const saveEditedCategory = (index: number, oldCat: string) => {
     const trimmedName = editingCatName.trim()
     if (trimmedName && trimmedName !== oldCat) {
       const updatedCategories = [...availableCategories]
@@ -194,8 +205,8 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
     setEditingCatName("")
   }
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0]
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
     if (!file) return
 
     setIsUploading(true)
@@ -214,18 +225,18 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
 
       const { data } = supabase.storage.from("listings").getPublicUrl(filePath)
       setFormData(prev => ({ ...prev, image: data.publicUrl }))
-    } catch (error) {
+    } catch (error: any) {
       alert("Image upload failed: " + error.message)
     } finally {
       setIsUploading(false)
     }
   }
 
-  const handleDescriptionChange = useCallback((value) => {
+  const handleDescriptionChange = useCallback((value: string) => {
     setFormData(prev => ({ ...prev, description: value }))
   }, [])
 
-  const handleArrayChange = (index, value, type) => {
+  const handleArrayChange = (index: number, value: string, type: string) => {
     if (type === "gallery") {
       const newArr = [...gallery]
       newArr[index] = value
@@ -237,7 +248,7 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
     }
   }
 
-  const handleRemoveArrayItem = (index, type) => {
+  const handleRemoveArrayItem = (index: number, type: string) => {
     if (type === "gallery" && gallery.length > 1) {
       setGallery(gallery.filter((_, i) => i !== index))
     } else if (type === "attraction" && topAttractions.length > 1) {
@@ -245,21 +256,21 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
     }
   }
 
-  const handleFaqChange = (index, field, value) => {
+  const handleFaqChange = (index: number, field: string, value: string) => {
     const newFaqs = [...formData.faqItems]
-    newFaqs[index][field] = value
+    ;(newFaqs[index] as any)[field] = value
     setFormData(prev => ({ ...prev, faqItems: newFaqs }))
   }
 
   const addFaq = () => setFormData(prev => ({ ...prev, faqItems: [...prev.faqItems, { question: "", answer: "" }] }))
 
-  const removeFaq = (index) => {
+  const removeFaq = (index: number) => {
     const newFaqs = [...formData.faqItems]
     newFaqs.splice(index, 1)
     setFormData(prev => ({ ...prev, faqItems: newFaqs }))
   }
 
-  const handleUpdate = async (e) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isUploading) return alert("Please wait for the image to upload...")
     if (!formData.image) return alert("Please provide a Featured Image!")
@@ -361,7 +372,7 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
             <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
               <label className="block text-sm font-bold mb-2 text-indigo-900">Meta Description (SEO)*</label>
               <textarea 
-                rows="2" 
+                rows={2} 
                 placeholder="Write a catchy 150-160 character summary for Google search results..." 
                 className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm" 
                 value={formData.metaDescription} 
@@ -489,26 +500,26 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="border border-gray-200 p-6 rounded-xl">
                 <label className="block text-sm font-bold mb-2 text-gray-800">📜 History & Significance</label>
-                <textarea rows="4" placeholder="Origin and historical background..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.history} onChange={(e) => setFormData({...formData, history: e.target.value})} />
+                <textarea rows={4} placeholder="Origin and historical background..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.history} onChange={(e) => setFormData({...formData, history: e.target.value})} />
               </div>
               <div className="border border-gray-200 p-6 rounded-xl">
                 <label className="block text-sm font-bold mb-2 text-gray-800">💡 Why Visit? (Highlights)</label>
-                <textarea rows="4" placeholder="Unique features and top highlights..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.whyVisit} onChange={(e) => setFormData({...formData, whyVisit: e.target.value})} />
+                <textarea rows={4} placeholder="Unique features and top highlights..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.whyVisit} onChange={(e) => setFormData({...formData, whyVisit: e.target.value})} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="border border-gray-200 p-6 rounded-xl">
                 <label className="block text-sm font-bold mb-2 text-gray-800">🚆 How to Reach</label>
-                <textarea rows="3" placeholder="Nearest airport, railway station, bus routes..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.howToReach} onChange={(e) => setFormData({...formData, howToReach: e.target.value})} />
+                <textarea rows={3} placeholder="Nearest airport, railway station, bus routes..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.howToReach} onChange={(e) => setFormData({...formData, howToReach: e.target.value})} />
               </div>
               <div className="border border-gray-200 p-6 rounded-xl">
                 <label className="block text-sm font-bold mb-2 text-gray-800">📍 Nearest Places</label>
-                <textarea rows="3" placeholder="Other nearby tourist attractions..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.nearestPlaces} onChange={(e) => setFormData({...formData, nearestPlaces: e.target.value})} />
+                <textarea rows={3} placeholder="Other nearby tourist attractions..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.nearestPlaces} onChange={(e) => setFormData({...formData, nearestPlaces: e.target.value})} />
               </div>
               <div className="md:col-span-2 border border-gray-200 p-6 rounded-xl">
                 <label className="block text-sm font-bold mb-2 text-gray-800">🙏 Rituals / Activities / Things to Do</label>
-                <textarea rows="3" placeholder="Local rituals, festivals, or fun activities to do here..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.rituals} onChange={(e) => setFormData({...formData, rituals: e.target.value})} />
+                <textarea rows={3} placeholder="Local rituals, festivals, or fun activities to do here..." className="w-full p-3.5 border rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-sm" value={formData.rituals} onChange={(e) => setFormData({...formData, rituals: e.target.value})} />
               </div>
             </div>
 
@@ -552,7 +563,7 @@ export default function EditTouristPlace({ params }: { params: Promise<{ id: str
                 {formData.faqItems.map((faq, index) => (
                   <div key={index} className="bg-white p-4 rounded-xl border relative shadow-sm flex flex-col gap-2">
                     <input placeholder="Question" className="p-2 border-b font-bold outline-none text-sm" value={faq.question} onChange={(e) => handleFaqChange(index, 'question', e.target.value)} />
-                    <textarea placeholder="Answer" rows="2" className="p-2 text-sm outline-none resize-none" value={formData.faqItems[index].answer} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)} />
+                    <textarea placeholder="Answer" rows={2} className="p-2 text-sm outline-none resize-none" value={formData.faqItems[index].answer} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)} />
                     <button type="button" onClick={() => removeFaq(index)} className="absolute top-2 right-2 text-red-400 hover:text-red-600 font-bold">✕</button>
                   </div>
                 ))}
