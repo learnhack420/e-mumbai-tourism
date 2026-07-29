@@ -723,11 +723,10 @@ ${formattedFaqs}
 
             {/* FAQs */}
             <div>
-              <div className="flex justify-between items-center border-b pb-2 mb-6">
+              <div className="border-b pb-2 mb-6">
                 <h2 className="text-xl font-bold text-gray-800">8. FAQs</h2>
-                <button type="button" onClick={addFaq} className="text-sm bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full hover:bg-blue-200">+ Add FAQ</button>
               </div>
-              <div className="space-y-4">
+              <div className="space-y-4 mb-4">
                 {faqs.map((faq, index) => (
                   <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200 relative">
                     {faqs.length > 1 && (
@@ -746,6 +745,8 @@ ${formattedFaqs}
                   </div>
                 ))}
               </div>
+              {/* Button Moved Below the List */}
+              <button type="button" onClick={addFaq} className="mt-2 text-sm bg-blue-100 text-blue-700 font-bold px-4 py-2 rounded-full hover:bg-blue-200">+ Add FAQ</button>
             </div>
 
             <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors disabled:bg-blue-400 text-lg shadow-lg">
