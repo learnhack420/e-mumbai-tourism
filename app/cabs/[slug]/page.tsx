@@ -8,14 +8,23 @@ import VendorInfoCard from '@/app/components/VendorInfoCard'
 
 export const revalidate = 60
 
+// 🌟 Helper function to clean the new location format (Replaces ' > ' with ', ')
+const formatLocation = (locStr?: string) => {
+  if (!locStr) return 'N/A'
+  return locStr.replace(/ > /g, ', ')
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
   const { data: cab } = await supabase.from('listings').select('title, location, category').eq('slug', resolvedParams.slug).single()
   
   if (!cab) return { title: 'Not Found' }
   
+  // Clean location for SEO Title
+  const cleanLocation = cab.location ? cab.location.replace(/ > /g, ', ') : 'India'
+
   return {
-    title: `${cab.title} - Book Best Cabs in ${cab.location}`,
+    title: `${cab.title} - Book Best Cabs in ${cleanLocation}`,
     description: `Book reliable and comfortable outstation and local cabs for ${cab.title}. Best prices guaranteed.`,
   }
 }
@@ -45,9 +54,13 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
   const isLocal = meta.mainType === 'Local';
   const isOutstation = meta.mainType === 'Outstation';
 
-  // Origin aur Destination determine karne ke liye logic
-  const originCity = meta.pickupCity || cab.location || 'India';
-  const dropCity = meta.dropCity || meta.dropPoint || cab.location || 'Destination';
+  // 🌟 AI Route Planner ke liye Clean Locations
+  // Agar 'A to B' wala string hai, toh usko split kar lenge.
+  const rawOrigin = meta.pickupCity || meta.pickupPoint || meta.serviceCity || cab.location || 'India';
+  const rawDrop = meta.dropCity || meta.dropPoint || cab.location || 'Destination';
+  
+  const aiOrigin = rawOrigin.replace(/ > /g, ', ').split(' to ')[0];
+  const aiDrop = rawDrop.replace(/ > /g, ', ').split(' to ').pop();
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-800">
@@ -67,7 +80,11 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
             </span>
           </div>
           <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-lg">{cab.title}</h1>
-          <p className="text-slate-200 mt-3 text-lg md:text-xl font-medium flex items-center gap-2 drop-shadow-md">📍 {cab.location}</p>
+          
+          {/* 🌟 Apply formatLocation here */}
+          <p className="text-slate-200 mt-3 text-lg md:text-xl font-medium flex items-center gap-2 drop-shadow-md">
+            📍 {formatLocation(cab.location)}
+          </p>
         </div>
       </div>
 
@@ -93,7 +110,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               </div>
             </div>
 
-            {/* 2. Route & Details */}
+            {/* 2. Route & Details (Using formatLocation for all location displays) */}
             <div className="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-100 mb-10">
               <h3 className="text-xl font-black text-slate-900 mb-6">Route & Details:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -102,31 +119,37 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                   <>
                     <div>
                       <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Pickup Point</span>
-                      <span className="font-bold text-slate-800 text-lg">{meta.pickupPoint || 'N/A'}</span>
+                      <span className="font-bold text-slate-800 text-lg">{formatLocation(meta.pickupPoint)}</span>
                     </div>
                     <div>
                       <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Drop Point</span>
-                      <span className="font-bold text-slate-800 text-lg">{meta.dropPoint || 'N/A'}</span>
+                      <span className="font-bold text-slate-800 text-lg">{formatLocation(meta.dropPoint)}</span>
                     </div>
                   </>
                 )}
 
                 {meta.mainType === 'Local' && meta.subType === 'Local Rental' && (
-                  <div className="md:col-span-2">
-                    <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Rental Package</span>
-                    <span className="font-bold text-slate-800 text-lg">{meta.rentalPackage || 'N/A'}</span>
-                  </div>
+                  <>
+                    <div>
+                      <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Service City</span>
+                      <span className="font-bold text-slate-800 text-lg">{formatLocation(meta.serviceCity)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Rental Package</span>
+                      <span className="font-bold text-slate-800 text-lg">{meta.rentalPackage || 'N/A'}</span>
+                    </div>
+                  </>
                 )}
 
                 {meta.mainType === 'Outstation' && meta.subType === 'One Way' && (
                   <>
                     <div>
                       <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Pickup City</span>
-                      <span className="font-bold text-slate-800 text-lg">{meta.pickupCity || 'N/A'}</span>
+                      <span className="font-bold text-slate-800 text-lg">{formatLocation(meta.pickupCity)}</span>
                     </div>
                     <div>
                       <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Drop City</span>
-                      <span className="font-bold text-slate-800 text-lg">{meta.dropCity || 'N/A'}</span>
+                      <span className="font-bold text-slate-800 text-lg">{formatLocation(meta.dropCity)}</span>
                     </div>
                     <div>
                       <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Total Distance (km)</span>
@@ -143,11 +166,11 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                   <>
                     <div>
                       <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Pickup City</span>
-                      <span className="font-bold text-slate-800 text-lg">{meta.pickupCity || 'N/A'}</span>
+                      <span className="font-bold text-slate-800 text-lg">{formatLocation(meta.pickupCity)}</span>
                     </div>
                     <div>
                       <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Destination City</span>
-                      <span className="font-bold text-slate-800 text-lg">{meta.dropCity || 'N/A'}</span>
+                      <span className="font-bold text-slate-800 text-lg">{formatLocation(meta.dropCity)}</span>
                     </div>
                     <div>
                       <span className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Estimated Distance (km)</span>
@@ -205,7 +228,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               </div>
             </div>
 
-            {/* 5. Route & Map Section (Single Clean AIAutoRoutePlanner Component) */}
+            {/* 5. Route & Map Section (Clean AIAutoRoutePlanner Component) */}
             <div className="mb-10 border-t border-slate-100 pt-10">
               {meta.howToReach && (
                 <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
@@ -214,9 +237,10 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                 </div>
               )}
 
+              {/* Passes cleaned names for AI accuracy */}
               <AIAutoRoutePlanner 
-                origin={originCity} 
-                destination={dropCity} 
+                origin={aiOrigin} 
+                destination={aiDrop} 
               />
             </div>
 
@@ -266,7 +290,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
         </div>
 
         {/* ========================================= */}
-        {/* RIGHT COLUMN: SIDEBAR (Only Booking Box)  */}
+        {/* RIGHT COLUMN: SIDEBAR (Booking Box)       */}
         {/* ========================================= */}
         <div className="lg:col-span-1">
           <div className="sticky top-6">

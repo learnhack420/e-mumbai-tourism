@@ -7,6 +7,12 @@ import VendorInfoCard from '../../components/VendorInfoCard'
 
 export const revalidate = 60
 
+// 🌟 Helper function to clean the new location format (Replaces ' > ' with ', ')
+const formatLocation = (locStr?: string) => {
+  if (!locStr) return 'Not specified'
+  return locStr.replace(/ > /g, ', ')
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
   const slug = resolvedParams.slug
@@ -55,17 +61,20 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
   const thumbnail = meta.thumbnail || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=1200')
   const gallery = meta.gallery || []
   
-  // Logic for Origin, Destinations & Places to Visit
+  // 🌟 Logic for Origin & Destinations with formatLocation applied
   const locationParts = tour.location ? tour.location.split('➔').map((s: string) => s.trim()) : []
-  const origin = locationParts.length > 0 ? locationParts[0] : 'Not specified'
-  const destinationsCovered = locationParts.length > 1 ? locationParts[1] : tour.location
+  const rawOrigin = locationParts.length > 0 ? locationParts[0] : 'Not specified'
+  const rawDestinations = locationParts.length > 1 ? locationParts[1] : tour.location
+
+  const origin = formatLocation(rawOrigin)
+  const destinationsCovered = formatLocation(rawDestinations)
 
   const placesToVisitStr = meta.placesToVisit && meta.placesToVisit.length > 0 
     ? meta.placesToVisit.join(', ') 
     : destinationsCovered
     
-  // Local vs Outstation Check logic
-  const isLocalTour = origin.toLowerCase() === destinationsCovered.toLowerCase()
+  // Local vs Outstation Check logic (Using raw strings to match exact IDs if needed)
+  const isLocalTour = rawOrigin.toLowerCase() === rawDestinations.toLowerCase()
 
   // Logic for Pickup Times 12-hour format
   const formatTime12hr = (time24: string) => {
@@ -102,6 +111,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
       
       {/* Hero Image */}
       <div className="relative h-[400px] md:h-[500px] w-full bg-gray-900">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={thumbnail} alt={tour.title} className="w-full h-full object-cover opacity-80" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-6xl mx-auto">
@@ -110,7 +120,8 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           </span>
           <h1 className="text-3xl md:text-5xl font-extrabold text-white mt-4 leading-tight">{tour.title}</h1>
           <div className="flex flex-wrap items-center gap-4 mt-4 text-gray-200 font-medium">
-            <span className="flex items-center gap-1">📍 {tour.location}</span>
+            {/* 🌟 Apply formatLocation here */}
+            <span className="flex items-center gap-1">📍 {formatLocation(tour.location)}</span>
             <span className="flex items-center gap-1">⏱️ {meta.duration || 'Custom Duration'}</span>
           </div>
         </div>
@@ -206,6 +217,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {gallery.map((imgUrl: string, idx: number) => (
                   <div key={idx} className="h-32 md:h-40 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={imgUrl} alt={`Gallery Image ${idx+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-300" />
                   </div>
                 ))}
@@ -327,7 +339,9 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
         {/* Right Sidebar Booking Widget Component */}
         <div className="lg:col-span-1">
-          <TourBookingSidebar tour={tour} meta={meta} destinations={destinationsCovered} />
+          <div className="sticky top-6">
+            <TourBookingSidebar tour={tour} meta={meta} destinations={destinationsCovered} />
+          </div>
         </div>
 
       </div>

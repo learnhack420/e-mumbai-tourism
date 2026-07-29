@@ -1,31 +1,36 @@
 "use client"
-import { useState, useEffect, useCallback, use } from 'react'
-import { supabase } from '@/utils/supabase' // Path alias use kiya gaya hai (or use '../../../../utils/supabase')
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { supabase } from '@/utils/supabase' 
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+// 👇 Import LocationSelector component for consistent location tags
+import LocationSelector from '../../components/LocationSelector'
 
 // Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
 import "react-quill-new/dist/quill.snow.css"
 
-export default function EditBlogPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params)
+function BlogFormContent() {
   const router = useRouter()
-  
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('edit') // 🌟 Fetch ID from URL for Edit Mode
+
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
+  const [vendorId, setVendorId] = useState('')
+  const [userRole, setUserRole] = useState('')
 
   // Form States
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
-  const [slugEdited, setSlugEdited] = useState(true) // Edit page par usually existing slug retain hota hai
+  const [slugEdited, setSlugEdited] = useState(false)
   const [location, setLocation] = useState('')
   const [shortDescription, setShortDescription] = useState('')
   const [longDescription, setLongDescription] = useState('')
   const [gallery, setGallery] = useState([''])
-
+  
   // FAQ State
   const [faqItems, setFaqItems] = useState([{ question: "", answer: "" }])
 
@@ -39,46 +44,83 @@ export default function EditBlogPage({ params }: { params: Promise<{ id: string 
   const [editingCatName, setEditingCatName] = useState("")
 
   useEffect(() => {
-    // Load saved categories from localStorage
-    const savedCats = localStorage.getItem("adminBlogCategories")
-    if (savedCats) {
-      const parsedCats = JSON.parse(savedCats)
-      setAvailableCategories(parsedCats)
-    } else {
-      setAvailableCategories(["Travel Guide", "Tips & Tricks", "Itinerary", "Food & Culture"])
-    }
+    checkAccessAndLoadData()
+  }, [editId])
 
-    fetchBlogDetails()
-  }, [resolvedParams.id])
-
-  async function fetchBlogDetails() {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('listings')
-      .select('*')
-      .eq('id', resolvedParams.id)
-      .single()
-
-    if (error || !data) {
-      setMessage({ type: 'error', text: 'Blog not found or failed to load data.' })
-      setLoading(false)
+  async function checkAccessAndLoadData() {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      router.push('/login')
       return
     }
 
-    setTitle(data.title || '')
-    setSlug(data.slug || '')
-    setLocation(data.location || '')
-    setLongDescription(data.description || '')
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, approval_status')
+      .eq('id', session.user.id)
+      .single()
 
-    const meta = data.metadata || {}
-    setShortDescription(meta.shortDescription || '')
-    setGallery(meta.gallery && meta.gallery.length > 0 ? meta.gallery : [''])
-    setFaqItems(meta.faqItems && meta.faqItems.length > 0 ? meta.faqItems : [{ question: "", answer: "" }])
-    
-    if (meta.blogCategory) {
-      setCategory(meta.blogCategory)
+    if (!profile || (profile.role !== 'vendor' && profile.role !== 'admin')) {
+      router.push('/login')
+      return
+    }
+
+    setVendorId(session.user.id)
+    setUserRole(profile.role)
+
+    // Load saved categories from localStorage
+    let currentCats = ["Travel Guide", "Tips & Tricks", "Itinerary", "Food & Culture"]
+    const savedCats = localStorage.getItem("adminBlogCategories")
+    if (savedCats) {
+      currentCats = JSON.parse(savedCats)
+      setAvailableCategories(currentCats)
     } else {
-      setCategory("Travel Guide") // default fallback
+      setAvailableCategories(currentCats)
+    }
+
+    // 🔥 FETCH EXISTING DATA IF IN EDIT MODE
+    if (editId) {
+      const { data: listing, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', editId)
+        .single()
+
+      if (error || !listing) {
+        setMessage({ type: 'error', text: 'Blog article not found!' })
+        setLoading(false)
+        return
+      }
+
+      setTitle(listing.title || '')
+      setSlug(listing.slug || '')
+      setSlugEdited(true)
+      setLocation(listing.location || '')
+      setLongDescription(listing.description || '')
+
+      const meta = listing.metadata || {}
+      setShortDescription(meta.shortDescription || '')
+      
+      if (meta.blogCategory) {
+        setCategory(meta.blogCategory)
+        // Agar category nayi hai jo list me nahi hai, to add kar do
+        if (!currentCats.includes(meta.blogCategory)) {
+          const updatedCats = [...currentCats, meta.blogCategory]
+          setAvailableCategories(updatedCats)
+          localStorage.setItem("adminBlogCategories", JSON.stringify(updatedCats))
+        }
+      }
+
+      if (meta.gallery && meta.gallery.length > 0) {
+        setGallery(meta.gallery)
+      }
+
+      if (meta.faqItems && meta.faqItems.length > 0) {
+        setFaqItems(meta.faqItems)
+      }
+    } else {
+      // Default category for new blog
+      if (currentCats.length > 0) setCategory(currentCats[0])
     }
 
     setLoading(false)
@@ -181,18 +223,15 @@ export default function EditBlogPage({ params }: { params: Promise<{ id: string 
       [{ 'header': [2, 3, 4, false] }],
       ['bold', 'italic', 'underline', 'strike', 'blockquote'],
       [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      ['link', 'image'],
+      ['link', 'image'], 
       ['clean']
     ]
   }
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!category) return alert("Please select or add a category!")
-    if (!longDescription || longDescription === '<p><br></p>') {
-      return alert("Article content cannot be empty!")
-    }
+    if (!longDescription || longDescription === '<p><br></p>') return alert("Article content cannot be empty!")
 
     setSubmitting(true)
     setMessage({ type: '', text: '' })
@@ -207,28 +246,52 @@ export default function EditBlogPage({ params }: { params: Promise<{ id: string 
       faqItems: cleanFaqs
     }
 
-    const { error } = await supabase
-      .from('listings')
-      .update({
-          title: title,
-          slug: slug,
-          description: longDescription,
-          location: location,
-          metadata: metadata
-      })
-      .eq('id', resolvedParams.id)
+    const dbPayload = {
+      title: title,
+      slug: slug,
+      description: longDescription,
+      location: location,
+      metadata: metadata
+    }
+
+    let error;
+
+    if (editId) {
+      // UPDATE EXISTING BLOG
+      const res = await supabase
+        .from('listings')
+        .update(dbPayload)
+        .eq('id', editId)
+      error = res.error
+    } else {
+      // INSERT NEW BLOG
+      const res = await supabase
+        .from('listings')
+        .insert([{
+          ...dbPayload,
+          vendor_id: vendorId,
+          category: 'blog', 
+          price: 0,
+          status: 'approved', // By default approved, or change to pending if you want
+        }])
+      error = res.error
+    }
 
     if (error) {
-      setMessage({ type: 'error', text: 'Error updating: ' + error.message })
+      if (error.code === '23505') {
+        setMessage({ type: 'error', text: 'Error: Yeh SEO Slug pehle se used hai. Kripya thoda alag slug banayein.' })
+      } else {
+        setMessage({ type: 'error', text: 'Error: ' + error.message })
+      }
       setSubmitting(false)
     } else {
-      setMessage({ type: 'success', text: '✅ Blog article successfully updated!' })
+      setMessage({ type: 'success', text: editId ? 'Blog article successfully updated!' : 'Blog article successfully published!' })
       setSubmitting(false)
       setTimeout(() => { router.push('/admin') }, 2000)
     }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-indigo-600 text-xl">Loading blog details...</div>
+  if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-indigo-600">Loading Form...</div>
 
   return (
     <div className="min-h-screen p-4 md:p-8 bg-gray-50">
@@ -236,8 +299,8 @@ export default function EditBlogPage({ params }: { params: Promise<{ id: string 
         
         <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-extrabold">✏️ Edit Blog Article</h1>
-            <p className="text-indigo-100 text-sm mt-1">Update SEO details, content, FAQs, and gallery images</p>
+            <h1 className="text-2xl font-extrabold">{editId ? 'Edit Blog Article' : 'Add New Blog Article'}</h1>
+            <p className="text-indigo-100 text-sm mt-1">Create an SEO-friendly blog post with rich text, FAQs and categories</p>
           </div>
           <Link href="/admin" className="bg-indigo-700 hover:bg-indigo-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
             ← Back to Admin
@@ -246,12 +309,12 @@ export default function EditBlogPage({ params }: { params: Promise<{ id: string 
 
         <div className="p-6 md:p-8">
           {message.text && (
-            <div className={`mb-6 p-4 rounded-lg text-sm font-bold ${message.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+            <div className={`mb-6 p-4 rounded-lg text-sm font-bold ${message.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
               {message.text}
             </div>
           )}
 
-          <form onSubmit={handleUpdate} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
             
             {/* Title & SEO Slug */}
             <div className="border border-gray-200 p-6 rounded-xl">
@@ -268,9 +331,16 @@ export default function EditBlogPage({ params }: { params: Promise<{ id: string 
                     <input type="text" required className="w-full px-4 py-2 border rounded-r-lg outline-none bg-white text-blue-700 font-medium focus:ring-2 focus:ring-indigo-500" value={slug} onChange={handleSlugChange} placeholder="valley-of-flowers" />
                   </div>
                 </div>
+                
+                {/* 🌟 LocationSelector added here */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Location / Tag (e.g., Uttarakhand or Travel Tips)</label>
-                  <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 focus:ring-2 focus:ring-indigo-500" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. Uttarakhand, India" />
+                  <LocationSelector 
+                    label="Location / Tag (Optional)" 
+                    selected={location} 
+                    onChange={setLocation} 
+                    multiple={false}
+                    placeholder="Select or Add Location (e.g. Uttarakhand, India)"
+                  />
                 </div>
               </div>
             </div>
@@ -420,11 +490,19 @@ export default function EditBlogPage({ params }: { params: Promise<{ id: string 
             </div>
 
             <button type="submit" disabled={submitting} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 text-lg shadow-lg transition-transform transform hover:scale-[1.01]">
-              {submitting ? 'Updating Blog...' : 'Update Blog Article'}
+              {submitting ? 'Saving Changes...' : (editId ? 'Update Blog Article' : 'Publish Blog Article')}
             </button>
           </form>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AddBlogListing() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center font-bold text-indigo-600">Loading Form...</div>}>
+      <BlogFormContent />
+    </Suspense>
   )
 }

@@ -4,6 +4,8 @@ import { supabase } from '../../../utils/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+// 👇 Import the newly created LocationSelector component (Path apne folder structure ke hisaab se adjust karein)
+import LocationSelector from '../../components/LocationSelector' 
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
@@ -30,8 +32,9 @@ function TourFormContent() {
   const [metaDescription, setMetaDescription] = useState('')
   const [metaKeywords, setMetaKeywords] = useState('')
   
+  // 🌟 UPDATE: Destinations ab ek Array (list) hai taaki multiple add ho sakein
   const [startLocation, setStartLocation] = useState('')
-  const [destinations, setDestinations] = useState('')
+  const [destinations, setDestinations] = useState<string[]>([])
   
   // Duration & Fixed Pickup Times State
   const [durationDays, setDurationDays] = useState('3')
@@ -41,7 +44,7 @@ function TourFormContent() {
 
   const [price, setPrice] = useState('') 
   
-  // 🌟 Best Time to Visit State
+  // Best Time to Visit State
   const [bestTimeToVisit, setBestTimeToVisit] = useState('')
   const [bestMonths, setBestMonths] = useState<string[]>([])
   
@@ -131,9 +134,14 @@ function TourFormContent() {
       setMetaDescription(meta.seo?.metaDescription || '')
       setMetaKeywords(meta.seo?.metaKeywords || '')
 
-      // Locations extraction
+      // 🌟 UPDATE: Extract Locations properly
       setStartLocation(meta.startLocation || (listing.location?.split(' ➔ ')[0]) || '')
-      setDestinations(meta.destinations || (listing.location?.split(' ➔ ')[1]) || '')
+      if (meta.destinationsArray) {
+        setDestinations(meta.destinationsArray)
+      } else {
+        const destStr = listing.location?.split(' ➔ ')[1] || ''
+        setDestinations(destStr ? destStr.split(', ') : [])
+      }
 
       // Duration extraction
       if (meta.durationRaw) {
@@ -141,7 +149,6 @@ function TourFormContent() {
         setDurationNights(meta.durationRaw.n || '0')
         setDurationHours(meta.durationRaw.h || '0')
       } else if (meta.duration) {
-        // Fallback parser if durationRaw missing
         const dMatch = meta.duration.match(/(\d+)\s+Day/);
         const nMatch = meta.duration.match(/(\d+)\s+Night/);
         const hMatch = meta.duration.match(/(\d+)\s+Hour/);
@@ -241,8 +248,19 @@ function TourFormContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Safety check for location selection
+    if (!startLocation || destinations.length === 0) {
+      setMessage({ type: 'error', text: 'Please select both Origin and at least one Destination!' })
+      return
+    }
+
     setSubmitting(true)
     setMessage({ type: '', text: '' })
+
+    // 🌟 UPDATE: Format Location String
+    const formattedDestinations = destinations.join(', ')
+    const fullLocationString = `${startLocation} ➔ ${formattedDestinations}`
 
     // Format Duration String safely
     const dStr = []
@@ -332,7 +350,7 @@ ${formattedFaqs}
       duration: finalDuration,
       durationRaw: { d: durationDays, n: durationNights, h: durationHours },
       startLocation,
-      destinations,
+      destinationsArray: destinations, // 🌟 Save the array for easy editing later
       pickupTimes: cleanPickupTimes,
       overview,
       placesToVisit: cleanPlaces,
@@ -355,18 +373,20 @@ ${formattedFaqs}
 
     let error;
 
+    const dbPayload = {
+      title: title,
+      slug: slug,
+      location: fullLocationString, // 🌟 Saved beautifully like "Mumbai ➔ Nashik, Shirdi"
+      price: parseFloat(price),
+      description: detailedDescription,
+      metadata: metadata
+    }
+
     if (editId) {
       // UPDATE EXISTING TOUR
       const res = await supabase
         .from('listings')
-        .update({
-          title: title,
-          slug: slug,
-          location: `${startLocation} ➔ ${destinations}`,
-          price: parseFloat(price),
-          description: detailedDescription,
-          metadata: metadata
-        })
+        .update(dbPayload)
         .eq('id', editId)
       error = res.error
     } else {
@@ -374,15 +394,10 @@ ${formattedFaqs}
       const res = await supabase
         .from('listings')
         .insert([{
+          ...dbPayload,
           vendor_id: vendorId,
-          title: title,
-          slug: slug,
           category: 'tour',
-          location: `${startLocation} ➔ ${destinations}`,
-          price: parseFloat(price),
-          description: detailedDescription,
           status: 'pending',
-          metadata: metadata
         }])
       error = res.error
     }
@@ -406,7 +421,7 @@ ${formattedFaqs}
             data: {
               Package_Name: title,
               Duration: finalDuration,
-              Route: `${startLocation} to ${destinations}`,
+              Route: fullLocationString,
               Starting_Price: `₹${price}`,
               Vendor_ID: vendorId,
               Action: 'Please review and approve from Admin Panel'
@@ -483,15 +498,23 @@ ${formattedFaqs}
                 </div>
               </div>
 
+              {/* 🌟 REPLACED WITH NEW LOCATION SELECTOR COMPONENT */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Start From (Origin)</label>
-                  <input type="text" required className="w-full px-4 py-2 border rounded-lg bg-gray-50 outline-none" value={startLocation} onChange={(e) => setStartLocation(e.target.value)} placeholder="e.g. Kochi" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Destinations Covered</label>
-                  <input type="text" required className="w-full px-4 py-2 border rounded-lg bg-gray-50 outline-none" value={destinations} onChange={(e) => setDestinations(e.target.value)} placeholder="e.g. Munnar, Thekkady" />
-                </div>
+                <LocationSelector 
+                  label="Start From (Origin)" 
+                  selected={startLocation} 
+                  onChange={setStartLocation} 
+                  multiple={false}
+                  placeholder="Select Origin location..."
+                />
+                
+                <LocationSelector 
+                  label="Destinations Covered" 
+                  selected={destinations} 
+                  onChange={setDestinations} 
+                  multiple={true} // Multi-select enabled!
+                  placeholder="Select one or more destinations..."
+                />
               </div>
 
               {/* Duration & Pickup Times Row */}

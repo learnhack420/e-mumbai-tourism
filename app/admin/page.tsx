@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { supabase } from '../../utils/supabase' // path check kar lijiye agar alag ho
+import { supabase } from '../../utils/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -114,7 +114,7 @@ export default function AdminDashboard() {
     }
   }
 
-  // Open Edit Vendor Modal (UPDATED)
+  // Open Edit Vendor Modal
   const openEditVendorModal = (vendor: any) => {
     setEditingVendor(vendor)
     setEditName(vendor.full_name || '')
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
     setEditAddress(vendor.address || '')
   }
 
-  // Save Edited Vendor Details (UPDATED)
+  // Save Edited Vendor Details
   async function handleUpdateVendor(e: React.FormEvent) {
     e.preventDefault()
     if (!editingVendor) return
@@ -157,14 +157,17 @@ export default function AdminDashboard() {
     if (!error) fetchListings()
   }
 
-  // Helper to determine Edit URL based on category
+  // 🌟 Helper to determine Edit URL based on the new Unified Add/Edit files
   const getEditUrl = (listing: any) => {
     const cat = listing.category
     if (cat === 'tour') return `/add-listing/tour?edit=${listing.id}`
     if (cat === 'hotel') return `/add-listing/hotel?edit=${listing.id}`
     if (cat === 'cab') return `/add-listing/cab?edit=${listing.id}`
-    if (cat === 'destination') return `/admin/edit-place/${listing.id}`
-    if (cat === 'blog') return `/admin/blog/edit/${listing.id}`
+    if (cat === 'destination') return `/add-listing/place?edit=${listing.id}`
+    
+    // 👇 CHECK THIS LINE: Ye bilkul aisa hona chahiye
+    if (cat === 'blog') return `/add-listing/blog?edit=${listing.id}` 
+    
     return `/vendor`
   }
 
@@ -175,7 +178,7 @@ export default function AdminDashboard() {
     if (listing.category === 'hotel') return `/hotel/${slug}`
     if (listing.category === 'cab') return `/cabs/${slug}`
     if (listing.category === 'destination') return `/places/${slug}`
-    if (listing.category === 'blog') return `/${slug}`
+    if (listing.category === 'blog') return `/places/${slug}` // 🌟 Blog & Places generally share the same front-end viewer
     return `/listing/${slug}`
   }
 
@@ -199,6 +202,12 @@ export default function AdminDashboard() {
     ? listings 
     : listings.filter(listing => listing.category === activeListingCategory)
 
+  // 🌟 Helper to cleanly format location strings
+  const formatLocationForList = (locStr: string) => {
+    if (!locStr) return 'Online / Blog'
+    return locStr.replace(/ > /g, ', ')
+  }
+
   if (isLoading) return <div className="min-h-screen flex items-center justify-center text-xl font-bold">Checking Security...</div>
 
   return (
@@ -207,11 +216,11 @@ export default function AdminDashboard() {
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <h1 className="text-3xl font-extrabold text-gray-900">Admin Control Panel</h1>
           <div className="flex flex-wrap gap-3">
-            <Link href="/admin/add-place" className="bg-teal-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors text-sm">+ Add Tourist Place</Link>
+            <Link href="/add-listing/place" className="bg-teal-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-teal-700 transition-colors text-sm">+ Add Tourist Place</Link>
             <Link href="/add-listing/tour" className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm">+ Add Tour</Link>
             <Link href="/add-listing/hotel" className="bg-amber-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors text-sm">+ Add Hotel</Link>
             <Link href="/add-listing/cab" className="bg-blue-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">+ Add Cab</Link>
-            <Link href="/admin/blog/add" className="bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm">+ Add Blog Article</Link>
+            <Link href="/add-listing/blog" className="bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm">+ Add Blog Article</Link>
             <button onClick={handleLogout} className="bg-red-100 text-red-600 font-bold px-4 py-2 rounded-lg hover:bg-red-200 transition-colors text-sm">Logout</button>
           </div>
         </div>
@@ -231,7 +240,7 @@ export default function AdminDashboard() {
         
         <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
           
-          {/* TAB 1: BOOKINGS & INQUIRIES (NEW TAB) */}
+          {/* TAB 1: BOOKINGS & INQUIRIES */}
           {activeTab === 'bookings' && (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -263,11 +272,10 @@ export default function AdminDashboard() {
                         <div className="text-sm text-gray-800 font-bold">{booking.listing_title}</div>
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-600">
-                        {/* JSON Data display logic */}
                         {booking.booking_details && (
                           <div className="space-y-1">
                             {booking.booking_details.date && <div>📅 <span className="font-semibold">{booking.booking_details.date}</span></div>}
-                            {booking.booking_details.pickup && <div>📍 {booking.booking_details.pickup} ➔ {booking.booking_details.drop}</div>}
+                            {booking.booking_details.pickup && <div>📍 {formatLocationForList(booking.booking_details.pickup)} ➔ {formatLocationForList(booking.booking_details.drop)}</div>}
                             {booking.booking_details.selectedCab && <div>🚘 {booking.booking_details.selectedCab}</div>}
                           </div>
                         )}
@@ -374,7 +382,7 @@ export default function AdminDashboard() {
                       <tr key={listing.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4">
                           <div className="text-sm font-bold text-gray-900">{listing.title}</div>
-                          <div className="text-sm text-gray-500">📍 {listing.location || 'Online / Blog'}</div>
+                          <div className="text-sm text-gray-500">📍 {formatLocationForList(listing.location)}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm font-bold text-blue-600 uppercase">{listing.category}</div>

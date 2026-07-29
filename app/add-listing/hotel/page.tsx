@@ -4,6 +4,8 @@ import { supabase } from '@/utils/supabase' // Use Path alias
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+// 👇 Import LocationSelector component
+import LocationSelector from '../../components/LocationSelector' 
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
@@ -20,7 +22,10 @@ export default function AddHotelListing() {
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('') 
   const [slugEdited, setSlugEdited] = useState(false) 
+  
+  // 🌟 Location ab LocationSelector se handle hogi
   const [location, setLocation] = useState('') 
+  
   const [starRating, setStarRating] = useState('3 Star')
   
   // 2. Room Types, Pricing & Availability
@@ -131,6 +136,13 @@ export default function AddHotelListing() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Safety check for location selection
+    if (!location) {
+      setMessage({ type: 'error', text: 'Error: Hotel ki location select karna zaroori hai!' })
+      return
+    }
+
     setSubmitting(true)
     setMessage({ type: '', text: '' })
 
@@ -188,7 +200,7 @@ ${formattedFaqs}
           slug: slug, // Saving slug to database
           description: detailedDescription,
           category: 'hotel',
-          location: location,
+          location: location, // 🌟 Standardised Location string saved here
           price: lowestPrice,
           status: 'pending', // By default pending. Admin can approve later from dashboard.
           metadata: metadata
@@ -283,7 +295,7 @@ ${formattedFaqs}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Star Rating</label>
-                  <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={starRating} onChange={(e) => setStarRating(e.target.value)}>
+                  <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 h-[42px]" value={starRating} onChange={(e) => setStarRating(e.target.value)}>
                     <option>Homestay / Guest House</option>
                     <option>2 Star</option>
                     <option>3 Star</option>
@@ -291,9 +303,16 @@ ${formattedFaqs}
                     <option>5 Star</option>
                   </select>
                 </div>
+                
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-gray-700 mb-1">City / Full Address</label>
-                  <input type="text" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Colaba, Mumbai" />
+                  {/* 🌟 REPLACED WITH NEW LOCATION SELECTOR COMPONENT */}
+                  <LocationSelector 
+                    label="City / Full Address" 
+                    selected={location} 
+                    onChange={setLocation} 
+                    multiple={false}
+                    placeholder="Select Hotel Location..." 
+                  />
                 </div>
               </div>
             </div>

@@ -1,8 +1,11 @@
 "use client"
 import { useEffect, useState, Suspense } from 'react'
-import { supabase } from '@/utils/supabase' 
+import { supabase } from '../../../utils/supabase' 
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
+// 👇 Import LocationSelector component (Path verify kar lein agar error aaye to)
+import LocationSelector from '../../components/LocationSelector' 
 
 function CabFormContent() {
   const router = useRouter()
@@ -32,12 +35,14 @@ function CabFormContent() {
   const [cabPrices, setCabPrices] = useState(initialCabPrices)
   const [description, setDescription] = useState('')
 
+  // 🌟 Locations ab LocationSelector handle karega
   const [serviceCity, setServiceCity] = useState('')
   const [pickupPoint, setPickupPoint] = useState('')
   const [dropPoint, setDropPoint] = useState('')
   const [rentalPackage, setRentalPackage] = useState('8 Hour 80km')
   const [pickupCity, setPickupCity] = useState('')
   const [dropCity, setDropCity] = useState('') 
+  
   const [distance, setDistance] = useState('')
   const [nightCharge, setNightCharge] = useState('') 
   const [minKmPerDay, setMinKmPerDay] = useState('250') 
@@ -428,7 +433,7 @@ ${formattedFaqs}
               )}
             </div>
 
-            {/* Route & Details Configuration */}
+            {/* 🌟 Route & Details Configuration (Updated with LocationSelector) */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">3. Route & Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -436,16 +441,28 @@ ${formattedFaqs}
                 {subType === 'Point to Point' && (
                   <>
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Service City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={serviceCity} onChange={(e) => setServiceCity(e.target.value)} />
+                      <LocationSelector 
+                        label="Service City" 
+                        selected={serviceCity} 
+                        onChange={setServiceCity} 
+                        placeholder="Select Service City..." 
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Pickup Point</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupPoint} onChange={(e) => setPickupPoint(e.target.value)} />
+                      <LocationSelector 
+                        label="Pickup Point" 
+                        selected={pickupPoint} 
+                        onChange={setPickupPoint} 
+                        placeholder="Select Pickup Location..." 
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Drop Point</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropPoint} onChange={(e) => setDropPoint(e.target.value)} />
+                      <LocationSelector 
+                        label="Drop Point" 
+                        selected={dropPoint} 
+                        onChange={setDropPoint} 
+                        placeholder="Select Drop Location..." 
+                      />
                     </div>
                   </>
                 )}
@@ -453,12 +470,16 @@ ${formattedFaqs}
                 {subType === 'Local Rental' && (
                   <>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Service City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={serviceCity} onChange={(e) => setServiceCity(e.target.value)} />
+                      <LocationSelector 
+                        label="Service City" 
+                        selected={serviceCity} 
+                        onChange={setServiceCity} 
+                        placeholder="Select Service City..." 
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Rental Package</label>
-                      <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={rentalPackage} onChange={(e) => setRentalPackage(e.target.value)}>
+                      <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 h-[42px]" value={rentalPackage} onChange={(e) => setRentalPackage(e.target.value)}>
                         <option>4 Hour 40km</option>
                         <option>6 Hour 60km</option>
                         <option>8 Hour 80km</option>
@@ -471,20 +492,28 @@ ${formattedFaqs}
                 {subType === 'One Way' && (
                   <>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Pickup City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} />
+                      <LocationSelector 
+                        label="Pickup City" 
+                        selected={pickupCity} 
+                        onChange={setPickupCity} 
+                        placeholder="Select Pickup City..." 
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Drop City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropCity} onChange={(e) => setDropCity(e.target.value)} />
+                      <LocationSelector 
+                        label="Drop City" 
+                        selected={dropCity} 
+                        onChange={setDropCity} 
+                        placeholder="Select Drop City..." 
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Total Distance (km)</label>
-                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={distance} onChange={(e) => setDistance(e.target.value)} />
+                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 h-[42px]" value={distance} onChange={(e) => setDistance(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Night Charge (9pm-6am) Amount ₹</label>
-                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={nightCharge} onChange={(e) => setNightCharge(e.target.value)} />
+                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 h-[42px]" value={nightCharge} onChange={(e) => setNightCharge(e.target.value)} />
                     </div>
                   </>
                 )}
@@ -492,20 +521,28 @@ ${formattedFaqs}
                 {subType === 'Round Trip' && (
                   <>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Pickup City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} />
+                      <LocationSelector 
+                        label="Pickup City" 
+                        selected={pickupCity} 
+                        onChange={setPickupCity} 
+                        placeholder="Select Pickup City..." 
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">Destination City</label>
-                      <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={dropCity} onChange={(e) => setDropCity(e.target.value)} />
+                      <LocationSelector 
+                        label="Destination City" 
+                        selected={dropCity} 
+                        onChange={setDropCity} 
+                        placeholder="Select Destination City..." 
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Estimated Distance (km)</label>
-                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={distance} onChange={(e) => setDistance(e.target.value)} />
+                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 h-[42px]" value={distance} onChange={(e) => setDistance(e.target.value)} />
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-1">Min KM per Day limit</label>
-                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50" value={minKmPerDay} onChange={(e) => setMinKmPerDay(e.target.value)} />
+                      <input type="number" required className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 h-[42px]" value={minKmPerDay} onChange={(e) => setMinKmPerDay(e.target.value)} />
                     </div>
                   </>
                 )}

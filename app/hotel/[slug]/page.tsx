@@ -1,15 +1,50 @@
 import { supabase } from '../../../utils/supabase'
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 
 export const revalidate = 60
 
-export default async function HotelDetailPage({ params }: { params: { slug: string } }) {
-  let { data: hotel, error } = await supabase.from('listings').select('*').eq('slug', params.slug).single()
+// 🌟 Helper function to clean the new location format (Replaces ' > ' with ', ')
+const formatLocation = (locStr?: string) => {
+  if (!locStr) return 'Not specified'
+  return locStr.replace(/ > /g, ', ')
+}
+
+// 🌟 SEO Metadata Generation
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const resolvedParams = await params
+  const { data: hotel } = await supabase.from('listings').select('title, location, metadata').eq('slug', resolvedParams.slug).single()
+  
+  if (!hotel) return { title: 'Hotel Not Found' }
+  
+  const cleanLocation = formatLocation(hotel.location)
+  const meta = hotel.metadata || {}
+
+  return {
+    title: meta.seo?.metaTitle || `${hotel.title} - Best Stay in ${cleanLocation}`,
+    description: meta.seo?.metaDescription || `Book your stay at ${hotel.title} located in ${cleanLocation}. Enjoy top amenities and comfortable rooms at the best prices.`,
+    keywords: meta.seo?.metaKeywords || `${hotel.title}, hotel in ${cleanLocation}, book room`,
+    openGraph: {
+      images: [meta.thumbnail || meta.gallery?.[0] || ''],
+    }
+  }
+}
+
+export default async function HotelDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params
+  const slug = resolvedParams.slug
+
+  let { data: hotel, error } = await supabase.from('listings').select('*').eq('slug', slug).single()
 
   if (error || !hotel) {
-    const { data: hotelById } = await supabase.from('listings').select('*').eq('id', params.slug).single()
+    const { data: hotelById } = await supabase.from('listings').select('*').eq('id', slug).single()
     if (!hotelById) return notFound()
     hotel = hotelById
+  }
+
+  // Security check: Only show hotel categories
+  if (hotel.category !== 'hotel') {
+    return notFound()
   }
 
   const meta = hotel.metadata || {}
@@ -17,19 +52,25 @@ export default async function HotelDetailPage({ params }: { params: { slug: stri
     ? meta.gallery 
     : ['https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=1200']
 
+  // 🌟 Clean Location for display
+  const formattedLocation = formatLocation(hotel.location)
+
   return (
-    <main className="min-h-screen bg-gray-50 pb-20">
+    <main className="min-h-screen bg-gray-50 pb-20 font-sans">
       
       {/* Hero Section */}
       <div className="relative h-[400px] md:h-[500px] w-full bg-gray-900">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={gallery[0]} alt={hotel.title} className="w-full h-full object-cover opacity-70" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-6xl mx-auto">
-          <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+          <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-md">
             {meta.starRating || 'Hotel'}
           </span>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-white mt-4 leading-tight">{hotel.title}</h1>
-          <p className="text-gray-200 mt-2 font-medium flex items-center gap-2">📍 {hotel.location}</p>
+          <h1 className="text-3xl md:text-5xl font-extrabold text-white mt-4 leading-tight drop-shadow-md">{hotel.title}</h1>
+          <p className="text-gray-200 mt-3 text-lg font-medium flex items-center gap-2 drop-shadow-md">
+            📍 {formattedLocation}
+          </p>
         </div>
       </div>
 
@@ -61,8 +102,9 @@ export default async function HotelDetailPage({ params }: { params: { slug: stri
               <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">Hotel Gallery</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {gallery.slice(1).map((imgUrl: string, idx: number) => (
-                  <div key={idx} className="h-32 md:h-40 rounded-xl overflow-hidden bg-gray-100">
-                    <img src={imgUrl} alt={`Hotel ${idx+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-300" />
+                  <div key={idx} className="h-32 md:h-40 rounded-xl overflow-hidden bg-gray-100 shadow-sm relative group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imgUrl} alt={`Hotel ${idx+1}`} className="absolute w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" />
                   </div>
                 ))}
               </div>
@@ -98,7 +140,7 @@ export default async function HotelDetailPage({ params }: { params: { slug: stri
                 <span className="block text-gray-500 text-xs font-bold uppercase">Check-in</span>
                 <span className="font-bold text-gray-800">{meta.checkIn || '12:00 PM'}</span>
               </div>
-              <div className="w-1/2 border-l pl-4">
+              <div className="w-1/2 border-l border-gray-200 pl-4">
                 <span className="block text-gray-500 text-xs font-bold uppercase">Check-out</span>
                 <span className="font-bold text-gray-800">{meta.checkOut || '11:00 AM'}</span>
               </div>
@@ -106,7 +148,7 @@ export default async function HotelDetailPage({ params }: { params: { slug: stri
 
             {meta.roomPrices && (
               <div className="mb-6 space-y-3">
-                <h4 className="text-sm font-bold text-gray-800 border-b pb-1">Available Rooms</h4>
+                <h4 className="text-sm font-bold text-gray-800 border-b border-gray-100 pb-1">Available Rooms</h4>
                 {Object.entries(meta.roomPrices).map(([room, price]) => {
                   if (!price) return null;
                   return (
@@ -119,7 +161,7 @@ export default async function HotelDetailPage({ params }: { params: { slug: stri
               </div>
             )}
 
-            <div className="bg-blue-50 p-4 rounded-xl">
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
               <p className="text-xs text-blue-800 font-medium text-center">
                 Click the WhatsApp button to check availability and book your stay! 💬
               </p>

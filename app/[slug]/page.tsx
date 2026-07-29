@@ -20,6 +20,12 @@ export async function generateStaticParams() {
 
 export const dynamicParams = true
 
+// 🌟 Helper function to clean the new location format (Replaces ' > ' with ', ')
+const formatLocation = (locStr?: string) => {
+  if (!locStr) return 'Not specified'
+  return locStr.replace(/ > /g, ', ')
+}
+
 // Dynamic SEO Metadata for Tourist Attractions & Blogs
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
@@ -32,10 +38,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!place) return { title: 'Page Not Found' }
 
   const isBlog = place.category === 'blog'
+  
+  // 🌟 Clean Location for SEO
+  const cleanLocation = formatLocation(place.location)
 
   return {
     title: isBlog ? `${place.title} - Expert Travel Blog` : `${place.title} - Complete Travel Guide & How to Reach`,
-    description: place.metadata?.shortDescription || `Explore ${place.title}, ${place.location}. Find best time to visit, top attractions, and travel guide.`,
+    description: place.metadata?.shortDescription || `Explore ${place.title}, ${cleanLocation}. Find best time to visit, top attractions, and travel guide.`,
   }
 }
 
@@ -68,6 +77,9 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
   const gallery = meta.gallery && meta.gallery.length > 0 
     ? meta.gallery 
     : ['https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200']
+
+  // 🌟 Clean Location for Display
+  const formattedLocation = formatLocation(place.location)
 
   // FAQ Schema for Google SEO
   const faqSchema = meta.faqItems && meta.faqItems.length > 0 ? {
@@ -117,7 +129,8 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
             {place.title}
           </h1>
           <p className="text-slate-200 mt-4 text-xl md:text-2xl font-medium flex items-center gap-2 drop-shadow-md">
-            📍 {place.location}
+            {/* 🌟 Apply formatLocation here */}
+            📍 {formattedLocation}
           </p>
         </div>
       </div>
@@ -239,7 +252,7 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
               <h4 className="font-black text-white text-xl mb-2">Planning to visit?</h4>
               <p className="text-sm text-blue-100 mb-6 font-medium">Book a reliable outstation cab directly from your location.</p>
               <Link 
-                href={`/?service=cab&city=${encodeURIComponent(place.location ? place.location.split(',')[0] : '')}`}
+                href={`/?service=cab&city=${encodeURIComponent(formattedLocation.split(',')[0].trim())}`}
                 className="block w-full bg-white hover:bg-slate-50 text-blue-700 font-black py-4 px-4 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 break-words"
               >
                 Book Cab Now →

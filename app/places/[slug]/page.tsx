@@ -20,6 +20,12 @@ const cleanText = (htmlString: string) => {
     .trim();
 };
 
+// 🌟 Helper function to clean the new location format (Replaces ' > ' with ', ')
+const formatLocation = (locStr?: string) => {
+  if (!locStr) return 'Not specified'
+  return locStr.replace(/ > /g, ', ')
+}
+
 // Dynamic SEO Metadata
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
@@ -32,9 +38,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!place) return { title: 'Place Not Found' }
 
   const meta = place.metadata || {};
+  const cleanLoc = place.location ? place.location.replace(/ > /g, ', ') : '';
+  
   const descriptionText = meta.shortDescription 
     ? cleanText(meta.shortDescription) 
-    : `Complete guide to visit ${place.title}, ${place.location}. Read about best time to visit, timings, entry fees, and history.`;
+    : `Complete guide to visit ${place.title}, ${cleanLoc}. Read about best time to visit, timings, entry fees, and history.`;
 
   return {
     title: `${place.title} - Ultimate Travel Guide & Details | DayTour`,
@@ -77,6 +85,9 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
   const galleryUrls = meta.gallery && meta.gallery.length > 0 ? meta.gallery : []
   const faqs = meta.faqItems || []
 
+  // 🌟 Clean Location for Display
+  const formattedLocation = formatLocation(place.location);
+
   // JSON-LD Schema Markup for Attractions
   const schemaMarkup = {
     "@context": "https://schema.org",
@@ -86,7 +97,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     "image": image,
     "address": {
       "@type": "PostalAddress",
-      "addressLocality": place.location || "Maharashtra",
+      "addressLocality": formattedLocation || "Maharashtra",
       "addressCountry": "IN"
     }
   };
@@ -129,7 +140,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
               {place.title}
             </h1>
             <p className="text-slate-200 mt-2 text-lg md:text-2xl font-medium flex items-center gap-2">
-              📍 {place.location}
+              📍 {formattedLocation}
             </p>
           </div>
         </div>
@@ -318,7 +329,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                 <p className="text-white/90">Book a comfortable private outstation or local cab for a hassle-free trip today.</p>
               </div>
               <Link 
-                href={`/?service=cab&city=${encodeURIComponent(place.location ? place.location.split(',')[0] : '')}`}
+                href={`/?service=cab&city=${encodeURIComponent(formattedLocation.split(',')[0].trim())}`}
                 className="bg-slate-900 hover:bg-black text-white font-black py-4 px-8 rounded-2xl transition-all shadow-md active:scale-95 whitespace-nowrap"
               >
                 Search Cabs Now →
