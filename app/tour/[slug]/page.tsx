@@ -1,6 +1,7 @@
 import { supabase } from '../../../utils/supabase'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import TourBookingSidebar from '../../components/TourBookingSidebar'
 import AIAutoRoutePlanner from '../../components/AIAutoRoutePlanner'
 import VendorInfoCard from '../../components/VendorInfoCard'
@@ -58,10 +59,8 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
   if (!tour) return notFound() 
 
   const meta = tour.metadata || {}
-  const thumbnail = meta.thumbnail || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=1200')
-  const gallery = meta.gallery || []
   
-  // 🌟 Logic for Origin & Destinations with formatLocation applied
+  // 🌟 Logic for Origin & Destinations
   const locationParts = tour.location ? tour.location.split('➔').map((s: string) => s.trim()) : []
   const rawOrigin = locationParts.length > 0 ? locationParts[0] : 'Not specified'
   const rawDestinations = locationParts.length > 1 ? locationParts[1] : tour.location
@@ -69,14 +68,43 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
   const origin = formatLocation(rawOrigin)
   const destinationsCovered = formatLocation(rawDestinations)
 
+  // Extract Exact City for Filtering
+  const targetCity = destinationsCovered !== 'Not specified' ? destinationsCovered.split(',')[0].trim() : '';
+
+  // 🌟 FETCHING EXTRA DATA FOR BOTTOM SECTIONS
+  const [
+    { data: sameVendorTours },
+    { data: sameRouteTours },
+    { data: topTours },
+    { data: topCabs },
+    { data: cityPlaces } // 👈 Target City Places
+  ] = await Promise.all([
+    supabase.from('listings').select('id, title, slug, location, price, metadata').eq('category', 'tour').eq('vendor_id', tour.vendor_id).neq('id', tour.id).limit(8),
+    supabase.from('listings').select('id, title, slug, location, price, metadata').eq('category', 'tour').eq('location', tour.location).neq('vendor_id', tour.vendor_id).limit(8),
+    supabase.from('listings').select('title, slug').eq('category', 'tour').limit(10),
+    supabase.from('listings').select('title, slug').eq('category', 'cab').limit(10),
+    supabase.from('listings').select('title, slug').eq('category', 'destination').ilike('location', `%${targetCity}%`).limit(10)
+  ]);
+
+  // 🌟 FALLBACK LOGIC: Agar Destination City ke Tourist Places nahi milte hain
+  let topPlaces = cityPlaces || [];
+  let placesHeading = targetCity ? `📍 Places in ${targetCity}` : '📍 Top Tourist Places';
+
+  if (topPlaces.length === 0) {
+    const { data: fallbackPlaces } = await supabase.from('listings').select('title, slug').eq('category', 'destination').limit(10);
+    topPlaces = fallbackPlaces || [];
+    placesHeading = '📍 Top Tourist Places'; // Fallback heading
+  }
+
+  const thumbnail = meta.thumbnail || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=1200')
+  const gallery = meta.gallery || []
+  
   const placesToVisitStr = meta.placesToVisit && meta.placesToVisit.length > 0 
     ? meta.placesToVisit.join(', ') 
     : destinationsCovered
     
-  // Local vs Outstation Check logic (Using raw strings to match exact IDs if needed)
   const isLocalTour = rawOrigin.toLowerCase() === rawDestinations.toLowerCase()
 
-  // Logic for Pickup Times 12-hour format
   const formatTime12hr = (time24: string) => {
     if (!time24) return ''
     const [h, m] = time24.split(':')
@@ -89,13 +117,10 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
     ? meta.pickupTimes.map(formatTime12hr).join(', ')
     : 'Flexible / Not fixed'
 
-  // Extract Best Time to Visit Data
   const bestTimeToVisitText = meta.bestTimeToVisit || ''
   const bestMonths = meta.bestMonths || []
-
   const itineraryDays = meta.itineraryDays || []
 
-  // Helper to format Inclusions & Exclusions with Emoji prefix per line
   const formatListWithEmoji = (text: string, emoji: string) => {
     if (!text) return null
     return text.split('\n').filter(line => line.trim() !== '').map((line, idx) => (
@@ -120,7 +145,6 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           </span>
           <h1 className="text-3xl md:text-5xl font-extrabold text-white mt-4 leading-tight">{tour.title}</h1>
           <div className="flex flex-wrap items-center gap-4 mt-4 text-gray-200 font-medium">
-            {/* 🌟 Apply formatLocation here */}
             <span className="flex items-center gap-1">📍 {formatLocation(tour.location)}</span>
             <span className="flex items-center gap-1">⏱️ {meta.duration || 'Custom Duration'}</span>
           </div>
@@ -343,6 +367,118 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             <TourBookingSidebar tour={tour} meta={meta} destinations={destinationsCovered} />
           </div>
         </div>
+
+      </div>
+
+      {/* ============================================================== */}
+      {/* 🌟 NEW BOTTOM SECTIONS (Full Width) */}
+      {/* ============================================================== */}
+      <div className="max-w-6xl mx-auto px-4 md:px-8 mt-16 space-y-12">
+        
+        {/* Section 1: Other Tours by Same Vendor (Slider) */}
+        {sameVendorTours && sameVendorTours.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-black text-gray-900 mb-6">More Tours by this Agency</h2>
+            <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide">
+              {sameVendorTours.map((item: any) => {
+                const img = item.metadata?.thumbnail || item.metadata?.gallery?.[0] || 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?w=600&q=80';
+                return (
+                  <Link key={item.id} href={`/tour/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden snap-start hover:shadow-md transition-all group">
+                    <div className="h-48 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-gray-900 truncate mb-1">{item.title}</h3>
+                      <p className="text-xs text-gray-500 truncate mb-3">📍 {formatLocation(item.location)}</p>
+                      <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-50">
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">⏱️ {item.metadata?.duration || 'Custom'}</span>
+                        <span className="font-black text-gray-900">₹{item.price}</span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Section 2: Similar Tours on Same Route (Slider) */}
+        {sameRouteTours && sameRouteTours.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-black text-gray-900 mb-6">Similar Tours on this Route</h2>
+            <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide">
+              {sameRouteTours.map((item: any) => {
+                const img = item.metadata?.thumbnail || item.metadata?.gallery?.[0] || 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80';
+                return (
+                  <Link key={item.id} href={`/tour/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden snap-start hover:shadow-md transition-all group">
+                    <div className="h-48 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-gray-900 truncate mb-1">{item.title}</h3>
+                      <p className="text-xs text-gray-500 truncate mb-3">📍 {formatLocation(item.location)}</p>
+                      <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-50">
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">⏱️ {item.metadata?.duration || 'Custom'}</span>
+                        <span className="font-black text-gray-900">₹{item.price}</span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Section 3: Top 10 Lists (3 Columns) */}
+        <section className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            {/* Column 1: Top Tours */}
+            <div>
+              <h3 className="text-lg font-black text-gray-900 border-b-2 border-blue-500 pb-3 mb-4 inline-block">🏆 Top Tour Packages</h3>
+              <ul className="space-y-3">
+                {topTours && topTours.map((t: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/tour/${t.slug}`} className="text-sm font-medium text-gray-600 hover:text-blue-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-blue-400">➤</span> <span className="truncate">{t.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 2: Top Cabs */}
+            <div>
+              <h3 className="text-lg font-black text-gray-900 border-b-2 border-emerald-500 pb-3 mb-4 inline-block">🚖 Top Cab Services</h3>
+              <ul className="space-y-3">
+                {topCabs && topCabs.map((c: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/cabs/${c.slug}`} className="text-sm font-medium text-gray-600 hover:text-emerald-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-emerald-400">➤</span> <span className="truncate">{c.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 3: Top Places */}
+            <div>
+              <h3 className="text-lg font-black text-gray-900 border-b-2 border-amber-500 pb-3 mb-4 inline-block">{placesHeading}</h3>
+              <ul className="space-y-3">
+                {topPlaces && topPlaces.map((p: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/places/${p.slug}`} className="text-sm font-medium text-gray-600 hover:text-amber-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-amber-400">➤</span> <span className="truncate">{p.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+          </div>
+        </section>
 
       </div>
     </main>

@@ -314,11 +314,10 @@ function PlaceFormContent() {
       title: formData.placeName,
       slug: formData.slug,
       description: formData.description,
-      category: "destination", // Consistent with tourist places
+      category: "destination", 
       location: location,
       price: 0,
-      metadata: metadata,
-      image: formData.image
+      metadata: metadata // ✅ Image already is metadata ke andar ja rahi hai
     }
 
     let error;

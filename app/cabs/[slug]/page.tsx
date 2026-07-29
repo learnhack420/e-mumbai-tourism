@@ -47,20 +47,49 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
   }
 
   const meta = cab.metadata || {}
+  
+  // 🌟 Extract Origins and Destinations FIRST to filter Tourist Places
+  const rawOrigin = meta.pickupCity || meta.pickupPoint || meta.serviceCity || cab.location || 'India';
+  const rawDrop = meta.dropCity || meta.dropPoint || cab.location || 'Destination';
+  
+  const aiOrigin = rawOrigin.replace(/ > /g, ', ').split(' to ')[0].trim();
+  const aiDrop = rawDrop.replace(/ > /g, ', ').split(' to ').pop()?.trim() || '';
+  
+  // Clean Target City for filtering Places
+  const targetCity = aiDrop !== 'Destination' ? aiDrop : (cab.location ? cab.location.split(' > ').pop()?.trim() : '');
+
+  // 🌟 FETCHING EXTRA DATA FOR BOTTOM SECTIONS
+  const [
+    { data: sameVendorCabs },
+    { data: sameRouteCabs },
+    { data: topTours },
+    { data: topCabs },
+    { data: cityPlaces } // 👈 Fetching target city places first
+  ] = await Promise.all([
+    supabase.from('listings').select('id, title, slug, location, price, metadata').eq('category', 'cab').eq('vendor_id', cab.vendor_id).neq('id', cab.id).limit(8),
+    supabase.from('listings').select('id, title, slug, location, price, metadata').eq('category', 'cab').eq('location', cab.location).neq('vendor_id', cab.vendor_id).limit(8),
+    supabase.from('listings').select('title, slug').eq('category', 'tour').limit(10),
+    supabase.from('listings').select('title, slug').eq('category', 'cab').limit(10),
+    // 👇 Sirf Drop City (Destination) wale places fetch honge
+    supabase.from('listings').select('title, slug').eq('category', 'destination').ilike('location', `%${targetCity}%`).limit(10)
+  ]);
+
+  // 🌟 FALLBACK LOGIC: Agar Destination City ke Tourist Places nahi milte hain
+  let topPlaces = cityPlaces || [];
+  let placesHeading = targetCity ? `📍 Places in ${targetCity}` : '📍 Top Tourist Places';
+
+  if (topPlaces.length === 0) {
+    const { data: fallbackPlaces } = await supabase.from('listings').select('title, slug').eq('category', 'destination').limit(10);
+    topPlaces = fallbackPlaces || [];
+    placesHeading = '📍 Top Tourist Places'; // Fallback heading
+  }
+
   const gallery = meta.gallery && meta.gallery.length > 0 
     ? meta.gallery 
     : ['https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=1200']
 
   const isLocal = meta.mainType === 'Local';
   const isOutstation = meta.mainType === 'Outstation';
-
-  // 🌟 AI Route Planner ke liye Clean Locations
-  // Agar 'A to B' wala string hai, toh usko split kar lenge.
-  const rawOrigin = meta.pickupCity || meta.pickupPoint || meta.serviceCity || cab.location || 'India';
-  const rawDrop = meta.dropCity || meta.dropPoint || cab.location || 'Destination';
-  
-  const aiOrigin = rawOrigin.replace(/ > /g, ', ').split(' to ')[0];
-  const aiDrop = rawDrop.replace(/ > /g, ', ').split(' to ').pop();
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-800">
@@ -81,7 +110,6 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
           </div>
           <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-lg">{cab.title}</h1>
           
-          {/* 🌟 Apply formatLocation here */}
           <p className="text-slate-200 mt-3 text-lg md:text-xl font-medium flex items-center gap-2 drop-shadow-md">
             📍 {formatLocation(cab.location)}
           </p>
@@ -90,9 +118,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
 
       <div className="max-w-6xl mx-auto px-4 md:px-8 mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
         
-        {/* ========================================= */}
-        {/* LEFT COLUMN: MAIN CONTENT                 */}
-        {/* ========================================= */}
+        {/* LEFT COLUMN: MAIN CONTENT */}
         <div className="lg:col-span-2 space-y-10">
           
           <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-200">
@@ -110,7 +136,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               </div>
             </div>
 
-            {/* 2. Route & Details (Using formatLocation for all location displays) */}
+            {/* 2. Route & Details */}
             <div className="bg-slate-50 p-6 md:p-8 rounded-3xl border border-slate-100 mb-10">
               <h3 className="text-xl font-black text-slate-900 mb-6">Route & Details:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -228,7 +254,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               </div>
             </div>
 
-            {/* 5. Route & Map Section (Clean AIAutoRoutePlanner Component) */}
+            {/* 5. Route & Map Section */}
             <div className="mb-10 border-t border-slate-100 pt-10">
               {meta.howToReach && (
                 <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
@@ -237,7 +263,6 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
                 </div>
               )}
 
-              {/* Passes cleaned names for AI accuracy */}
               <AIAutoRoutePlanner 
                 origin={aiOrigin} 
                 destination={aiDrop} 
@@ -289,14 +314,124 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
 
         </div>
 
-        {/* ========================================= */}
-        {/* RIGHT COLUMN: SIDEBAR (Booking Box)       */}
-        {/* ========================================= */}
+        {/* RIGHT COLUMN: SIDEBAR (Booking Box) */}
         <div className="lg:col-span-1">
           <div className="sticky top-6">
             <CabBookingSidebar cab={cab} meta={meta} />
           </div>
         </div>
+
+      </div>
+
+      {/* ============================================================== */}
+      {/* 🌟 NEW BOTTOM SECTIONS (Full Width) */}
+      {/* ============================================================== */}
+      <div className="max-w-6xl mx-auto px-4 md:px-8 mt-16 space-y-12">
+        
+        {/* Section 1: Other Cabs by Same Vendor */}
+        {sameVendorCabs && sameVendorCabs.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-black text-gray-900 mb-6">More Cabs by this Agency</h2>
+            <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide">
+              {sameVendorCabs.map((item: any) => {
+                const img = item.metadata?.gallery?.[0] || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=600&q=80';
+                return (
+                  <Link key={item.id} href={`/cabs/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden snap-start hover:shadow-md transition-all group">
+                    <div className="h-48 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-gray-900 truncate mb-1">{item.title}</h3>
+                      <p className="text-xs text-gray-500 truncate mb-3">📍 {formatLocation(item.location)}</p>
+                      <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-50">
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">🚖 {item.metadata?.mainType || 'Cab'}</span>
+                        <span className="font-black text-gray-900 text-sm">Book Now &rarr;</span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Section 2: Similar Cabs on Same Route */}
+        {sameRouteCabs && sameRouteCabs.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-black text-gray-900 mb-6">Similar Cabs in this Area</h2>
+            <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide">
+              {sameRouteCabs.map((item: any) => {
+                const img = item.metadata?.gallery?.[0] || 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=600&q=80';
+                return (
+                  <Link key={item.id} href={`/cabs/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden snap-start hover:shadow-md transition-all group">
+                    <div className="h-48 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-gray-900 truncate mb-1">{item.title}</h3>
+                      <p className="text-xs text-gray-500 truncate mb-3">📍 {formatLocation(item.location)}</p>
+                      <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-50">
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">🚖 {item.metadata?.mainType || 'Cab'}</span>
+                        <span className="font-black text-gray-900 text-sm">Book Now &rarr;</span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Section 3: Top 10 Lists (3 Columns) */}
+        <section className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            {/* Column 1: Top Tours */}
+            <div>
+              <h3 className="text-lg font-black text-gray-900 border-b-2 border-blue-500 pb-3 mb-4 inline-block">🏆 Top Tour Packages</h3>
+              <ul className="space-y-3">
+                {topTours && topTours.map((t: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/tour/${t.slug}`} className="text-sm font-medium text-gray-600 hover:text-blue-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-blue-400">➤</span> <span className="truncate">{t.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 2: Top Cabs */}
+            <div>
+              <h3 className="text-lg font-black text-gray-900 border-b-2 border-emerald-500 pb-3 mb-4 inline-block">🚖 Top Cab Services</h3>
+              <ul className="space-y-3">
+                {topCabs && topCabs.map((c: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/cabs/${c.slug}`} className="text-sm font-medium text-gray-600 hover:text-emerald-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-emerald-400">➤</span> <span className="truncate">{c.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 3: Top Places */}
+            <div>
+              <h3 className="text-lg font-black text-gray-900 border-b-2 border-amber-500 pb-3 mb-4 inline-block">{placesHeading}</h3>
+              <ul className="space-y-3">
+                {topPlaces && topPlaces.map((p: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/places/${p.slug}`} className="text-sm font-medium text-gray-600 hover:text-amber-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-amber-400">➤</span> <span className="truncate">{p.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+          </div>
+        </section>
 
       </div>
     </main>

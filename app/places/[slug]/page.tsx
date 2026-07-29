@@ -79,14 +79,35 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     console.warn(`Category warning for slug ${resolvedParams.slug}: ${place.category}`);
   }
 
+  // 🌟 Clean Location for Display and Extract Target City
+  const formattedLocation = formatLocation(place.location);
+  const targetCity = formattedLocation !== 'Not specified' ? formattedLocation.split(',')[0].trim() : '';
+
+  // 🌟 FETCHING EXTRA DATA FOR BOTTOM SECTIONS (Sliders & Top 10)
+  const [
+    { data: cityTours },
+    { data: cityPlaces },
+    { data: cityVendors },
+    { data: topTours },
+    { data: topCabs },
+    { data: topPlaces }
+  ] = await Promise.all([
+    // Tours in this city
+    supabase.from('listings').select('id, title, slug, location, price, metadata').eq('category', 'tour').ilike('location', `%${targetCity}%`).limit(8),
+    // Other places in this city (excluding the current one)
+    supabase.from('listings').select('id, title, slug, location, image, metadata').eq('category', 'destination').ilike('location', `%${targetCity}%`).neq('id', place.id).limit(8),
+    // Vendors operating in this city
+    supabase.from('profiles').select('id, full_name, company_name, location').eq('role', 'vendor').eq('approval_status', 'approved').ilike('location', `%${targetCity}%`).limit(8),
+    // Top 10 Lists
+    supabase.from('listings').select('title, slug').eq('category', 'tour').limit(10),
+    supabase.from('listings').select('title, slug').eq('category', 'cab').limit(10),
+    supabase.from('listings').select('title, slug').eq('category', 'destination').limit(10)
+  ]);
+
   const meta = place.metadata || {}
-  
   const image = place.image || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
   const galleryUrls = meta.gallery && meta.gallery.length > 0 ? meta.gallery : []
   const faqs = meta.faqItems || []
-
-  // 🌟 Clean Location for Display
-  const formattedLocation = formatLocation(place.location);
 
   // JSON-LD Schema Markup for Attractions
   const schemaMarkup = {
@@ -110,8 +131,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
       { "@type": "ListItem", "position": 2, "name": place.title, "item": `https://daytour.in/places/${place.slug}` }
     ]
   };
-
-  const dynamicWhatsAppNumber = "919892455466"; 
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-blue-600 selection:text-white">
@@ -155,60 +174,60 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
           <span className="text-slate-800 truncate">{place.title}</span>
         </nav>
 
-        {/* --- ESSENTIAL INFO SHIFTED TO TOP --- */}
+        {/* --- ESSENTIAL INFO SHIFTED TO TOP (DARKER, BOLDER, LARGER) --- */}
         {(meta.timing || meta.entryFee || meta.bestTimeToVisit || meta.howToReach || meta.nearestPlaces) && (
           <section className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200 mb-10">
-            <h3 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2 border-b pb-3">
+            <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2 border-b pb-3">
               <span>📋</span> Essential Visitor Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               
               {meta.timing && (
-                <div className="flex gap-4 items-start bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <span className="text-2xl bg-amber-100 p-2.5 rounded-xl">🕒</span>
+                <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+                  <span className="text-3xl bg-amber-100 p-3 rounded-2xl">🕒</span>
                   <div>
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Timings</h4>
-                    <p className="text-slate-800 font-bold">{meta.timing}</p>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-1">Timings</h4>
+                    <p className="text-slate-900 font-black text-base md:text-lg">{meta.timing}</p>
                   </div>
                 </div>
               )}
 
               {meta.entryFee && (
-                <div className="flex gap-4 items-start bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <span className="text-2xl bg-amber-100 p-2.5 rounded-xl">🎟️</span>
+                <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+                  <span className="text-3xl bg-amber-100 p-3 rounded-2xl">🎟️</span>
                   <div>
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Entry Fee</h4>
-                    <p className="text-slate-800 font-bold">{meta.entryFee}</p>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-1">Entry Fee</h4>
+                    <p className="text-slate-900 font-black text-base md:text-lg">{meta.entryFee}</p>
                   </div>
                 </div>
               )}
 
               {meta.bestTimeToVisit && (
-                <div className="flex gap-4 items-start bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <span className="text-2xl bg-amber-100 p-2.5 rounded-xl">⛅</span>
+                <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+                  <span className="text-3xl bg-amber-100 p-3 rounded-2xl">⛅</span>
                   <div>
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Best Time To Visit</h4>
-                    <p className="text-slate-800 font-bold">{meta.bestTimeToVisit}</p>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-1">Best Time To Visit</h4>
+                    <p className="text-slate-900 font-black text-base md:text-lg">{meta.bestTimeToVisit}</p>
                   </div>
                 </div>
               )}
 
               {meta.howToReach && (
-                <div className="flex gap-4 items-start bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                  <span className="text-2xl bg-blue-100 p-2.5 rounded-xl">🚆</span>
+                <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm">
+                  <span className="text-3xl bg-blue-100 p-3 rounded-2xl">🚆</span>
                   <div>
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">How To Reach</h4>
-                    <p className="text-slate-600 font-medium text-sm leading-relaxed">{meta.howToReach}</p>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-1">How To Reach</h4>
+                    <p className="text-slate-800 font-bold text-base leading-relaxed whitespace-pre-line">{meta.howToReach}</p>
                   </div>
                 </div>
               )}
 
               {meta.nearestPlaces && (
-                <div className="flex gap-4 items-start bg-slate-50 p-4 rounded-2xl border border-slate-100 sm:col-span-2 lg:col-span-2">
-                  <span className="text-2xl bg-blue-100 p-2.5 rounded-xl">📍</span>
+                <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-sm sm:col-span-2 lg:col-span-2">
+                  <span className="text-3xl bg-blue-100 p-3 rounded-2xl">📍</span>
                   <div>
-                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Nearby Attractions</h4>
-                    <p className="text-slate-600 font-medium text-sm leading-relaxed">{meta.nearestPlaces}</p>
+                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-1">Nearby Attractions</h4>
+                    <p className="text-slate-800 font-bold text-base leading-relaxed whitespace-pre-line">{meta.nearestPlaces}</p>
                   </div>
                 </div>
               )}
@@ -234,7 +253,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                 </p>
               )}
               
-              {/* ReactQuill HTML Rendering */}
               <div 
                 className="prose prose-slate max-w-none text-slate-600 leading-relaxed text-lg break-words"
                 dangerouslySetInnerHTML={{ __html: place.description }}
@@ -337,11 +355,141 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
             </div>
 
           </div>
-
         </div>
       </div>
 
-      
+      {/* ============================================================== */}
+      {/* 🌟 NEW BOTTOM SECTIONS (Full Width) */}
+      {/* ============================================================== */}
+      <div className="max-w-7xl mx-auto px-4 md:px-12 mt-6 space-y-12">
+        
+        {/* Section 1: Tour Packages in This City (Slider) */}
+        {cityTours && cityTours.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-200 pb-2">Top Tour Packages in {targetCity || 'This Area'}</h2>
+            <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide">
+              {cityTours.map((item: any) => {
+                const img = item.metadata?.thumbnail || item.metadata?.gallery?.[0] || 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80';
+                return (
+                  <Link key={item.id} href={`/tour/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden snap-start hover:shadow-md transition-all group">
+                    <div className="h-48 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-slate-900 truncate mb-1">{item.title}</h3>
+                      <p className="text-xs text-slate-500 truncate mb-3">📍 {formatLocation(item.location)}</p>
+                      <div className="flex justify-between items-center mt-auto pt-3 border-t border-slate-100">
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">⏱️ {item.metadata?.duration || 'Custom'}</span>
+                        <span className="font-black text-slate-900">₹{item.price}</span>
+                      </div>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Section 2: More Tourist Places in This City (Slider) */}
+        {cityPlaces && cityPlaces.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-200 pb-2">More Places to Visit in {targetCity || 'This Area'}</h2>
+            <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide">
+              {cityPlaces.map((item: any) => {
+                const img = item.image || item.metadata?.gallery?.[0] || 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?w=600&q=80';
+                return (
+                  <Link key={item.id} href={`/places/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden snap-start hover:shadow-md transition-all group">
+                    <div className="h-48 overflow-hidden relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
+                      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur text-slate-900 text-xs font-bold px-2 py-1 rounded-md">
+                        Explore
+                      </div>
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold text-slate-900 truncate mb-1">{item.title}</h3>
+                      <p className="text-xs text-slate-500 truncate">📍 {formatLocation(item.location)}</p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Section 3: Verified Vendors/Travel Agents in This City (Slider) */}
+        {cityVendors && cityVendors.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-200 pb-2">Travel Agents & Providers in {targetCity || 'This Area'}</h2>
+            <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide">
+              {cityVendors.map((vendor: any) => (
+                <div key={vendor.id} className="min-w-[260px] bg-white p-6 rounded-3xl border border-slate-200 shadow-sm snap-start flex flex-col items-center text-center">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-black mb-4 border-2 border-white shadow-sm">
+                    {vendor.company_name ? vendor.company_name.charAt(0).toUpperCase() : '🏢'}
+                  </div>
+                  <h3 className="font-black text-slate-900 text-lg mb-1 truncate w-full">{vendor.company_name || vendor.full_name}</h3>
+                  <p className="text-xs text-slate-500 mb-4 font-medium">📍 {formatLocation(vendor.location)}</p>
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-lg w-full">
+                    ✅ Verified Partner
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Section 4: Top 10 Lists (3 Columns) */}
+        <section className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            
+            {/* Column 1: Top Tours */}
+            <div>
+              <h3 className="text-lg font-black text-slate-900 border-b-2 border-blue-500 pb-3 mb-5 inline-block">🏆 Top Tour Packages</h3>
+              <ul className="space-y-3">
+                {topTours && topTours.map((t: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/tour/${t.slug}`} className="text-sm font-medium text-slate-600 hover:text-blue-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-blue-400 font-bold">➤</span> <span className="truncate">{t.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 2: Top Cabs */}
+            <div>
+              <h3 className="text-lg font-black text-slate-900 border-b-2 border-emerald-500 pb-3 mb-5 inline-block">🚖 Top Cab Services</h3>
+              <ul className="space-y-3">
+                {topCabs && topCabs.map((c: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/cabs/${c.slug}`} className="text-sm font-medium text-slate-600 hover:text-emerald-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-emerald-400 font-bold">➤</span> <span className="truncate">{c.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 3: Top Places */}
+            <div>
+              <h3 className="text-lg font-black text-slate-900 border-b-2 border-amber-500 pb-3 mb-5 inline-block">📍 Top Tourist Places</h3>
+              <ul className="space-y-3">
+                {topPlaces && topPlaces.map((p: any, i: number) => (
+                  <li key={i}>
+                    <Link href={`/places/${p.slug}`} className="text-sm font-medium text-slate-600 hover:text-amber-600 hover:pl-2 transition-all flex gap-2">
+                      <span className="text-amber-400 font-bold">➤</span> <span className="truncate">{p.title}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+
       <FloatingContact />
 
     </main>
