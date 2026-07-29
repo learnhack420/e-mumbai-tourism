@@ -54,7 +54,6 @@ export default function Register() {
         })
       }).catch(err => console.error("Email bhejte waqt error aaya:", err))
 
-
       // UI Success Message & Redirect Logic
       let successMsg = 'Registration successful! '
       if (formData.role === 'vendor') {
@@ -72,94 +71,159 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-        <h2 className="text-3xl font-extrabold text-center text-gray-900 mb-2">Create Account</h2>
-        <p className="text-center text-gray-500 mb-6">India Tour Operators par aapka swagat hai</p>
+    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-sky-300 via-cyan-200 to-orange-100 p-4 font-sans">
+      
+      {/* Custom CSS for Beach Theme Animations */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes sway {
+          0%, 100% { transform: rotate(-5deg); }
+          50% { transform: rotate(5deg); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-15px); }
+        }
+        @keyframes sun-glow {
+          0%, 100% { box-shadow: 0 0 40px rgba(253, 224, 71, 0.6); }
+          50% { box-shadow: 0 0 80px rgba(253, 224, 71, 1); }
+        }
+        .animate-sway { animation: sway 4s ease-in-out infinite; transform-origin: bottom center; }
+        .animate-sway-slow { animation: sway 6s ease-in-out infinite; transform-origin: bottom center; animation-delay: 1s; }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-delayed { animation: float 5s ease-in-out infinite; animation-delay: 2s; }
+        .sun-glow { animation: sun-glow 4s ease-in-out infinite; }
+      `}} />
+
+      {/* --- ANIMATED BACKGROUND ELEMENTS --- */}
+      {/* Sun */}
+      <div className="absolute top-10 right-10 md:top-20 md:right-32 w-32 h-32 md:w-48 md:h-48 bg-gradient-to-br from-yellow-200 to-orange-400 rounded-full sun-glow"></div>
+      
+      {/* Clouds */}
+      <div className="absolute top-20 left-10 md:left-32 text-6xl opacity-80 animate-float">☁️</div>
+      <div className="absolute top-32 right-1/4 text-5xl opacity-60 animate-float-delayed">☁️</div>
+      
+      {/* Ocean / Waves */}
+      <div className="absolute bottom-0 w-full h-1/4 bg-gradient-to-t from-blue-500/80 to-cyan-400/30 backdrop-blur-sm border-t border-white/20"></div>
+
+      {/* Coconut Trees */}
+      <div className="absolute -bottom-5 left-2 md:left-10 text-8xl md:text-[10rem] animate-sway">🌴</div>
+      <div className="absolute bottom-0 right-5 md:right-20 text-7xl md:text-[8rem] animate-sway-slow">🌴</div>
+      <div className="absolute bottom-5 right-2 md:right-10 text-5xl md:text-[6rem] animate-sway opacity-80">🌴</div>
+
+
+      {/* --- REGISTRATION CARD (GLASSMORPHISM) --- */}
+      <div className="relative z-10 w-full max-w-md bg-white/80 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.15)] p-8 border border-white/50">
         
-        {status.error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
-            {status.error}
+        {/* SUCCESS SCREEN */}
+        {status.success ? (
+          <div className="text-center py-10 animate-float">
+            <div className="text-7xl mb-6 animate-bounce">🎉🌴</div>
+            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-cyan-600 mb-4">
+              Welcome Aboard!
+            </h2>
+            <p className="text-gray-700 font-medium mb-8 leading-relaxed">
+              {status.message}
+            </p>
+            <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-sm text-cyan-600 font-bold animate-pulse">Taking you to the login beach...</p>
           </div>
-        )}
+        ) : (
+          /* FORM SCREEN */
+          <>
+            <h2 className="text-3xl font-black text-center text-slate-800 mb-2 drop-shadow-sm">Create Account</h2>
+            <p className="text-center text-slate-500 mb-8 font-medium">India Tour Operators par aapka swagat hai 🏖️</p>
+            
+            {status.error && (
+              <div className="mb-6 p-3 bg-red-50/90 backdrop-blur-sm border border-red-200 text-red-700 text-sm rounded-xl font-medium shadow-sm">
+                ⚠️ {status.error}
+              </div>
+            )}
 
-        {status.success && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg font-medium">
-            ✅ {status.message}
-          </div>
-        )}
-
-        <form onSubmit={handleRegister} className="space-y-5">
-          
-          {/* 1. Account Type (Role) - Sabse Upar */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2">Select Account Type</label>
-            <div className="grid grid-cols-2 gap-4">
-              <label className={`border p-3 rounded-lg cursor-pointer text-center font-bold transition-colors ${formData.role === 'customer' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
-                <input type="radio" name="role" className="hidden" value="customer" 
-                  checked={formData.role === 'customer'} onChange={() => setFormData({...formData, role: 'customer'})} />
-                🙎‍♂️ Customer
-              </label>
+            <form onSubmit={handleRegister} className="space-y-5">
               
-              <label className={`border p-3 rounded-lg cursor-pointer text-center font-bold transition-colors ${formData.role === 'vendor' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
-                <input type="radio" name="role" className="hidden" value="vendor" 
-                  checked={formData.role === 'vendor'} onChange={() => setFormData({...formData, role: 'vendor'})} />
-                🏢 Partner / Vendor
-              </label>
-            </div>
-          </div>
+              {/* 1. Account Type (Role) */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Select Account Type</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className={`border-2 p-3 rounded-2xl cursor-pointer text-center font-bold transition-all duration-300 ${formData.role === 'customer' ? 'bg-cyan-500 text-white border-cyan-500 shadow-lg scale-[1.02]' : 'bg-white/50 border-white text-slate-600 hover:bg-white'}`}>
+                    <input type="radio" name="role" className="hidden" value="customer" 
+                      checked={formData.role === 'customer'} onChange={() => setFormData({...formData, role: 'customer'})} />
+                    <span className="text-xl block mb-1">🙎‍♂️</span>
+                    Customer
+                  </label>
+                  
+                  <label className={`border-2 p-3 rounded-2xl cursor-pointer text-center font-bold transition-all duration-300 ${formData.role === 'vendor' ? 'bg-cyan-500 text-white border-cyan-500 shadow-lg scale-[1.02]' : 'bg-white/50 border-white text-slate-600 hover:bg-white'}`}>
+                    <input type="radio" name="role" className="hidden" value="vendor" 
+                      checked={formData.role === 'vendor'} onChange={() => setFormData({...formData, role: 'vendor'})} />
+                    <span className="text-xl block mb-1">🏢</span>
+                    Partner
+                  </label>
+                </div>
+              </div>
 
-          {/* 2. Basic Details */}
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
-              {formData.role === 'vendor' ? 'Agency / Business Name' : 'Full Name'}
-            </label>
-            <input type="text" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-              value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
-              placeholder={formData.role === 'vendor' ? 'Ex: Raj Travels & Tours' : 'Ex: Rahul Sharma'} />
-          </div>
+              {/* 2. Basic Details */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">
+                  {formData.role === 'vendor' ? 'Agency / Business Name' : 'Full Name'}
+                </label>
+                <input type="text" required 
+                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                  value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
+                  placeholder={formData.role === 'vendor' ? 'Ex: Raj Travels & Tours' : 'Ex: Rahul Sharma'} />
+              </div>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
-            <input type="email" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-              value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} 
-              placeholder="email@example.com" />
-          </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+                <input type="email" required 
+                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                  value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                  placeholder="email@example.com" />
+              </div>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Mobile Number</label>
-            <input type="tel" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-              value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} 
-              placeholder="Ex: 9876543210" />
-          </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Mobile Number</label>
+                <input type="tel" required 
+                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                  value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} 
+                  placeholder="Ex: 9876543210" />
+              </div>
 
-          {/* 3. Operating Location (Sirf Vendor ke liye dikhega) */}
-          {formData.role === 'vendor' && (
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 animate-fadeIn">
-              <label className="block text-sm font-bold text-blue-900 mb-1">Operating City / Location</label>
-              <input type="text" required className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} 
-                placeholder="Ex: Kochi, Kerala or Mumbai" />
-              <p className="text-xs text-blue-600 mt-1">Aap kis sheher se apni services operate karte hain?</p>
-            </div>
-          )}
+              {/* 3. Operating Location (For Vendors only) */}
+              {formData.role === 'vendor' && (
+                <div className="bg-cyan-50/80 p-4 rounded-2xl border border-cyan-100 transition-all">
+                  <label className="block text-sm font-bold text-cyan-900 mb-1">Operating City / Location</label>
+                  <input type="text" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                    value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} 
+                    placeholder="Ex: Kochi, Kerala or Mumbai" />
+                  <p className="text-xs text-cyan-700 mt-2 font-medium">📍 Aap kis sheher se apni services operate karte hain?</p>
+                </div>
+              )}
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Password</label>
-            <input type="password" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50"
-              value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} 
-              placeholder="Minimum 6 characters" />
-          </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+                <input type="password" required 
+                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                  value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} 
+                  placeholder="Minimum 6 characters" />
+              </div>
 
-          <button type="submit" disabled={status.loading}
-            className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-300 mt-4 shadow-lg">
-            {status.loading ? 'Creating Account...' : 'Sign Up'}
-          </button>
-        </form>
+              <button type="submit" disabled={status.loading}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-black py-4 px-4 rounded-xl transition-all disabled:opacity-70 mt-6 shadow-lg shadow-cyan-500/30 transform hover:-translate-y-1">
+                {status.loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> 
+                    Processing...
+                  </span>
+                ) : 'Sign Up Now'}
+              </button>
+            </form>
 
-        <p className="text-center text-sm text-gray-600 mt-6">
-          Already have an account? <Link href="/login" className="text-blue-600 font-bold hover:underline">Login here</Link>
-        </p>
+            <p className="text-center text-sm text-slate-600 mt-8 font-medium">
+              Already have an account? <Link href="/login" className="text-cyan-600 font-black hover:underline ml-1">Login here</Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   )
