@@ -35,20 +35,20 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
     ? meta.placesToVisit.join(', ') 
     : destinations
 
-  // Pricing Options List banana
-  const packageOptions = []
+  // 🌟 NEW: Dynamic Pricing Options List (With Calculation)
+  const packageOptions: string[] = []
   if (meta.personPrices) {
-    if (meta.personPrices.min2) packageOptions.push(`Min 2 Pax: ₹${meta.personPrices.min2}`)
-    if (meta.personPrices.min4) packageOptions.push(`Min 4 Pax: ₹${meta.personPrices.min4}`)
-    if (meta.personPrices.min6) packageOptions.push(`Min 6 Pax: ₹${meta.personPrices.min6}`)
-    if (meta.personPrices.min8) packageOptions.push(`Min 8+ Pax: ₹${meta.personPrices.min8}`)
+    if (meta.personPrices.min2) packageOptions.push(`Min 2 Pax: ₹${meta.personPrices.min2}/pax (Total: ₹${meta.personPrices.min2 * 2})`)
+    if (meta.personPrices.min4) packageOptions.push(`Min 4 Pax: ₹${meta.personPrices.min4}/pax (Total: ₹${meta.personPrices.min4 * 4})`)
+    if (meta.personPrices.min6) packageOptions.push(`Min 6 Pax: ₹${meta.personPrices.min6}/pax (Total: ₹${meta.personPrices.min6 * 6})`)
+    if (meta.personPrices.min8) packageOptions.push(`Min 8+ Pax: ₹${meta.personPrices.min8}/pax (Total: ₹${meta.personPrices.min8 * 8})`)
   }
   if (meta.cabPrices) {
-    if (meta.cabPrices.hatchback) packageOptions.push(`Hatchback Cab: ₹${meta.cabPrices.hatchback}`)
-    if (meta.cabPrices.sedan) packageOptions.push(`Sedan Cab: ₹${meta.cabPrices.sedan}`)
-    if (meta.cabPrices.suv) packageOptions.push(`SUV Cab: ₹${meta.cabPrices.suv}`)
-    if (meta.cabPrices.innova) packageOptions.push(`Innova Cab: ₹${meta.cabPrices.innova}`)
-    if (meta.cabPrices.tempo) packageOptions.push(`Tempo Traveller: ₹${meta.cabPrices.tempo}`)
+    if (meta.cabPrices.hatchback) packageOptions.push(`Hatchback Cab: ₹${meta.cabPrices.hatchback} (Total)`)
+    if (meta.cabPrices.sedan) packageOptions.push(`Sedan Cab: ₹${meta.cabPrices.sedan} (Total)`)
+    if (meta.cabPrices.suv) packageOptions.push(`SUV Cab: ₹${meta.cabPrices.suv} (Total)`)
+    if (meta.cabPrices.innova) packageOptions.push(`Innova Cab: ₹${meta.cabPrices.innova} (Total)`)
+    if (meta.cabPrices.tempo) packageOptions.push(`Tempo Traveller: ₹${meta.cabPrices.tempo} (Total)`)
   }
 
   const handleBookNow = async (e: React.FormEvent) => {
@@ -82,7 +82,7 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
     const { error } = await supabase.from('bookings').insert([bookingDataPayload])
     if (error) console.error("Booking save error:", error)
 
-    // 🌟 NEW: EMAIL TRIGGER API CALL
+    // EMAIL TRIGGER API CALL
     fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -156,7 +156,7 @@ ${meta.exclusions || 'N/A'}
     const { error } = await supabase.from('bookings').insert([inquiryPayload])
     if (error) console.error("Inquiry save error:", error)
 
-    // 🌟 NEW: EMAIL TRIGGER API CALL
+    // EMAIL TRIGGER API CALL
     fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -193,14 +193,50 @@ Kindly provide more details.`.trim()
         <div className="mb-8">
           <h3 className="text-gray-900 font-extrabold text-xl border-b pb-2 mb-4">Available Packages</h3>
           
-          {/* Per Person Pricing List */}
+          {/* 🌟 NEW: Per Person Pricing List with Auto Calculation */}
           {meta.personPrices && (meta.personPrices.min2 || meta.personPrices.min4 || meta.personPrices.min6 || meta.personPrices.min8) && (
             <div className="mb-5 space-y-2">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Per Person Pricing</h4>
-              {meta.personPrices.min2 && <div className="flex justify-between items-center text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100"><span className="text-gray-700 font-medium">Min 2 Pax:</span> <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min2}</span></div>}
-              {meta.personPrices.min4 && <div className="flex justify-between items-center text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100"><span className="text-gray-700 font-medium">Min 4 Pax:</span> <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min4}</span></div>}
-              {meta.personPrices.min6 && <div className="flex justify-between items-center text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100"><span className="text-gray-700 font-medium">Min 6 Pax:</span> <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min6}</span></div>}
-              {meta.personPrices.min8 && <div className="flex justify-between items-center text-sm bg-gray-50 p-2.5 rounded-lg border border-gray-100"><span className="text-gray-700 font-medium">Min 8+ Pax:</span> <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min8}</span></div>}
+              
+              {meta.personPrices.min2 && (
+                <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-gray-700 font-bold">Min 2 Pax:</span> 
+                  <div className="text-right">
+                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min2} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min2 * 2}</span>
+                  </div>
+                </div>
+              )}
+              
+              {meta.personPrices.min4 && (
+                <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-gray-700 font-bold">Min 4 Pax:</span> 
+                  <div className="text-right">
+                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min4} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min4 * 4}</span>
+                  </div>
+                </div>
+              )}
+              
+              {meta.personPrices.min6 && (
+                <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-gray-700 font-bold">Min 6 Pax:</span> 
+                  <div className="text-right">
+                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min6} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min6 * 6}</span>
+                  </div>
+                </div>
+              )}
+              
+              {meta.personPrices.min8 && (
+                <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
+                  <span className="text-gray-700 font-bold">Min 8+ Pax:</span> 
+                  <div className="text-right">
+                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min8} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min8 * 8}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
