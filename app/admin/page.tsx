@@ -8,12 +8,15 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('bookings') // Default tab now 'bookings'
   const [activeListingCategory, setActiveListingCategory] = useState('all') // Sub-tab state for listings
   
+  // 🌟 NEW: Search query state for filtering listings
+  const [searchQuery, setSearchQuery] = useState('') 
+  
   const [listings, setListings] = useState<any[]>([])
   const [vendors, setVendors] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([]) // STATE FOR BOOKINGS
   const [isLoading, setIsLoading] = useState(true)
 
-  // Edit Vendor Modal States (UPDATED WITH PROFILE FIELDS)
+  // Edit Vendor Modal States
   const [editingVendor, setEditingVendor] = useState<any>(null)
   const [editName, setEditName] = useState('')
   const [editEmail, setEditEmail] = useState('')
@@ -157,28 +160,25 @@ export default function AdminDashboard() {
     if (!error) fetchListings()
   }
 
-  // 🌟 Helper to determine Edit URL based on the new Unified Add/Edit files
+  // Helper to determine Edit URL
   const getEditUrl = (listing: any) => {
     const cat = listing.category
     if (cat === 'tour') return `/add-listing/tour?edit=${listing.id}`
     if (cat === 'hotel') return `/add-listing/hotel?edit=${listing.id}`
     if (cat === 'cab') return `/add-listing/cab?edit=${listing.id}`
     if (cat === 'destination') return `/add-listing/place?edit=${listing.id}`
-    
-    // 👇 CHECK THIS LINE: Ye bilkul aisa hona chahiye
     if (cat === 'blog') return `/add-listing/blog?edit=${listing.id}` 
-    
     return `/vendor`
   }
 
-  // Helper to determine View URL based on custom routing rules
+  // Helper to determine View URL
   const getViewUrl = (listing: any) => {
     const slug = listing.slug || listing.id
     if (listing.category === 'tour') return `/tour/${slug}`
     if (listing.category === 'hotel') return `/hotel/${slug}`
     if (listing.category === 'cab') return `/cabs/${slug}`
     if (listing.category === 'destination') return `/places/${slug}`
-    if (listing.category === 'blog') return `/places/${slug}` // 🌟 Blog & Places generally share the same front-end viewer
+    if (listing.category === 'blog') return `/places/${slug}` 
     return `/listing/${slug}`
   }
 
@@ -197,12 +197,27 @@ export default function AdminDashboard() {
     { id: 'blog', label: 'Blogs' }
   ]
 
-  // Filter listings based on active sub-tab
-  const displayedListings = activeListingCategory === 'all' 
-    ? listings 
-    : listings.filter(listing => listing.category === activeListingCategory)
+  // 🌟 Helper to get counts per category
+  const getCategoryCount = (categoryId: string) => {
+    if (categoryId === 'all') return listings.length;
+    return listings.filter(l => l.category === categoryId).length;
+  }
 
-  // 🌟 Helper to cleanly format location strings
+  // 🌟 Filter listings based on active sub-tab AND Search Query
+  const displayedListings = listings.filter(listing => {
+    // 1. Category Filter
+    const matchesCategory = activeListingCategory === 'all' ? true : listing.category === activeListingCategory;
+    
+    // 2. Search Query Filter (Title or Location)
+    const q = searchQuery.toLowerCase();
+    const title = listing.title ? listing.title.toLowerCase() : '';
+    const location = listing.location ? listing.location.toLowerCase() : '';
+    const matchesSearch = title.includes(q) || location.includes(q);
+
+    return matchesCategory && matchesSearch;
+  });
+
+  // Helper to cleanly format location strings
   const formatLocationForList = (locStr: string) => {
     if (!locStr) return 'Online / Blog'
     return locStr.replace(/ > /g, ', ')
@@ -358,15 +373,43 @@ export default function AdminDashboard() {
 
           {/* TAB 3: LISTINGS TABLE */}
           {activeTab === 'listings' && (
-            <div>
-              <div className="bg-gray-50 border-b border-gray-200 p-4 flex gap-2 overflow-x-auto whitespace-nowrap">
-                {listingCategories.map(cat => (
-                  <button key={cat.id} onClick={() => setActiveListingCategory(cat.id)} className={`px-4 py-2 text-sm font-bold rounded-full transition-colors ${activeListingCategory === cat.id ? 'bg-blue-100 text-blue-700 shadow-sm' : 'bg-white text-gray-600 hover:bg-gray-200 border border-gray-200'}`}>
-                    {cat.label}
-                  </button>
-                ))}
+            <div className="flex flex-col">
+              
+              {/* 🌟 NEW: Search Bar Section */}
+              <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center gap-4 flex-wrap">
+                <div className="relative w-full md:w-96">
+                  <input 
+                    type="text" 
+                    placeholder="🔍 Search by Title or Location..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 font-medium text-gray-700 transition-all"
+                  />
+                  <span className="absolute left-3.5 top-3 text-gray-400">🔍</span>
+                </div>
               </div>
 
+              {/* 🌟 UPDATED: Category Tabs with Counts */}
+              <div className="bg-gray-50 border-b border-gray-200 p-4 flex gap-3 overflow-x-auto whitespace-nowrap">
+                {listingCategories.map(cat => {
+                  const count = getCategoryCount(cat.id);
+                  return (
+                    <button 
+                      key={cat.id} 
+                      onClick={() => setActiveListingCategory(cat.id)} 
+                      className={`px-5 py-2 text-sm font-bold rounded-full transition-colors ${
+                        activeListingCategory === cat.id 
+                        ? 'bg-blue-600 text-white shadow-md' 
+                        : 'bg-white text-gray-600 hover:bg-gray-200 border border-gray-200'
+                      }`}
+                    >
+                      {cat.label} <span className={`ml-1 px-2 py-0.5 rounded-full text-xs ${activeListingCategory === cat.id ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-500'}`}>{count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Table Data */}
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -410,7 +453,12 @@ export default function AdminDashboard() {
                     ))}
                   </tbody>
                 </table>
-                {displayedListings.length === 0 && <div className="p-8 text-center text-gray-500">Is category mein abhi koi listing/content nahi hai.</div>}
+                {displayedListings.length === 0 && (
+                  <div className="p-12 flex flex-col items-center justify-center">
+                    <span className="text-4xl mb-3">🔍</span>
+                    <p className="text-gray-500 font-bold text-lg">Koi listing nahi mili!</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
