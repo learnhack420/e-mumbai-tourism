@@ -4,7 +4,6 @@ import { supabase } from '../../../utils/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-// 👇 Import the newly created LocationSelector component (Path apne folder structure ke hisaab se adjust karein)
 import LocationSelector from '../../components/LocationSelector' 
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
@@ -13,7 +12,7 @@ import 'react-quill-new/dist/quill.snow.css'
 function TourFormContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const editId = searchParams.get('edit') // Fetch ID from URL for Edit Mode
+  const editId = searchParams.get('edit')
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -32,7 +31,6 @@ function TourFormContent() {
   const [metaDescription, setMetaDescription] = useState('')
   const [metaKeywords, setMetaKeywords] = useState('')
   
-  // 🌟 UPDATE: Destinations ab ek Array (list) hai taaki multiple add ho sakein
   const [startLocation, setStartLocation] = useState('')
   const [destinations, setDestinations] = useState<string[]>([])
   
@@ -52,6 +50,9 @@ function TourFormContent() {
   const [overview, setOverview] = useState('') 
   const [personPrices, setPersonPrices] = useState({ min2: '', min4: '', min6: '', min8: '' })
   const [cabPrices, setCabPrices] = useState({ hatchback: '', sedan: '', suv: '', innova: '', tempo: '' })
+  
+  // 🌟 NEW: Extra Time Charges State
+  const [cabExtraCharges, setCabExtraCharges] = useState({ hatchback: '', sedan: '', suv: '', innova: '', tempo: '' })
   
   // 3. Tour Details 
   const [placesToVisit, setPlacesToVisit] = useState(['']) 
@@ -107,7 +108,6 @@ function TourFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
-    // 🔥 FETCH EXISTING DATA IF IN EDIT MODE
     if (editId) {
       const { data: listing, error } = await supabase
         .from('listings')
@@ -128,13 +128,11 @@ function TourFormContent() {
 
       const meta = listing.metadata || {}
       
-      // Basic Metadata
       setThumbnail(meta.thumbnail || '')
       setMetaTitle(meta.seo?.metaTitle || '')
       setMetaDescription(meta.seo?.metaDescription || '')
       setMetaKeywords(meta.seo?.metaKeywords || '')
 
-      // 🌟 UPDATE: Extract Locations properly
       setStartLocation(meta.startLocation || (listing.location?.split(' ➔ ')[0]) || '')
       if (meta.destinationsArray) {
         setDestinations(meta.destinationsArray)
@@ -143,7 +141,6 @@ function TourFormContent() {
         setDestinations(destStr ? destStr.split(', ') : [])
       }
 
-      // Duration extraction
       if (meta.durationRaw) {
         setDurationDays(meta.durationRaw.d || '0')
         setDurationNights(meta.durationRaw.n || '0')
@@ -165,6 +162,9 @@ function TourFormContent() {
       if (meta.personPrices) setPersonPrices(meta.personPrices)
       if (meta.cabPrices) setCabPrices(meta.cabPrices)
       
+      // 🌟 NEW: Load Extra Charges if available
+      if (meta.cabExtraCharges) setCabExtraCharges(meta.cabExtraCharges)
+      
       if (meta.placesToVisit?.length > 0) setPlacesToVisit(meta.placesToVisit)
       if (meta.itineraryDays?.length > 0) setItineraryDays(meta.itineraryDays)
       
@@ -178,7 +178,6 @@ function TourFormContent() {
     setLoading(false)
   }
 
-  // --- SLUG LOGIC ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
@@ -199,7 +198,6 @@ function TourFormContent() {
     setSlugEdited(true)
   }
 
-  // Handlers for dynamic lists
   const handlePickupTimeChange = (index: number, value: string) => {
     const newTimes = [...pickupTimes]; newTimes[index] = value; setPickupTimes(newTimes)
   }
@@ -249,7 +247,6 @@ function TourFormContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Safety check for location selection
     if (!startLocation || destinations.length === 0) {
       setMessage({ type: 'error', text: 'Please select both Origin and at least one Destination!' })
       return
@@ -258,18 +255,15 @@ function TourFormContent() {
     setSubmitting(true)
     setMessage({ type: '', text: '' })
 
-    // 🌟 UPDATE: Format Location String
     const formattedDestinations = destinations.join(', ')
     const fullLocationString = `${startLocation} ➔ ${formattedDestinations}`
 
-    // Format Duration String safely
     const dStr = []
     if (parseInt(durationDays) > 0) dStr.push(`${durationDays} Day${parseInt(durationDays) > 1 ? 's' : ''}`)
     if (parseInt(durationNights) > 0) dStr.push(`${durationNights} Night${parseInt(durationNights) > 1 ? 's' : ''}`)
     if (parseInt(durationHours) > 0) dStr.push(`${durationHours} Hour${parseInt(durationHours) > 1 ? 's' : ''}`)
     const finalDuration = dStr.join(' / ') || 'Custom Duration'
 
-    // Format Pickup Times (Convert 24h to 12h AM/PM for text)
     const cleanPickupTimes = pickupTimes.filter(t => t.trim() !== '')
     const formatTime12hr = (time24: string) => {
       if (!time24) return ''
@@ -288,12 +282,13 @@ function TourFormContent() {
       personPrices.min8 ? `Min 8+ Pax: ₹${personPrices.min8} / person` : ''
     ].filter(Boolean).join('\n') || 'Not Available';
 
+    // 🌟 NEW: Formatted Cab Pricing with Extra Time
     const formattedCabPricing = [
-      cabPrices.hatchback ? `Hatchback (Max 4): ₹${cabPrices.hatchback}` : '',
-      cabPrices.sedan ? `Sedan (Max 4): ₹${cabPrices.sedan}` : '',
-      cabPrices.suv ? `SUV / Ertiga (Max 6): ₹${cabPrices.suv}` : '',
-      cabPrices.innova ? `Innova / Crysta (Max 6): ₹${cabPrices.innova}` : '',
-      cabPrices.tempo ? `Tempo Traveller (Max 12): ₹${cabPrices.tempo}` : ''
+      cabPrices.hatchback ? `Hatchback (Max 4): ₹${cabPrices.hatchback}${cabExtraCharges.hatchback ? ` | Extra: ₹${cabExtraCharges.hatchback}/hr` : ''}` : '',
+      cabPrices.sedan ? `Sedan (Max 4): ₹${cabPrices.sedan}${cabExtraCharges.sedan ? ` | Extra: ₹${cabExtraCharges.sedan}/hr` : ''}` : '',
+      cabPrices.suv ? `SUV / Ertiga (Max 6): ₹${cabPrices.suv}${cabExtraCharges.suv ? ` | Extra: ₹${cabExtraCharges.suv}/hr` : ''}` : '',
+      cabPrices.innova ? `Innova / Crysta (Max 6): ₹${cabPrices.innova}${cabExtraCharges.innova ? ` | Extra: ₹${cabExtraCharges.innova}/hr` : ''}` : '',
+      cabPrices.tempo ? `Tempo Traveller (Max 12): ₹${cabPrices.tempo}${cabExtraCharges.tempo ? ` | Extra: ₹${cabExtraCharges.tempo}/hr` : ''}` : ''
     ].filter(Boolean).join('\n') || 'Not Available';
 
     const formattedFaqs = faqs
@@ -350,13 +345,14 @@ ${formattedFaqs}
       duration: finalDuration,
       durationRaw: { d: durationDays, n: durationNights, h: durationHours },
       startLocation,
-      destinationsArray: destinations, // 🌟 Save the array for easy editing later
+      destinationsArray: destinations, 
       pickupTimes: cleanPickupTimes,
       overview,
       placesToVisit: cleanPlaces,
       itineraryDays: cleanItinerary,
       personPrices,
       cabPrices,
+      cabExtraCharges, // 🌟 Save Extra Charges explicitly
       inclusions,
       exclusions,
       thumbnail,
@@ -376,21 +372,19 @@ ${formattedFaqs}
     const dbPayload = {
       title: title,
       slug: slug,
-      location: fullLocationString, // 🌟 Saved beautifully like "Mumbai ➔ Nashik, Shirdi"
+      location: fullLocationString, 
       price: parseFloat(price),
       description: detailedDescription,
       metadata: metadata
     }
 
     if (editId) {
-      // UPDATE EXISTING TOUR
       const res = await supabase
         .from('listings')
         .update(dbPayload)
         .eq('id', editId)
       error = res.error
     } else {
-      // INSERT NEW TOUR
       const res = await supabase
         .from('listings')
         .insert([{
@@ -412,7 +406,6 @@ ${formattedFaqs}
     } else {
 
       if (!editId) {
-        // Trigger Email Only for New Listing
         fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -498,7 +491,6 @@ ${formattedFaqs}
                 </div>
               </div>
 
-              {/* 🌟 REPLACED WITH NEW LOCATION SELECTOR COMPONENT */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <LocationSelector 
                   label="Start From (Origin)" 
@@ -512,7 +504,7 @@ ${formattedFaqs}
                   label="Destinations Covered" 
                   selected={destinations} 
                   onChange={setDestinations} 
-                  multiple={true} // Multi-select enabled!
+                  multiple={true}
                   placeholder="Select one or more destinations..."
                 />
               </div>
@@ -631,10 +623,14 @@ ${formattedFaqs}
                 <div className="bg-orange-50/50 p-5 border border-orange-100 rounded-xl">
                   <label className="block text-base font-bold text-orange-900 mb-4">🚖 Cab Wise Pricing</label>
                   <div className="space-y-3">
+                    {/* 🌟 NEW: UI for Extra Time Charges */}
                     {[{ label: 'Hatchback (Max 4)', key: 'hatchback' }, { label: 'Sedan (Max 4)', key: 'sedan' }, { label: 'SUV / Ertiga (Max 6)', key: 'suv' }, { label: 'Innova / Crysta (Max 6)', key: 'innova' }, { label: 'Tempo Traveller (Max 12)', key: 'tempo' }].map((item) => (
-                      <div key={item.key} className="flex justify-between items-center gap-4 bg-white p-2 rounded-lg border border-orange-100">
-                        <span className="text-sm font-medium text-gray-700 w-1/2 px-2">{item.label}</span>
-                        <input type="number" min="0" placeholder="₹ Rate" className="w-1/2 px-3 py-2 border rounded-md outline-none" value={cabPrices[item.key as keyof typeof cabPrices]} onChange={(e) => setCabPrices({...cabPrices, [item.key]: e.target.value})} />
+                      <div key={item.key} className="flex flex-col lg:flex-row justify-between lg:items-center gap-2 lg:gap-4 bg-white p-3 rounded-lg border border-orange-100">
+                        <span className="text-sm font-medium text-gray-700 lg:w-2/5 px-1">{item.label}</span>
+                        <div className="flex gap-2 lg:w-3/5">
+                          <input type="number" min="0" placeholder="₹ Rate" className="w-1/2 px-3 py-2 border rounded-md outline-none text-sm" value={cabPrices[item.key as keyof typeof cabPrices]} onChange={(e) => setCabPrices({...cabPrices, [item.key]: e.target.value})} />
+                          <input type="number" min="0" placeholder="₹ Extra/hr" className="w-1/2 px-3 py-2 border rounded-md outline-none text-sm" value={cabExtraCharges[item.key as keyof typeof cabExtraCharges]} onChange={(e) => setCabExtraCharges({...cabExtraCharges, [item.key]: e.target.value})} />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -745,7 +741,6 @@ ${formattedFaqs}
                   </div>
                 ))}
               </div>
-              {/* Button Moved Below the List */}
               <button type="button" onClick={addFaq} className="mt-2 text-sm bg-blue-100 text-blue-700 font-bold px-4 py-2 rounded-full hover:bg-blue-200">+ Add FAQ</button>
             </div>
 

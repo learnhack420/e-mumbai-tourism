@@ -26,31 +26,60 @@ const formatLocation = (locStr?: string) => {
   return locStr.replace(/ > /g, ', ')
 }
 
+// 🌟 SEO UPGRADE 1: Advanced Metadata with OpenGraph & Twitter Cards
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
-  const { data: place } = await supabase.from('listings').select('title, metadata, location').eq('slug', resolvedParams.slug).single()
+  const slug = resolvedParams.slug
+
+  const { data: place } = await supabase.from('listings').select('title, metadata, location, image').eq('slug', slug).single()
 
   if (!place) return { title: 'Place Not Found' }
 
   const meta = place.metadata || {};
-  const descriptionText = meta.shortDescription ? cleanText(meta.shortDescription) : `Complete guide to visit ${place.title}.`;
+  const descriptionText = meta.shortDescription ? cleanText(meta.shortDescription) : `Complete travel guide to visit ${place.title}. Find timings, entry fees, and attractions.`;
+  
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
+  const currentUrl = `${siteUrl}/places/${slug}`;
+  const imageUrl = place.image || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : `${siteUrl}/default-tour.jpg`);
 
   return {
-    title: `${place.title} - Ultimate Travel Guide & Details | DayTour`,
-    description: descriptionText.substring(0, 160),
-    alternates: { canonical: `https://daytour.in/places/${resolvedParams.slug}` }
+    title: meta.seo?.metaTitle || `${place.title} - Ultimate Travel Guide & Details`,
+    description: meta.seo?.metaDescription || descriptionText.substring(0, 160),
+    keywords: meta.seo?.metaKeywords || `${place.title}, visit ${place.title}, ${formatLocation(place.location)} tourism, tourist places in ${formatLocation(place.location).split(',')[0]}`,
+    alternates: { 
+      canonical: currentUrl 
+    },
+    openGraph: {
+      title: meta.seo?.metaTitle || place.title,
+      description: meta.seo?.metaDescription || descriptionText.substring(0, 160),
+      url: currentUrl,
+      type: 'website',
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: place.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: meta.seo?.metaTitle || place.title,
+      description: meta.seo?.metaDescription || descriptionText.substring(0, 160),
+      images: [imageUrl],
+    }
   }
 }
 
 export default async function TouristPlacePage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = await params
+  const slug = resolvedParams.slug
   
-  let { data: place, error } = await supabase.from('listings').select('*').eq('slug', resolvedParams.slug).single()
+  let { data: place, error } = await supabase.from('listings').select('*').eq('slug', slug).single()
 
   if (error || !place) {
-    const { data: placeById } = await supabase.from('listings').select('*').eq('id', resolvedParams.slug).single()
-    if (!placeById) return notFound()
-    place = placeById
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug)
+    if (isUUID) {
+      const { data: placeById } = await supabase.from('listings').select('*').eq('id', slug).single()
+      if (!placeById) return notFound()
+      place = placeById
+    } else {
+      return notFound()
+    }
   }
 
   const formattedLocation = formatLocation(place.location);
@@ -61,9 +90,53 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
   const galleryUrls = meta.gallery && meta.gallery.length > 0 ? meta.gallery : []
   const faqs = meta.faqItems || []
 
+  // 🌟 SEO UPGRADE 2: JSON-LD Structured Data
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
+
+  // 1. Breadcrumb Schema
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": `${siteUrl}/` },
+      { "@type": "ListItem", "position": 2, "name": "Places", "item": `${siteUrl}/places` },
+      { "@type": "ListItem", "position": 3, "name": place.title, "item": `${siteUrl}/places/${slug}` }
+    ]
+  };
+
+  // 2. TouristAttraction Schema
+  const placeSchema = {
+    "@context": "https://schema.org",
+    "@type": "TouristAttraction",
+    "name": place.title,
+    "description": meta.seo?.metaDescription || meta.shortDescription || `Explore ${place.title} located in ${formattedLocation}.`,
+    "image": image,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": targetCity,
+      "addressCountry": "IN"
+    }
+  };
+
+  // 3. FAQ Schema
+  const faqSchema = faqs.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map((faq: any) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
+    }))
+  } : null;
+
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-blue-600 selection:text-white">
       
+      {/* --- INJECT GOOGLE SCHEMAS --- */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(placeSchema) }} />
+      {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
+
       {/* HERO SECTION */}
       <div className="relative h-[60vh] md:h-[75vh] w-full bg-slate-900 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -86,6 +159,8 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
         {/* Breadcrumbs */}
         <nav className="flex items-center text-xs md:text-sm text-slate-500 font-bold mb-8 overflow-x-auto whitespace-nowrap">
           <Link href="/" className="hover:text-blue-600 transition-colors flex items-center gap-1">🏠 Home</Link>
+          <span className="mx-2 text-slate-300">/</span>
+          <Link href="/places" className="hover:text-blue-600 transition-colors flex items-center gap-1">Places</Link>
           <span className="mx-2 text-slate-300">/</span>
           <span className="text-slate-800 truncate">{place.title}</span>
         </nav>
@@ -141,8 +216,9 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {galleryUrls.map((imgUrl: string, idx: number) => (
                   <div key={idx} className="h-48 rounded-2xl overflow-hidden bg-slate-100 group relative shadow-sm">
+                    {/* 🌟 SEO UPGRADE 3: Dynamic Image Alt Tags */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imgUrl} alt={`${place.title} gallery image ${idx+1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    <img src={imgUrl} alt={`${place.title} tourist spot in ${targetCity} - View ${idx+1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   </div>
                 ))}
               </div>
@@ -155,7 +231,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
               <span className="w-8 h-1 bg-amber-500 rounded-full inline-block"></span> About {place.title}
             </h2>
             {meta.shortDescription && <p className="text-amber-800 font-bold text-lg leading-relaxed mb-8 border-l-4 border-amber-500 pl-5 bg-amber-50/60 py-4 pr-4 rounded-r-2xl">"{meta.shortDescription}"</p>}
-            <div className="prose prose-slate max-w-none text-slate-600 leading-relaxed text-lg break-words" dangerouslySetInnerHTML={{ __html: place.description }} />
+            <div className="prose prose-slate prose-a:text-blue-600 max-w-none text-slate-600 leading-relaxed text-lg break-words marker:text-blue-500" dangerouslySetInnerHTML={{ __html: place.description }} />
           </section>
 
           {/* History */}
@@ -214,9 +290,9 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
             <div className="text-left">
               <div className="text-4xl mb-2">🚖</div>
               <h4 className="font-black text-2xl mb-1">Planning a Visit to {place.title}?</h4>
-              <p className="text-white/90">Book a comfortable private outstation or local cab for a hassle-free trip today.</p>
+              <p className="text-white/90 font-medium">Book a comfortable private outstation or local cab for a hassle-free trip today.</p>
             </div>
-            <Link href={`/?service=cab&city=${encodeURIComponent(formattedLocation.split(',')[0].trim())}`} className="bg-slate-900 hover:bg-black text-white font-black py-4 px-8 rounded-2xl transition-all shadow-md active:scale-95 whitespace-nowrap">
+            <Link href={targetCity ? `/?service=cab&city=${encodeURIComponent(targetCity)}` : '/'} className="bg-slate-900 hover:bg-black text-white font-black py-4 px-8 rounded-2xl transition-all shadow-md active:scale-95 whitespace-nowrap">
               Search Cabs Now →
             </Link>
           </div>

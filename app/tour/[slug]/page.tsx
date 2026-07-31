@@ -1,6 +1,7 @@
 import { supabase } from '../../../utils/supabase'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import TourBookingSidebar from '../../components/TourBookingSidebar'
 import AIAutoRoutePlanner from '../../components/AIAutoRoutePlanner'
 import VendorInfoCard from '../../components/VendorInfoCard'
@@ -13,6 +14,7 @@ const formatLocation = (locStr?: string) => {
   return locStr.replace(/ > /g, ', ')
 }
 
+// 🌟 SEO UPGRADE 1: Advanced Metadata with Canonical URLs & OpenGraph
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
   const slug = resolvedParams.slug
@@ -30,13 +32,29 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!tour) return { title: 'Tour Not Found' }
 
   const seo = tour.metadata?.seo || {}
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+  const currentUrl = `${siteUrl}/tour/${slug}`
+  const thumbnail = tour.metadata?.thumbnail || tour.metadata?.gallery?.[0] || `${siteUrl}/default-tour.jpg`
   
   return {
-    title: seo.metaTitle || `${tour.title} | India Tour Operators`,
-    description: seo.metaDescription || `Book ${tour.title} at best prices. Explore itinerary and inclusions.`,
-    keywords: seo.metaKeywords || `${tour.title}, tour package, book cab, hotel`,
+    title: seo.metaTitle || `${tour.title} - Best Tour Package | India Tour Operators`,
+    description: seo.metaDescription || `Book the ultimate ${tour.title}. Explore the best itinerary, places to visit, and inclusions. Get guaranteed best prices from verified local operators.`,
+    keywords: seo.metaKeywords || `${tour.title}, ${formatLocation(tour.location)} tour package, book cab, best hotels in ${formatLocation(tour.location)}, travel agency`,
+    alternates: {
+      canonical: currentUrl,
+    },
     openGraph: {
-      images: [tour.metadata?.thumbnail || tour.metadata?.gallery?.[0] || ''],
+      title: seo.metaTitle || tour.title,
+      description: seo.metaDescription || `Book the ultimate ${tour.title} with verified local operators.`,
+      url: currentUrl,
+      type: 'website',
+      images: [{ url: thumbnail, width: 1200, height: 630, alt: tour.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: seo.metaTitle || tour.title,
+      description: seo.metaDescription || `Book the ultimate ${tour.title}.`,
+      images: [thumbnail],
     }
   }
 }
@@ -102,61 +120,129 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
     ))
   }
 
+  // 🌟 SEO UPGRADE 2: JSON-LD Structured Data
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+  
+  // 1. Breadcrumb Schema
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": `${siteUrl}/` },
+      { "@type": "ListItem", "position": 2, "name": "Tours", "item": `${siteUrl}/tours` },
+      { "@type": "ListItem", "position": 3, "name": tour.title, "item": `${siteUrl}/tour/${slug}` }
+    ]
+  };
+
+  // 2. TouristTrip Schema (Helps Google show this in "Things to do" & Tour rich results)
+  const tourSchema = {
+    "@context": "https://schema.org",
+    "@type": "TouristTrip",
+    "name": tour.title,
+    "description": meta.seo?.metaDescription || meta.shortDescription || `Enjoy a trip to ${destinationsCovered}.`,
+    "image": thumbnail,
+    "touristType": ["Sightseeing", "Cultural", "Leisure"],
+    "itinerary": {
+      "@type": "ItemList",
+      "itemListElement": itineraryDays.map((day: any, idx: number) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "name": `Day ${day.day}: ${day.title}`,
+        "description": day.description
+      }))
+    },
+    ...(meta.price && {
+      "offers": {
+        "@type": "Offer",
+        "price": meta.price,
+        "priceCurrency": "INR",
+        "availability": "https://schema.org/InStock",
+        "url": `${siteUrl}/tour/${slug}`
+      }
+    })
+  };
+
+  // 3. FAQ Schema
+  const faqSchema = meta.faqs && meta.faqs.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": meta.faqs.map((faq: any) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
+    }))
+  } : null;
+
   return (
-    <main className="min-h-screen bg-gray-50 pb-20">
+    <main className="min-h-screen bg-gray-50 pb-20 font-sans selection:bg-blue-200 selection:text-blue-900">
       
+      {/* --- INJECT GOOGLE SCHEMAS --- */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(tourSchema) }} />
+      {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
+
       {/* Hero Image */}
-      <div className="relative h-[400px] md:h-[500px] w-full bg-gray-900">
+      <div className="relative h-[400px] md:h-[550px] w-full bg-gray-900">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={thumbnail} alt={tour.title} className="w-full h-full object-cover opacity-80" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-        <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-6xl mx-auto">
-          <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-md">
-            Tour Package
+        <img src={thumbnail} alt={`${tour.title} in ${destinationsCovered}`} className="w-full h-full object-cover opacity-70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
+        
+        <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-7xl mx-auto">
+          {/* 🌟 SEO UPGRADE 3: UI Breadcrumbs */}
+          <nav className="flex items-center text-xs md:text-sm text-gray-300 font-bold mb-6 overflow-x-auto whitespace-nowrap">
+            <Link href="/" className="hover:text-white transition-colors flex items-center gap-1">🏠 Home</Link>
+            <span className="mx-2 text-gray-500">/</span>
+            <Link href="/tours" className="hover:text-white transition-colors">Tours</Link>
+            <span className="mx-2 text-gray-500">/</span>
+            <span className="text-white truncate">{tour.title}</span>
+          </nav>
+
+          <span className="bg-blue-600 text-white text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-md">
+            Verified Tour Package
           </span>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-white mt-4 leading-tight">{tour.title}</h1>
-          <div className="flex flex-wrap items-center gap-4 mt-4 text-gray-200 font-medium">
-            <span className="flex items-center gap-1">📍 {formatLocation(tour.location)}</span>
-            <span className="flex items-center gap-1">⏱️ {meta.duration || 'Custom Duration'}</span>
+          <h1 className="text-4xl md:text-6xl font-black text-white mt-5 leading-tight drop-shadow-lg">{tour.title}</h1>
+          <div className="flex flex-wrap items-center gap-5 mt-5 text-gray-200 font-bold text-lg">
+            <span className="flex items-center gap-2 bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-xl">📍 {formatLocation(tour.location)}</span>
+            <span className="flex items-center gap-2 bg-slate-800/50 backdrop-blur-sm px-4 py-2 rounded-xl">⏱️ {meta.duration || 'Custom Duration'}</span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
         
         {/* Left Content Column */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-10">
           
-          <section className="bg-white p-0 rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-4 md:p-6">
-              <h2 className="text-xl md:text-2xl font-extrabold text-white">📋 Tour Information</h2>
-              <p className="text-blue-100 text-sm mt-1">Key details about your journey</p>
+          <section className="bg-white p-0 rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-800 p-5 md:p-8">
+              <h2 className="text-2xl md:text-3xl font-black text-white">📋 Tour Information</h2>
+              <p className="text-blue-100 text-sm md:text-base mt-2 font-medium">Key details about your journey</p>
             </div>
             
-            <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="flex items-start gap-4">
-                <div className="bg-blue-50 p-3 rounded-full text-blue-600 text-xl">🛫</div>
+                <div className="bg-blue-50 p-4 rounded-2xl text-blue-600 text-2xl">🛫</div>
                 <div>
-                  <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Start From (Origin)</span>
-                  <span className="font-bold text-gray-900 text-lg">{origin}</span>
+                  <span className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Start From (Origin)</span>
+                  <span className="font-black text-gray-900 text-xl">{origin}</span>
                 </div>
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="bg-green-50 p-3 rounded-full text-green-600 text-xl">🎯</div>
+                <div className="bg-green-50 p-4 rounded-2xl text-green-600 text-2xl">🎯</div>
                 <div>
-                  <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Destinations Covered</span>
-                  <span className="font-bold text-gray-900 text-lg">{destinationsCovered}</span>
+                  <span className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Destinations Covered</span>
+                  <span className="font-black text-gray-900 text-xl">{destinationsCovered}</span>
                 </div>
               </div>
 
-              <div className="md:col-span-2 flex items-start gap-4 pt-4 border-t border-gray-100">
-                <div className="bg-purple-50 p-3 rounded-full text-purple-600 text-xl">📸</div>
+              <div className="md:col-span-2 flex items-start gap-4 pt-6 border-t border-gray-100">
+                <div className="bg-purple-50 p-4 rounded-2xl text-purple-600 text-2xl">📸</div>
                 <div className="w-full">
-                  <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Places to Visit</span>
+                  <span className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Places to Visit</span>
                   <div className="flex flex-wrap gap-2">
                     {placesToVisitStr.split(',').map((place: string, idx: number) => (
-                      <span key={idx} className="bg-gray-100 text-gray-800 px-3 py-1 rounded-md text-sm font-medium border border-gray-200">
+                      <span key={idx} className="bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold border border-gray-200 shadow-sm">
                         {place.trim()}
                       </span>
                     ))}
@@ -164,33 +250,33 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                 </div>
               </div>
 
-              <div className="md:col-span-2 flex items-start gap-4 pt-4 border-t border-gray-100">
-                <div className="bg-orange-50 p-3 rounded-full text-orange-600 text-xl">⏰</div>
+              <div className="md:col-span-2 flex items-start gap-4 pt-6 border-t border-gray-100">
+                <div className="bg-orange-50 p-4 rounded-2xl text-orange-600 text-2xl">⏰</div>
                 <div>
-                  <span className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Fixed Pickup Times</span>
-                  <span className="font-bold text-gray-900">{pickupTimesStr}</span>
+                  <span className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Fixed Pickup Times</span>
+                  <span className="font-bold text-gray-900 text-lg">{pickupTimesStr}</span>
                 </div>
               </div>
 
               {(bestTimeToVisitText || bestMonths.length > 0) && (
-                <div className="md:col-span-2 bg-yellow-50 rounded-xl p-5 border border-yellow-100 mt-2">
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">🌤️</span>
-                    <h3 className="text-lg font-bold text-yellow-900">Best Time to Visit</h3>
+                <div className="md:col-span-2 bg-amber-50 rounded-2xl p-6 border border-amber-100 mt-2">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-3xl">🌤️</span>
+                    <h3 className="text-xl font-black text-amber-900">Best Time to Visit</h3>
                   </div>
                   
                   {bestTimeToVisitText && (
-                    <p className="text-yellow-800 text-sm font-medium mb-3 leading-relaxed">
+                    <p className="text-amber-800 text-base font-medium mb-4 leading-relaxed">
                       {bestTimeToVisitText}
                     </p>
                   )}
 
                   {bestMonths.length > 0 && (
                     <div>
-                      <span className="block text-xs font-bold text-yellow-700 uppercase tracking-wider mb-2">Recommended Months:</span>
+                      <span className="block text-xs font-black text-amber-700 uppercase tracking-widest mb-3">Recommended Months:</span>
                       <div className="flex flex-wrap gap-2">
                         {bestMonths.map((month: string, idx: number) => (
-                          <span key={idx} className="bg-yellow-200 text-yellow-900 px-3 py-1 rounded-md text-xs font-bold shadow-sm">
+                          <span key={idx} className="bg-amber-200/50 text-amber-900 px-4 py-1.5 rounded-lg text-sm font-bold border border-amber-200 shadow-sm">
                             {month}
                           </span>
                         ))}
@@ -204,12 +290,14 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           </section>
 
           {gallery.length > 0 && (
-            <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">Tour Gallery</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+              <h2 className="text-3xl font-black text-gray-900 mb-6 border-b border-gray-100 pb-4">Tour Gallery</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
                 {gallery.map((imgUrl: string, idx: number) => (
-                  <div key={idx} className="h-32 md:h-40 rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
-                    <img src={imgUrl} alt={`Gallery Image ${idx+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-300" />
+                  <div key={idx} className="h-40 md:h-48 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 relative group cursor-pointer">
+                    {/* 🌟 SEO UPGRADE 4: Dynamic Alt Tags for Images */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imgUrl} alt={`${tour.title} highlights - ${destinationsCovered} - Image ${idx+1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   </div>
                 ))}
               </div>
@@ -217,48 +305,48 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           )}
 
           {meta.overview && (
-            <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">Overview of {tour.title}</h2>
+            <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+              <h2 className="text-3xl font-black text-gray-900 mb-6 border-b border-gray-100 pb-4">Overview of {tour.title}</h2>
               <div 
-                className="prose max-w-none text-gray-600 leading-relaxed break-words overflow-x-auto" 
+                className="prose prose-lg max-w-none text-gray-600 leading-loose break-words overflow-x-auto marker:text-blue-500" 
                 dangerouslySetInnerHTML={{ __html: meta.overview }} 
               />
             </section>
           )}
 
           {(itineraryDays.length > 0 || meta.itinerary) && (
-            <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-extrabold text-gray-900 mb-6 border-b pb-2">Day-wise Itinerary</h2>
+            <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+              <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">Day-wise Itinerary</h2>
               {itineraryDays.length > 0 ? (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   {itineraryDays.map((day: any, idx: number) => (
-                    <div key={idx} className="relative pl-6 border-l-2 border-blue-200">
-                      <div className="absolute w-4 h-4 bg-blue-600 rounded-full -left-[9px] top-1 ring-4 ring-blue-50"></div>
-                      <h3 className="text-lg font-extrabold text-gray-900">Day {day.day}: {day.title}</h3>
-                      <p className="text-gray-600 mt-2 text-sm leading-relaxed whitespace-pre-wrap">{day.description}</p>
+                    <div key={idx} className="relative pl-8 border-l-4 border-blue-100">
+                      <div className="absolute w-6 h-6 bg-blue-600 rounded-full -left-[15px] top-1 ring-8 ring-blue-50 flex items-center justify-center text-[10px] font-black text-white">{day.day}</div>
+                      <h3 className="text-xl font-black text-gray-900">Day {day.day}: {day.title}</h3>
+                      <p className="text-gray-600 mt-3 text-base leading-relaxed whitespace-pre-wrap">{day.description}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="whitespace-pre-wrap text-gray-600 leading-relaxed">{meta.itinerary}</div>
+                <div className="whitespace-pre-wrap text-gray-600 leading-relaxed prose prose-lg max-w-none">{meta.itinerary}</div>
               )}
             </section>
           )}
 
           {(meta.inclusions || meta.exclusions) && (
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {meta.inclusions && (
-                <div className="bg-green-50 p-6 rounded-2xl border border-green-100">
-                  <h3 className="text-lg font-bold text-green-900 mb-3 flex items-center gap-2">✅ Price Includes</h3>
-                  <div className="text-green-800 text-sm space-y-1">
+                <div className="bg-emerald-50/50 p-8 rounded-3xl border border-emerald-100 shadow-sm">
+                  <h3 className="text-xl font-black text-emerald-900 mb-5 flex items-center gap-3"><span className="text-2xl">✅</span> Price Includes</h3>
+                  <div className="text-emerald-800 text-base space-y-2 font-medium">
                     {formatListWithEmoji(meta.inclusions, '✅')}
                   </div>
                 </div>
               )}
               {meta.exclusions && (
-                <div className="bg-red-50 p-6 rounded-2xl border border-red-100">
-                  <h3 className="text-lg font-bold text-red-900 mb-3 flex items-center gap-2">❌ Not Included</h3>
-                  <div className="text-red-800 text-sm space-y-1">
+                <div className="bg-red-50/50 p-8 rounded-3xl border border-red-100 shadow-sm">
+                  <h3 className="text-xl font-black text-red-900 mb-5 flex items-center gap-3"><span className="text-2xl">❌</span> Not Included</h3>
+                  <div className="text-red-800 text-base space-y-2 font-medium">
                     {formatListWithEmoji(meta.exclusions, '❌')}
                   </div>
                 </div>
@@ -266,32 +354,32 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
-          <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-2xl font-extrabold text-gray-900 mb-6 border-b pb-2">
+          <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+            <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
               {isLocalTour ? "Local Sightseeing Map" : "How to Reach & Route Map"}
             </h2>
             
             <div className="flex flex-col gap-8">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {isLocalTour ? (
                   <>
-                    <p className="text-sm text-gray-600 font-medium mb-4">
+                    <p className="text-base text-gray-600 font-medium mb-2">
                       Explore the best local attractions in <strong className="text-gray-900">{destinationsCovered}</strong>:
                     </p>
                     
-                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-4 items-start">
-                      <span className="text-2xl">🚖</span>
+                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex gap-5 items-start">
+                      <span className="text-3xl">🚖</span>
                       <div>
-                        <h4 className="font-bold text-blue-900">Local Cab Booking</h4>
-                        <p className="text-xs text-blue-800 mt-1">Book our comfortable local cabs directly from the sidebar. We provide convenient pickup and drop for all sightseeing points.</p>
+                        <h4 className="font-black text-blue-900 text-lg">Local Cab Booking</h4>
+                        <p className="text-sm text-blue-800 mt-2 leading-relaxed">Book our comfortable local cabs directly from the sidebar. We provide convenient pickup and drop for all sightseeing points.</p>
                       </div>
                     </div>
 
-                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 flex gap-4 items-start">
-                      <span className="text-2xl">📸</span>
+                    <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 flex gap-5 items-start">
+                      <span className="text-3xl">📸</span>
                       <div>
-                        <h4 className="font-bold text-purple-900">Key Attractions</h4>
-                        <p className="text-xs text-purple-800 mt-1">This package covers major attractions. You can customize your local itinerary and spend as much time as you need at each spot.</p>
+                        <h4 className="font-black text-purple-900 text-lg">Key Attractions</h4>
+                        <p className="text-sm text-purple-800 mt-2 leading-relaxed">This package covers major attractions. You can customize your local itinerary and spend as much time as you need at each spot.</p>
                       </div>
                     </div>
                   </>
@@ -306,13 +394,13 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           </section>
 
           {meta.faqs && meta.faqs.length > 0 && (
-            <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">Frequently Asked Questions</h2>
-              <div className="space-y-4">
+            <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+              <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">Frequently Asked Questions</h2>
+              <div className="space-y-5">
                 {meta.faqs.map((faq: any, idx: number) => (
-                  <div key={idx} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
-                    <h4 className="font-bold text-gray-800 flex gap-2"><span>❓</span> {faq.question}</h4>
-                    <p className="text-gray-600 text-sm mt-2 flex gap-2"><span>👉</span> {faq.answer}</p>
+                  <div key={idx} className="border border-gray-100 rounded-2xl p-6 bg-gray-50 hover:bg-white hover:shadow-md transition-all">
+                    <h4 className="font-black text-gray-800 flex gap-3 text-lg"><span className="text-xl">❓</span> {faq.question}</h4>
+                    <p className="text-gray-600 text-base mt-3 flex gap-3 leading-relaxed"><span className="text-xl text-blue-400">👉</span> {faq.answer}</p>
                   </div>
                 ))}
               </div>
@@ -323,6 +411,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
         </div>
 
+        {/* Right Sidebar */}
         <div className="lg:col-span-1">
           <div className="sticky top-6">
             <TourBookingSidebar tour={tour} meta={meta} destinations={destinationsCovered} />
@@ -331,7 +420,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
       </div>
 
-      {/* 🌟 NEW CLIENT-SIDE FETCHED BOTTOM SECTIONS */}
+      {/* Related Sections */}
       <RelatedTourSections 
         tourId={tour.id} 
         vendorId={tour.vendor_id} 

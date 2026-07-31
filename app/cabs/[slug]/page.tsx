@@ -5,28 +5,50 @@ import type { Metadata } from 'next'
 import CabBookingSidebar from '@/app/components/CabBookingSidebar'
 import AIAutoRoutePlanner from '@/app/components/AIAutoRoutePlanner'
 import VendorInfoCard from '@/app/components/VendorInfoCard'
-import RelatedCabSections from '@/app/components/RelatedCabSections' // 👈 Import new component
+import RelatedCabSections from '@/app/components/RelatedCabSections'
 
 export const revalidate = 60
 
-// 🌟 Helper function to clean the new location format (Replaces ' > ' with ', ')
+// 🌟 Helper function to clean the new location format
 const formatLocation = (locStr?: string) => {
   if (!locStr) return 'N/A'
   return locStr.replace(/ > /g, ', ')
 }
 
+// 🌟 SEO UPGRADE 1: Advanced Metadata with Canonical URLs & OpenGraph
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
-  const { data: cab } = await supabase.from('listings').select('title, location, category').eq('slug', resolvedParams.slug).single()
+  const { data: cab } = await supabase.from('listings').select('title, location, category, metadata').eq('slug', resolvedParams.slug).single()
   
   if (!cab) return { title: 'Not Found' }
   
-  // Clean location for SEO Title
   const cleanLocation = cab.location ? cab.location.replace(/ > /g, ', ') : 'India'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+  const currentUrl = `${siteUrl}/cabs/${resolvedParams.slug}`
+  
+  const meta = cab.metadata || {}
+  const thumbnail = meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : `${siteUrl}/default-cab.jpg`
 
   return {
-    title: `${cab.title} - Book Best Cabs in ${cleanLocation}`,
-    description: `Book reliable and comfortable outstation and local cabs for ${cab.title}. Best prices guaranteed.`,
+    title: meta.seo?.metaTitle || `${cab.title} - Book Best Cabs in ${cleanLocation}`,
+    description: meta.seo?.metaDescription || `Book reliable and comfortable outstation and local cabs for ${cab.title}. Best prices guaranteed for your trip.`,
+    keywords: meta.seo?.metaKeywords || `cab booking ${cleanLocation}, outstation cab, taxi service ${cleanLocation}, rent a car`,
+    alternates: {
+      canonical: currentUrl,
+    },
+    openGraph: {
+      title: meta.seo?.metaTitle || `${cab.title} - Book Best Cabs`,
+      description: meta.seo?.metaDescription || `Book reliable cabs for ${cab.title}. Best prices guaranteed.`,
+      url: currentUrl,
+      type: 'website',
+      images: [{ url: thumbnail, width: 1200, height: 630, alt: cab.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: meta.seo?.metaTitle || cab.title,
+      description: meta.seo?.metaDescription || `Reliable outstation and local cabs for ${cab.title}.`,
+      images: [thumbnail],
+    }
   }
 }
 
@@ -49,7 +71,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
 
   const meta = cab.metadata || {}
   
-  // 🌟 Extract Origins and Destinations FIRST to filter Tourist Places
+  // Extract Origins and Destinations FIRST to filter Tourist Places
   const rawOrigin = meta.pickupCity || meta.pickupPoint || meta.serviceCity || cab.location || 'India';
   const rawDrop = meta.dropCity || meta.dropPoint || cab.location || 'Destination';
   
@@ -66,21 +88,85 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
   const isLocal = meta.mainType === 'Local';
   const isOutstation = meta.mainType === 'Outstation';
 
+  // 🌟 SEO UPGRADE 2: JSON-LD Structured Data for TaxiService
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
+  
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": `${siteUrl}/` },
+      { "@type": "ListItem", "position": 2, "name": "Cabs", "item": `${siteUrl}/cabs` },
+      { "@type": "ListItem", "position": 3, "name": cab.title, "item": `${siteUrl}/cabs/${slug}` }
+    ]
+  };
+
+  // Find minimum price for schema
+  const cabPrices = meta.cabPrices || {};
+  const prices = Object.values(cabPrices).filter(p => p).map(p => Number(p));
+  const minPrice = prices.length > 0 ? Math.min(...prices) : undefined;
+
+  const taxiServiceSchema = {
+    "@context": "https://schema.org",
+    "@type": "TaxiService",
+    "name": cab.title,
+    "description": meta.description || `Reliable cab services from ${aiOrigin} to ${aiDrop}.`,
+    "provider": {
+      "@type": "Organization",
+      "name": "India Tour Operators"
+    },
+    "areaServed": {
+      "@type": "Place",
+      "name": aiOrigin
+    },
+    ...(minPrice && {
+      "offers": {
+        "@type": "Offer",
+        "priceCurrency": "INR",
+        "price": minPrice,
+        "availability": "https://schema.org/InStock",
+        "url": `${siteUrl}/cabs/${slug}`
+      }
+    })
+  };
+
+  const faqSchema = meta.faqs && meta.faqs.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": meta.faqs.map((faq: any) => ({
+      "@type": "Question",
+      "name": faq.question,
+      "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
+    }))
+  } : null;
+
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-800">
       
+      {/* --- INJECT GOOGLE SCHEMAS --- */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(taxiServiceSchema) }} />
+      {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
+
       {/* Hero Section */}
       <div className="relative h-[40vh] md:h-[50vh] w-full bg-slate-900 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={gallery[0]} alt={cab.title} className="w-full h-full object-cover opacity-60" />
+        <img src={gallery[0]} alt={`${cab.title} - Cab Booking`} className="w-full h-full object-cover opacity-60" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-6xl mx-auto">
-          <Link href="/" className="text-yellow-400 hover:text-yellow-300 text-sm font-bold mb-6 inline-block transition-colors drop-shadow-md">
-            ← Back to Home
-          </Link>
+          
+          {/* 🌟 SEO UPGRADE 3: UI Breadcrumbs */}
+          <nav className="flex items-center text-xs md:text-sm text-gray-300 font-bold mb-6 overflow-x-auto whitespace-nowrap drop-shadow-md">
+            <Link href="/" className="hover:text-yellow-400 transition-colors flex items-center gap-1">🏠 Home</Link>
+            <span className="mx-2 text-gray-500">/</span>
+            <Link href="/cabs" className="hover:text-yellow-400 transition-colors">Cabs</Link>
+            <span className="mx-2 text-gray-500">/</span>
+            <span className="text-white truncate">{cab.title}</span>
+          </nav>
+
           <div className="mb-4">
             <span className="bg-yellow-500 text-yellow-950 text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-md inline-block">
-              Cab Service
+              Verified Cab Service
             </span>
           </div>
           <h1 className="text-4xl md:text-6xl font-black text-white leading-tight tracking-tight drop-shadow-lg">{cab.title}</h1>
@@ -279,8 +365,9 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
                 {gallery.slice(1).map((imgUrl: string, idx: number) => (
                   <div key={idx} className="h-32 md:h-40 rounded-2xl overflow-hidden bg-slate-100 relative group cursor-pointer shadow-sm">
+                    {/* 🌟 SEO UPGRADE 4: Dynamic Alt Tags for Images */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imgUrl} alt={`Cab ${idx+1}`} className="absolute w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" />
+                    <img src={imgUrl} alt={`Cab from ${aiOrigin} to ${aiDrop} - View ${idx+1}`} className="absolute w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" />
                   </div>
                 ))}
               </div>

@@ -171,14 +171,14 @@ export default function AdminDashboard() {
     return `/vendor`
   }
 
-  // Helper to determine View URL
+  // 🌟 FIXED: Helper to determine View URL
   const getViewUrl = (listing: any) => {
     const slug = listing.slug || listing.id
     if (listing.category === 'tour') return `/tour/${slug}`
     if (listing.category === 'hotel') return `/hotel/${slug}`
     if (listing.category === 'cab') return `/cabs/${slug}`
     if (listing.category === 'destination') return `/places/${slug}`
-    if (listing.category === 'blog') return `/places/${slug}` 
+    if (listing.category === 'blog') return `/${slug}` // 👈 FIXED HERE: Direct root url for blogs
     return `/listing/${slug}`
   }
 

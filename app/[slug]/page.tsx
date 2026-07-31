@@ -3,14 +3,13 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-// 👇 IMPORTANT: Humare premium components wapas import kar liye
-import FloatingContact from '../../components/FloatingContact'
-import RelatedPlaceSections from '../../components/RelatedPlaceSections'
-import AITouristGuide from '../../components/AITouristGuide'
+// FIXED COMPONENT IMPORT PATHS
+import FloatingContact from '../components/FloatingContact'
+import RelatedPlaceSections from '../components/RelatedPlaceSections'
+import AITouristGuide from '../components/AITouristGuide'
 
 export const revalidate = 60
 
-// Cloudflare build ke liye dynamic slugs pre-fetch karne ke liye
 export async function generateStaticParams() {
   const { data: places } = await supabase
     .from('listings')
@@ -31,7 +30,18 @@ const formatLocation = (locStr?: string) => {
   return locStr.replace(/ > /g, ', ')
 }
 
-// Dynamic SEO Metadata for Tourist Attractions & Blogs
+// 🌟 Helper to clean HTML tags for meta descriptions
+const cleanText = (htmlString: string) => {
+  if (!htmlString) return "";
+  return htmlString
+    .replace(/(<([^>]+)>)/gi, "") 
+    .replace(/&nbsp;/gi, " ")     
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .trim();
+};
+
+// 🌟 SEO UPGRADE 1: Advanced Metadata with OpenGraph, Twitter & Canonical
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
   const { data: place } = await supabase
@@ -43,19 +53,41 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!place) return { title: 'Page Not Found' }
 
   const isBlog = place.category === 'blog'
-  
+  const meta = place.metadata || {}
   const cleanLocation = formatLocation(place.location)
+  
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+  const currentUrl = `${siteUrl}/${resolvedParams.slug}`
+  const imageUrl = meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : `${siteUrl}/default-blog.jpg`
+  
+  const descriptionText = meta.seo?.metaDescription || meta.shortDescription || `Explore ${place.title}, ${cleanLocation}. Find best time to visit, top attractions, and travel guide.`;
 
   return {
-    title: isBlog ? `${place.title} - Expert Travel Blog` : `${place.title} - Complete Travel Guide & How to Reach`,
-    description: place.metadata?.shortDescription || `Explore ${place.title}, ${cleanLocation}. Find best time to visit, top attractions, and travel guide.`,
+    title: meta.seo?.metaTitle || (isBlog ? `${place.title} - Expert Travel Blog` : `${place.title} - Complete Travel Guide`),
+    description: cleanText(descriptionText).substring(0, 160),
+    keywords: meta.seo?.metaKeywords || `${place.title}, ${cleanLocation} travel blog, travel guide, tourist places`,
+    alternates: {
+      canonical: currentUrl,
+    },
+    openGraph: {
+      title: meta.seo?.metaTitle || place.title,
+      description: cleanText(descriptionText).substring(0, 160),
+      url: currentUrl,
+      type: 'article',
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: place.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: meta.seo?.metaTitle || place.title,
+      description: cleanText(descriptionText).substring(0, 160),
+      images: [imageUrl],
+    }
   }
 }
 
 export default async function DestinationPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = await params
   
-  // Database se slug ya ID ke through listing fetch karna
   let { data: place, error } = await supabase
     .from('listings')
     .select('*')
@@ -72,7 +104,6 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
     place = placeById
   }
 
-  // 'destination' aur 'blog' dono categories ko allow kiya gaya hai
   if (place.category !== 'destination' && place.category !== 'blog') {
     return notFound()
   }
@@ -82,13 +113,52 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
     ? meta.gallery 
     : ['https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200']
 
-  // 🌟 Clean Location for Display and Component Logic
   const formattedLocation = formatLocation(place.location)
-  
-  // Bug Fix: Prevent "Not specified" from going into the Cab/Map URLs
   const targetCity = formattedLocation !== 'Not specified' ? formattedLocation.split(',')[0].trim() : ''
 
-  // FAQ Schema for Google SEO
+  // 🌟 SEO UPGRADE 2: JSON-LD Structured Data
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
+  
+  // 1. Breadcrumb Schema
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": `${siteUrl}/` },
+      { "@type": "ListItem", "position": 2, "name": place.category === 'blog' ? "Travel Blogs" : "Travel Guides", "item": place.category === 'blog' ? `${siteUrl}/blogs` : `${siteUrl}/places` },
+      { "@type": "ListItem", "position": 3, "name": place.title, "item": `${siteUrl}/${resolvedParams.slug}` }
+    ]
+  };
+
+  // 2. Article / BlogPosting Schema
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": place.category === 'blog' ? "BlogPosting" : "Article",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": `${siteUrl}/${resolvedParams.slug}`
+    },
+    "headline": place.title,
+    "image": gallery,
+    "author": {
+      "@type": "Organization",
+      "name": "India Tour Operators",
+      "url": siteUrl
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "India Tour Operators",
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${siteUrl}/logo.png`
+      }
+    },
+    "datePublished": place.created_at,
+    "dateModified": place.updated_at || place.created_at,
+    "description": meta.seo?.metaDescription || meta.shortDescription || `Complete travel guide for ${place.title}.`
+  };
+
+  // 3. FAQ Schema
   const faqSchema = meta.faqItems && meta.faqItems.length > 0 ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -105,28 +175,36 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
   return (
     <main className="min-h-screen bg-slate-50 pb-24 font-sans text-slate-800 selection:bg-teal-500 selection:text-white">
       
-      {/* --- INJECT GOOGLE FAQ SCHEMA --- */}
-      {faqSchema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-        />
-      )}
+      {/* --- INJECT GOOGLE SCHEMAS --- */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }} />
+      {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
 
       {/* --- HERO SECTION --- */}
       <div className="relative h-[50vh] md:h-[65vh] w-full bg-slate-900 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img 
           src={gallery[0]} 
-          alt={place.title} 
+          alt={`${place.title} Cover Image`} 
           className="w-full h-full object-cover opacity-75" 
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
         
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-6xl mx-auto">
-          <Link href="/" className="text-teal-400 hover:text-teal-300 text-sm font-bold mb-6 inline-block transition-colors drop-shadow-md">
-            ← Back to Home
-          </Link>
+          
+          {/* 🌟 SEO UPGRADE 3: UI Breadcrumbs */}
+          <nav className="flex items-center text-xs md:text-sm text-gray-300 font-bold mb-6 overflow-x-auto whitespace-nowrap drop-shadow-md">
+            <Link href="/" className="hover:text-teal-400 transition-colors flex items-center gap-1">🏠 Home</Link>
+            <span className="mx-2 text-gray-500">/</span>
+            {place.category === 'blog' ? (
+               <span className="text-gray-400">Travel Blogs</span>
+            ) : (
+               <span className="text-gray-400">Travel Guides</span>
+            )}
+            <span className="mx-2 text-gray-500">/</span>
+            <span className="text-white truncate">{place.title}</span>
+          </nav>
+
           <div className="flex items-center gap-3 mb-5">
             <span className="bg-teal-500/90 backdrop-blur-sm text-white text-xs font-black px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg border border-teal-400/50">
               {place.category === 'blog' ? (meta.blogCategory || 'Travel Blog') : 'Tourist Attraction Guide'}
@@ -163,7 +241,6 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
               </div>
             )}
 
-            {/* FORCED CSS FOR BULLETS & NUMBERS */}
             <div 
               className="prose prose-lg md:prose-xl max-w-none w-full break-words overflow-x-auto text-slate-700 leading-loose prose-headings:font-black prose-headings:text-slate-900 prose-h2:text-4xl md:prose-h2:text-5xl prose-h3:text-3xl prose-a:text-teal-600 hover:prose-a:text-teal-700 prose-img:rounded-2xl prose-img:shadow-md prose-img:max-w-full [&_ul]:list-disc [&_ul]:ml-8 [&_ul]:mb-6 [&_ol]:list-decimal [&_ol]:ml-8 [&_ol]:mb-6 [&_li]:my-2 [&_li]:marker:text-slate-800 [&_p]:mb-6 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:bg-slate-50 [&_td]:border [&_th]:p-3 [&_td]:p-3"
               dangerouslySetInnerHTML={{ __html: place.description || '' }}
@@ -192,15 +269,16 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
               <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
                 {gallery.slice(1).map((imgUrl: string, idx: number) => (
                   <div key={idx} className="h-48 rounded-2xl overflow-hidden bg-slate-100 group cursor-pointer relative shadow-sm">
+                    {/* 🌟 SEO UPGRADE 4: Dynamic Image Alt Tags */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imgUrl} alt={`${place.title} image ${idx+2}`} className="absolute w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out" />
+                    <img src={imgUrl} alt={`${place.title} travel photography - Image ${idx+2}`} className="absolute w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out" />
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          {/* 🌟 AI SMART GUIDE & MAP (Restored) */}
+          {/* AI SMART GUIDE & MAP */}
           {targetCity && (
              <AITouristGuide 
                placeId={place.id}
@@ -280,8 +358,7 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
 
       </div>
 
-      {/* 🌟 RESTORED RELATED PLACES & CONTACT BUTTON */}
-      {targetCity && <RelatedPlaceSections placeId={place.id} targetCity={targetCity} />}
+      <RelatedPlaceSections placeId={place.id} targetCity={targetCity} />
       <FloatingContact />
 
     </main>

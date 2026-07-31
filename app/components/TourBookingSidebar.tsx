@@ -35,20 +35,39 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
     ? meta.placesToVisit.join(', ') 
     : destinations
 
-  // 🌟 NEW: Dynamic Pricing Options List (With Calculation)
+  // Dynamic Pricing Options List (With Calculation and Extra Time Charges)
   const packageOptions: string[] = []
+  
+  // Person Prices
   if (meta.personPrices) {
     if (meta.personPrices.min2) packageOptions.push(`Min 2 Pax: ₹${meta.personPrices.min2}/pax (Total: ₹${meta.personPrices.min2 * 2})`)
     if (meta.personPrices.min4) packageOptions.push(`Min 4 Pax: ₹${meta.personPrices.min4}/pax (Total: ₹${meta.personPrices.min4 * 4})`)
     if (meta.personPrices.min6) packageOptions.push(`Min 6 Pax: ₹${meta.personPrices.min6}/pax (Total: ₹${meta.personPrices.min6 * 6})`)
     if (meta.personPrices.min8) packageOptions.push(`Min 8+ Pax: ₹${meta.personPrices.min8}/pax (Total: ₹${meta.personPrices.min8 * 8})`)
   }
+
+  // Cab Prices with Extra Time Logic
   if (meta.cabPrices) {
-    if (meta.cabPrices.hatchback) packageOptions.push(`Hatchback Cab: ₹${meta.cabPrices.hatchback} (Total)`)
-    if (meta.cabPrices.sedan) packageOptions.push(`Sedan Cab: ₹${meta.cabPrices.sedan} (Total)`)
-    if (meta.cabPrices.suv) packageOptions.push(`SUV Cab: ₹${meta.cabPrices.suv} (Total)`)
-    if (meta.cabPrices.innova) packageOptions.push(`Innova Cab: ₹${meta.cabPrices.innova} (Total)`)
-    if (meta.cabPrices.tempo) packageOptions.push(`Tempo Traveller: ₹${meta.cabPrices.tempo} (Total)`)
+    if (meta.cabPrices.hatchback) {
+      const ext = meta.cabExtraCharges?.hatchback ? ` (+₹${meta.cabExtraCharges.hatchback}/hr)` : '';
+      packageOptions.push(`Hatchback Cab: ₹${meta.cabPrices.hatchback}${ext}`)
+    }
+    if (meta.cabPrices.sedan) {
+      const ext = meta.cabExtraCharges?.sedan ? ` (+₹${meta.cabExtraCharges.sedan}/hr)` : '';
+      packageOptions.push(`Sedan Cab: ₹${meta.cabPrices.sedan}${ext}`)
+    }
+    if (meta.cabPrices.suv) {
+      const ext = meta.cabExtraCharges?.suv ? ` (+₹${meta.cabExtraCharges.suv}/hr)` : '';
+      packageOptions.push(`SUV/Ertiga Cab: ₹${meta.cabPrices.suv}${ext}`)
+    }
+    if (meta.cabPrices.innova) {
+      const ext = meta.cabExtraCharges?.innova ? ` (+₹${meta.cabExtraCharges.innova}/hr)` : '';
+      packageOptions.push(`Innova/Crysta Cab: ₹${meta.cabPrices.innova}${ext}`)
+    }
+    if (meta.cabPrices.tempo) {
+      const ext = meta.cabExtraCharges?.tempo ? ` (+₹${meta.cabExtraCharges.tempo}/hr)` : '';
+      packageOptions.push(`Tempo Traveller: ₹${meta.cabPrices.tempo}${ext}`)
+    }
   }
 
   const handleBookNow = async (e: React.FormEvent) => {
@@ -90,7 +109,7 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
     }).catch(err => console.error("Email bhejte waqt error aaya:", err))
 
     // 2. WhatsApp Message Format
-    const waNumber = '919867600452' // Aapka helpline/vendor number
+    const waNumber = '919867600452' // Helpline/vendor number
     const text = `🚀 *New Booking Request*
 -----------------------------
 *Tour Name:* ${tour.title}
@@ -193,7 +212,18 @@ Kindly provide more details.`.trim()
         <div className="mb-8">
           <h3 className="text-gray-900 font-extrabold text-xl border-b pb-2 mb-4">Available Packages</h3>
           
-          {/* 🌟 NEW: Per Person Pricing List with Auto Calculation */}
+          {/* 🌟 NEW: TOUR DURATION DISPLAY */}
+          {meta.duration && (
+            <div className="mb-5 bg-blue-50/80 border border-blue-100 p-3 rounded-xl flex items-center gap-3">
+              <span className="text-2xl">⏱️</span>
+              <div>
+                <span className="block text-[10px] font-black text-blue-900 uppercase tracking-widest">Tour Duration</span>
+                <span className="font-black text-gray-800 text-sm">{meta.duration}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Per Person Pricing List */}
           {meta.personPrices && (meta.personPrices.min2 || meta.personPrices.min4 || meta.personPrices.min6 || meta.personPrices.min8) && (
             <div className="mb-5 space-y-2">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Per Person Pricing</h4>
@@ -240,15 +270,41 @@ Kindly provide more details.`.trim()
             </div>
           )}
 
-          {/* Cab Wise Pricing List */}
+          {/* Cab Wise Pricing List with Extra Time Charges */}
           {meta.cabPrices && (meta.cabPrices.hatchback || meta.cabPrices.sedan || meta.cabPrices.suv || meta.cabPrices.innova || meta.cabPrices.tempo) && (
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cab Wise Pricing (Total)</h4>
-              {meta.cabPrices.hatchback && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">Hatchback:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.hatchback}</span></div>}
-              {meta.cabPrices.sedan && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">Sedan:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.sedan}</span></div>}
-              {meta.cabPrices.suv && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">SUV / Ertiga:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.suv}</span></div>}
-              {meta.cabPrices.innova && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">Innova / Crysta:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.innova}</span></div>}
-              {meta.cabPrices.tempo && <div className="flex justify-between items-center text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100"><span className="text-gray-800 font-medium">Tempo Traveller:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.tempo}</span></div>}
+              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cab Wise Pricing</h4>
+              
+              {meta.cabPrices.hatchback && (
+                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">Hatchback:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.hatchback}</span></div>
+                  {meta.cabExtraCharges?.hatchback && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.hatchback}/hr</span>}
+                </div>
+              )}
+              {meta.cabPrices.sedan && (
+                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">Sedan:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.sedan}</span></div>
+                  {meta.cabExtraCharges?.sedan && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.sedan}/hr</span>}
+                </div>
+              )}
+              {meta.cabPrices.suv && (
+                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">SUV/Ertiga:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.suv}</span></div>
+                  {meta.cabExtraCharges?.suv && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.suv}/hr</span>}
+                </div>
+              )}
+              {meta.cabPrices.innova && (
+                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">Innova/Crysta:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.innova}</span></div>
+                  {meta.cabExtraCharges?.innova && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.innova}/hr</span>}
+                </div>
+              )}
+              {meta.cabPrices.tempo && (
+                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">Tempo Traveller:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.tempo}</span></div>
+                  {meta.cabExtraCharges?.tempo && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.tempo}/hr</span>}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -285,7 +341,7 @@ Kindly provide more details.`.trim()
             </div>
 
             <div className="p-6">
-              {/* Reference Info (Places, Inclusions, Exclusions) POORA DIKHANA HAI */}
+              {/* Reference Info (Places, Inclusions, Exclusions) */}
               <div className="bg-gray-50 p-5 rounded-xl text-sm space-y-4 border border-gray-200 mb-6">
                 <div>
                   <span className="font-bold text-blue-900 block mb-1">📍 Places to Visit:</span> 
