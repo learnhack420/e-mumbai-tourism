@@ -3,14 +3,13 @@ import { GoogleGenAI } from '@google/genai';
 
 export async function POST(req: Request) {
   try {
-    // 🚀 FIX: Cloudflare ke liye direct fallback add kar diya hai.
-    // Agar process.env khali milta hai, toh yeh direct yahan se key utha lega.
-    // DHYAN DEIN: Niche 'AIzaSy...' ki jagah apni ASLI Gemini API key daalein!
+    // 🚀 Fallback key assigned
     const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyBbnZZI53moJlhsojlOJD2yKrkaq2r9kvM';
 
-    if (!apiKey || apiKey === 'AIzaSyBbnZZI53moJlhsojlOJD2yKrkaq2r9kvM') {
+    // 🚀 FIX: Yahan se wo purani strict condition hata di gayi hai!
+    if (!apiKey) {
       return NextResponse.json(
-        { success: false, error: 'GEMINI_API_KEY is missing or invalid! Please update it in the code.' }, 
+        { success: false, error: 'GEMINI_API_KEY is missing!' }, 
         { status: 400 }
       );
     }
@@ -45,7 +44,6 @@ export async function POST(req: Request) {
       }
     });
 
-    // 🚀 FIXED: Removed the function call response.text() to satisfy TypeScript
     let resultText = '';
     if (typeof response.text === 'string') {
       resultText = response.text;
@@ -68,7 +66,6 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error('SERVER AI SEO Error:', error);
 
-    // Specifically handle the 429 Quota/Rate Limit Error
     const isRateLimit = 
       error?.status === 429 || 
       error?.message?.includes('429') || 
@@ -85,7 +82,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Handle all other unexpected server errors
     return NextResponse.json(
       { success: false, error: error.message || 'Internal Server Error' }, 
       { status: 500 }
