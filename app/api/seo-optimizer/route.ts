@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: Request) {
   try {
     // 🔒 Secure way: Only using Environment Variables
