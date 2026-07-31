@@ -250,7 +250,8 @@ function BlogFormContent() {
       title: title,
       slug: slug,
       description: longDescription,
-      location: location,
+      // 🌟 YAHAN UPDATE KIYA: Agar location khali hai toh automatically null jayega taaki koi error na aaye
+      location: location || null, 
       metadata: metadata
     }
 
@@ -332,7 +333,7 @@ function BlogFormContent() {
                   </div>
                 </div>
                 
-                {/* 🌟 LocationSelector added here */}
+                {/* 🌟 LocationSelector is completely optional now */}
                 <div className="md:col-span-2">
                   <LocationSelector 
                     label="Location / Tag (Optional)" 

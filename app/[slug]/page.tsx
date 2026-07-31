@@ -3,6 +3,11 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
+// 👇 IMPORTANT: Humare premium components wapas import kar liye
+import FloatingContact from '../../components/FloatingContact'
+import RelatedPlaceSections from '../../components/RelatedPlaceSections'
+import AITouristGuide from '../../components/AITouristGuide'
+
 export const revalidate = 60
 
 // Cloudflare build ke liye dynamic slugs pre-fetch karne ke liye
@@ -20,7 +25,7 @@ export async function generateStaticParams() {
 
 export const dynamicParams = true
 
-// 🌟 Helper function to clean the new location format (Replaces ' > ' with ', ')
+// 🌟 Helper function to clean the new location format
 const formatLocation = (locStr?: string) => {
   if (!locStr) return 'Not specified'
   return locStr.replace(/ > /g, ', ')
@@ -39,7 +44,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   const isBlog = place.category === 'blog'
   
-  // 🌟 Clean Location for SEO
   const cleanLocation = formatLocation(place.location)
 
   return {
@@ -78,8 +82,11 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
     ? meta.gallery 
     : ['https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200']
 
-  // 🌟 Clean Location for Display
+  // 🌟 Clean Location for Display and Component Logic
   const formattedLocation = formatLocation(place.location)
+  
+  // Bug Fix: Prevent "Not specified" from going into the Cab/Map URLs
+  const targetCity = formattedLocation !== 'Not specified' ? formattedLocation.split(',')[0].trim() : ''
 
   // FAQ Schema for Google SEO
   const faqSchema = meta.faqItems && meta.faqItems.length > 0 ? {
@@ -96,7 +103,7 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
   } : null;
 
   return (
-    <main className="min-h-screen bg-slate-50 pb-24 font-sans text-slate-800">
+    <main className="min-h-screen bg-slate-50 pb-24 font-sans text-slate-800 selection:bg-teal-500 selection:text-white">
       
       {/* --- INJECT GOOGLE FAQ SCHEMA --- */}
       {faqSchema && (
@@ -129,7 +136,6 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
             {place.title}
           </h1>
           <p className="text-slate-200 mt-4 text-xl md:text-2xl font-medium flex items-center gap-2 drop-shadow-md">
-            {/* 🌟 Apply formatLocation here */}
             📍 {formattedLocation}
           </p>
         </div>
@@ -157,7 +163,7 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
               </div>
             )}
 
-            {/* 🔥 FORCED CSS FOR BULLETS & NUMBERS (By-passing Tailwind Preflight) */}
+            {/* FORCED CSS FOR BULLETS & NUMBERS */}
             <div 
               className="prose prose-lg md:prose-xl max-w-none w-full break-words overflow-x-auto text-slate-700 leading-loose prose-headings:font-black prose-headings:text-slate-900 prose-h2:text-4xl md:prose-h2:text-5xl prose-h3:text-3xl prose-a:text-teal-600 hover:prose-a:text-teal-700 prose-img:rounded-2xl prose-img:shadow-md prose-img:max-w-full [&_ul]:list-disc [&_ul]:ml-8 [&_ul]:mb-6 [&_ol]:list-decimal [&_ol]:ml-8 [&_ol]:mb-6 [&_li]:my-2 [&_li]:marker:text-slate-800 [&_p]:mb-6 [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:bg-slate-50 [&_td]:border [&_th]:p-3 [&_td]:p-3"
               dangerouslySetInnerHTML={{ __html: place.description || '' }}
@@ -192,6 +198,16 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
                 ))}
               </div>
             </section>
+          )}
+
+          {/* 🌟 AI SMART GUIDE & MAP (Restored) */}
+          {targetCity && (
+             <AITouristGuide 
+               placeId={place.id}
+               targetCity={targetCity} 
+               hasExistingFaqs={(meta.faqItems && meta.faqItems.length > 0)} 
+               placeTitle={place.title}
+             />
           )}
 
           {/* FAQs Section */}
@@ -252,7 +268,7 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
               <h4 className="font-black text-white text-xl mb-2">Planning to visit?</h4>
               <p className="text-sm text-blue-100 mb-6 font-medium">Book a reliable outstation cab directly from your location.</p>
               <Link 
-                href={`/?service=cab&city=${encodeURIComponent(formattedLocation.split(',')[0].trim())}`}
+                href={targetCity ? `/?service=cab&city=${encodeURIComponent(targetCity)}` : '/'}
                 className="block w-full bg-white hover:bg-slate-50 text-blue-700 font-black py-4 px-4 rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95 break-words"
               >
                 Book Cab Now →
@@ -263,6 +279,11 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
         </div>
 
       </div>
+
+      {/* 🌟 RESTORED RELATED PLACES & CONTACT BUTTON */}
+      {targetCity && <RelatedPlaceSections placeId={place.id} targetCity={targetCity} />}
+      <FloatingContact />
+
     </main>
   )
 }

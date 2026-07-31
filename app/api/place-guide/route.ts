@@ -1,38 +1,46 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase client initialize (Service Role ya standard client jo aap use kar rahe hain)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
-
 export async function POST(req: Request) {
   try {
-    const { placeId, targetCity, needFaqs } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { placeId, targetCity, needFaqs } = body;
+    
     const apiKey = process.env.GEMINI_API_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!apiKey) {
-      return NextResponse.json({ error: "API key is missing" }, { status: 500 });
+      return NextResponse.json({ error: "GEMINI_API_KEY is missing" }, { status: 500 });
     }
 
-    // 🌟 STEP 1: Check if data already exists in Supabase Database for this place
-    if (placeId) {
-      const { data: existingPlace, error: fetchError } = await supabase
-        .from('listings')
-        .select('metadata')
-        .eq('id', placeId)
-        .single();
+    // Safe Supabase initialization for Edge/Cloudflare
+    let supabase = null;
+    if (supabaseUrl && supabaseKey) {
+      supabase = createClient(supabaseUrl, supabaseKey);
+    }
 
-      if (!fetchError && existingPlace?.metadata?.ai_guide) {
-        console.log(`⚡ Using CACHED AI Data from Database for place ID: ${placeId}`);
-        return NextResponse.json(existingPlace.metadata.ai_guide);
+    // 🌟 1. Check Database Cache First
+    if (placeId && supabase) {
+      try {
+        const { data: existingPlace } = await supabase
+          .from('listings')
+          .select('metadata')
+          .eq('id', placeId)
+          .single();
+
+        if (existingPlace?.metadata?.ai_guide) {
+          console.log(`⚡ Using Cached AI Data for place ID: ${placeId}`);
+          return NextResponse.json(existingPlace.metadata.ai_guide);
+        }
+      } catch (dbErr) {
+        console.log("Cache fetch skipped/failed, proceeding to AI generation.");
       }
     }
 
-    console.log(`⏳ No cache found. Fetching fresh AI Data for: ${targetCity}...`);
+    console.log(`⏳ Fetching fresh AI Data for: ${targetCity}...`);
 
-    // 🌟 STEP 2: Dynamically detect available Gemini model
+    // 🌟 2. Fetch Gemini Models List
     const modelsReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
     const modelsData = await modelsReq.json();
     
@@ -49,7 +57,7 @@ export async function POST(req: Request) {
         }
     }
 
-    // 🌟 STEP 3: Generate AI Content
+    // 🌟 3. Generate Content from Gemini
     const prompt = `Act as an expert local travel guide for ${targetCity}, India.
     Provide the following information in strict JSON format ONLY. 
     1. "food": 2-3 sentences about what local food a tourist MUST eat here (in English).
@@ -70,7 +78,6 @@ export async function POST(req: Request) {
     const rawData = await response.json();
     
     if (rawData.error) {
-      console.error("❌ Gemini API Error:", rawData.error.message);
       return NextResponse.json({ error: rawData.error.message }, { status: 500 });
     }
 
@@ -79,32 +86,33 @@ export async function POST(req: Request) {
 
     const finalData = JSON.parse(generatedText);
 
-    // 🌟 STEP 4: Save generated data into Supabase Database permanently
-    if (placeId) {
-      // Pehle purana metadata fetch karo taaki baki fields delete na ho jayein
-      const { data: currentPlace } = await supabase
-        .from('listings')
-        .select('metadata')
-        .eq('id', placeId)
-        .single();
+    // 🌟 4. Save to Database Cache (Non-blocking)
+    if (placeId && supabase) {
+      try {
+        const { data: currentPlace } = await supabase
+          .from('listings')
+          .select('metadata')
+          .eq('id', placeId)
+          .single();
 
-      const updatedMetadata = {
-        ...(currentPlace?.metadata || {}),
-        ai_guide: finalData // Save AI guide inside metadata jsonb
-      };
+        const updatedMetadata = {
+          ...(currentPlace?.metadata || {}),
+          ai_guide: finalData
+        };
 
-      await supabase
-        .from('listings')
-        .update({ metadata: updatedMetadata })
-        .eq('id', placeId);
-
-      console.log(`💾 AI Data successfully SAVED to Database for future visitors!`);
+        await supabase
+          .from('listings')
+          .update({ metadata: updatedMetadata })
+          .eq('id', placeId);
+      } catch (saveErr) {
+        console.error("Failed to cache to DB:", saveErr);
+      }
     }
 
     return NextResponse.json(finalData);
 
-  } catch (error) {
-    console.error("❌ Backend Route Server Error:", error);
-    return NextResponse.json({ error: "Failed to generate AI guide" }, { status: 500 });
+  } catch (error: any) {
+    console.error("❌ Cloudflare Worker Route Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to generate AI guide" }, { status: 500 });
   }
 }
