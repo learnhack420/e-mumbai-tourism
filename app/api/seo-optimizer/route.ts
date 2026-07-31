@@ -3,13 +3,12 @@ import { GoogleGenAI } from '@google/genai';
 
 export async function POST(req: Request) {
   try {
-    // 🚀 Fallback key assigned
-    const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyBbnZZI53moJlhsojlOJD2yKrkaq2r9kvM';
+    // 🔒 Secure way: Only using Environment Variables
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    // 🚀 FIX: Yahan se wo purani strict condition hata di gayi hai!
     if (!apiKey) {
       return NextResponse.json(
-        { success: false, error: 'GEMINI_API_KEY is missing!' }, 
+        { success: false, error: 'GEMINI_API_KEY is missing in Environment Variables!' }, 
         { status: 400 }
       );
     }
