@@ -6,7 +6,7 @@ export default function FloatingContact() {
   const [showFormModal, setShowFormModal] = useState(false)
   const [currentPageUrl, setCurrentPageUrl] = useState('')
   
-  // Contacts State (Customer aur Vendor ke liye alag numbers)
+  // 🌟 Fallback default numbers rakhe hain taaki 404 error ya crash na ho
   const [contactData, setContactData] = useState({
     customerWhatsApp: '919892455466',
     vendorWhatsApp: '919867600452'
@@ -31,29 +31,32 @@ export default function FloatingContact() {
   }, [])
 
   async function fetchContactSettings() {
-    const { data } = await supabase
-      .from('site_settings')
-      .select('*')
-      .eq('key', 'contact_helplines')
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('*')
+        .eq('key', 'contact_helplines')
+        .single()
 
-    if (data && data.value) {
-      setContactData({
-        customerWhatsApp: data.value.customerWhatsApp || data.value.whatsapp || '919867600452',
-        vendorWhatsApp: data.value.vendorWhatsApp || data.value.whatsapp || '919867600452'
-      })
+      if (!error && data && data.value) {
+        setContactData({
+          customerWhatsApp: data.value.customerWhatsApp || data.value.whatsapp || '919892455466',
+          vendorWhatsApp: data.value.vendorWhatsApp || data.value.whatsapp || '919867600452'
+        })
+      }
+    } catch (err) {
+      // Table na hone par silent fallback taaki console clean rahe
+      console.log("Using default contact helplines.")
     }
   }
 
   const handleOpenForm = () => {
-    // Button click hote hi current page ka latest URL bhi update kar lein
     if (typeof window !== 'undefined') {
       setCurrentPageUrl(window.location.href)
     }
     setShowFormModal(true)
   }
 
-  // Form Submit hone par WhatsApp message mein website name aur page URL add ho jayega
   const handleSubmitLead = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)

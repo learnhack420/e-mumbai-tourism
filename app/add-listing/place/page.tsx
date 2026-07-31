@@ -23,6 +23,11 @@ function PlaceFormContent() {
   const [vendorId, setVendorId] = useState("")
   const [userRole, setUserRole] = useState("")
 
+  // 🌟 AI SEO Co-pilot States
+  const [isAiOptimizing, setIsAiOptimizing] = useState(false)
+  const [seoScore, setSeoScore] = useState<number | null>(null)
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
+
   // 🌟 Unified Location State
   const [location, setLocation] = useState("")
 
@@ -124,7 +129,7 @@ function PlaceFormContent() {
         metaDescription: meta.shortDescription || "",
         category: data.category || "Historical",
         description: data.description || "",
-        image: meta.image || data.image || "", // Use metadata or base image
+        image: meta.image || data.image || "", 
         entryFee: meta.entryFee || "Free",
         timing: meta.timing || "24 Hours",
         bestTime: meta.bestTimeToVisit || "",
@@ -170,6 +175,42 @@ function PlaceFormContent() {
   const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") }))
     setSlugEdited(true)
+  }
+
+  // 🌟 AI SEO Optimizer Handler Function
+  const handleAiSeoOptimize = async () => {
+    if (!formData.placeName && !formData.description) {
+      alert("Please enter a Place Name or Main Story/Description first!")
+      return
+    }
+
+    setIsAiOptimizing(true)
+    try {
+      const res = await fetch('/api/seo-optimizer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: formData.placeName, 
+          description: formData.description 
+        })
+      })
+
+      const json = await res.json()
+      if (json.success && json.data) {
+        if (json.data.metaDescription) {
+          setFormData(prev => ({ ...prev, metaDescription: json.data.metaDescription }))
+        }
+        if (json.data.seoScore) setSeoScore(json.data.seoScore)
+        if (json.data.suggestions) setAiSuggestions(json.data.suggestions)
+      } else {
+        alert("Failed to optimize SEO via AI.")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("An error occurred during AI optimization.")
+    } finally {
+      setIsAiOptimizing(false)
+    }
   }
 
   const handleAddNewCategory = () => {
@@ -317,26 +358,24 @@ function PlaceFormContent() {
       category: "destination", 
       location: location,
       price: 0,
-      metadata: metadata // ✅ Image already is metadata ke andar ja rahi hai
+      metadata: metadata 
     }
 
     let error;
 
     if (editId) {
-      // UPDATE EXISTING
       const res = await supabase
         .from("listings")
         .update(dbPayload)
         .eq("id", editId)
       error = res.error
     } else {
-      // INSERT NEW
       const res = await supabase
         .from("listings")
         .insert([{
           ...dbPayload,
           vendor_id: vendorId,
-          status: "pending" // Admin approval required
+          status: "pending" 
         }])
       error = res.error
     }
@@ -350,7 +389,6 @@ function PlaceFormContent() {
       setSubmitting(false)
     } else {
       if (!editId) {
-        // Trigger Email Notification for New Additions
         fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -398,6 +436,51 @@ function PlaceFormContent() {
 
           <form onSubmit={handleUpdateOrInsert} className="space-y-8">
             
+            {/* --- AI SEO OPTIMIZER WIDGET --- */}
+            <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-xl border border-indigo-500/30">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                <div>
+                  <span className="bg-amber-500 text-slate-950 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                    🤖 AI Co-pilot
+                  </span>
+                  <h3 className="text-xl font-black mt-2">Autonomous SEO Optimizer</h3>
+                  <p className="text-slate-300 text-sm">Let AI audit your content and auto-generate high-ranking Meta tags.</p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleAiSeoOptimize}
+                  disabled={isAiOptimizing}
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-6 py-3 rounded-xl transition-all shadow-lg disabled:opacity-50 whitespace-nowrap"
+                >
+                  {isAiOptimizing ? 'Analyzing Content...' : '✨ Run AI SEO Audit & Fix'}
+                </button>
+              </div>
+
+              {/* SEO Score & Suggestions feedback panel */}
+              {seoScore !== null && (
+                <div className="mt-4 pt-4 border-t border-indigo-700/50 flex flex-col md:flex-row gap-6 items-start">
+                  <div className="bg-indigo-950/80 px-6 py-4 rounded-xl border border-indigo-500/40 text-center min-w-[140px]">
+                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">SEO Score</span>
+                    <span className={`text-3xl font-black ${seoScore > 75 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {seoScore}/100
+                    </span>
+                  </div>
+
+                  {aiSuggestions.length > 0 && (
+                    <div className="flex-1">
+                      <span className="block text-xs font-bold text-amber-400 uppercase tracking-widest mb-1">AI Recommendations:</span>
+                      <ul className="list-disc list-inside text-sm text-slate-200 space-y-1">
+                        {aiSuggestions.map((tip, idx) => (
+                          <li key={idx}>{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="border border-gray-200 p-6 rounded-xl space-y-6">
               <h2 className="text-lg font-bold text-gray-800 border-b pb-2">1. Place Name & URL Structure</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

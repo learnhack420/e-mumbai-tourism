@@ -210,9 +210,10 @@ Kindly provide more details.`.trim()
         
         {/* Available Packages Pricing Section */}
         <div className="mb-8">
-          <h3 className="text-gray-900 font-extrabold text-xl border-b pb-2 mb-4">Available Packages</h3>
+          {/* 🌟 DYNAMIC HEADING: Package Cost */}
+          <h3 className="text-gray-900 font-extrabold text-xl border-b pb-2 mb-4">{tour.title || 'Tour'} Package Cost</h3>
           
-          {/* 🌟 NEW: TOUR DURATION DISPLAY */}
+          {/* TOUR DURATION DISPLAY */}
           {meta.duration && (
             <div className="mb-5 bg-blue-50/80 border border-blue-100 p-3 rounded-xl flex items-center gap-3">
               <span className="text-2xl">⏱️</span>

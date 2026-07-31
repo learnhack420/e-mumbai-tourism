@@ -22,6 +22,11 @@ function BlogFormContent() {
   const [vendorId, setVendorId] = useState('')
   const [userRole, setUserRole] = useState('')
 
+  // 🌟 AI SEO Co-pilot States
+  const [isAiOptimizing, setIsAiOptimizing] = useState(false)
+  const [seoScore, setSeoScore] = useState<number | null>(null)
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
+
   // Form States
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
@@ -124,6 +129,42 @@ function BlogFormContent() {
     }
 
     setLoading(false)
+  }
+
+  // 🌟 AI SEO Optimizer Handler Function
+  const handleAiSeoOptimize = async () => {
+    if (!title && (!longDescription || longDescription === '<p><br></p>')) {
+      alert("Please enter a Blog Title or Article Content first!")
+      return
+    }
+
+    setIsAiOptimizing(true)
+    try {
+      const res = await fetch('/api/seo-optimizer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: title, 
+          description: longDescription 
+        })
+      })
+
+      const json = await res.json()
+      if (json.success && json.data) {
+        if (json.data.metaDescription) {
+          setShortDescription(json.data.metaDescription)
+        }
+        if (json.data.seoScore) setSeoScore(json.data.seoScore)
+        if (json.data.suggestions) setAiSuggestions(json.data.suggestions)
+      } else {
+        alert(`AI SEO Error: ${json.error || 'Unknown error'}`)
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(`Network/Client Error: ${err.message}`)
+    } finally {
+      setIsAiOptimizing(false)
+    }
   }
 
   // --- Category Management Functions ---
@@ -250,7 +291,6 @@ function BlogFormContent() {
       title: title,
       slug: slug,
       description: longDescription,
-      // 🌟 YAHAN UPDATE KIYA: Agar location khali hai toh automatically null jayega taaki koi error na aaye
       location: location || null, 
       metadata: metadata
     }
@@ -273,7 +313,7 @@ function BlogFormContent() {
           vendor_id: vendorId,
           category: 'blog', 
           price: 0,
-          status: 'approved', // By default approved, or change to pending if you want
+          status: 'approved', 
         }])
       error = res.error
     }
@@ -317,6 +357,51 @@ function BlogFormContent() {
 
           <form onSubmit={handleSubmit} className="space-y-8">
             
+            {/* --- 🤖 AI SEO OPTIMIZER WIDGET --- */}
+            <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-xl border border-indigo-500/30">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                <div>
+                  <span className="bg-amber-500 text-slate-950 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                    🤖 AI Co-pilot
+                  </span>
+                  <h3 className="text-xl font-black mt-2">Autonomous SEO Optimizer</h3>
+                  <p className="text-slate-300 text-sm">Let AI audit your blog content and auto-generate high-ranking Meta tags.</p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleAiSeoOptimize}
+                  disabled={isAiOptimizing}
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-6 py-3 rounded-xl transition-all shadow-lg disabled:opacity-50 whitespace-nowrap"
+                >
+                  {isAiOptimizing ? 'Analyzing Content...' : '✨ Run AI SEO Audit & Fix'}
+                </button>
+              </div>
+
+              {/* SEO Score & Suggestions feedback panel */}
+              {seoScore !== null && (
+                <div className="mt-4 pt-4 border-t border-indigo-700/50 flex flex-col md:flex-row gap-6 items-start">
+                  <div className="bg-indigo-950/80 px-6 py-4 rounded-xl border border-indigo-500/40 text-center min-w-[140px]">
+                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">SEO Score</span>
+                    <span className={`text-3xl font-black ${seoScore > 75 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {seoScore}/100
+                    </span>
+                  </div>
+
+                  {aiSuggestions.length > 0 && (
+                    <div className="flex-1">
+                      <span className="block text-xs font-bold text-amber-400 uppercase tracking-widest mb-1">AI Recommendations:</span>
+                      <ul className="list-disc list-inside text-sm text-slate-200 space-y-1">
+                        {aiSuggestions.map((tip, idx) => (
+                          <li key={idx}>{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Title & SEO Slug */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">1. Title & Direct URL (Slug)</h2>
@@ -333,7 +418,6 @@ function BlogFormContent() {
                   </div>
                 </div>
                 
-                {/* 🌟 LocationSelector is completely optional now */}
                 <div className="md:col-span-2">
                   <LocationSelector 
                     label="Location / Tag (Optional)" 

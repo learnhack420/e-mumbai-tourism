@@ -215,8 +215,8 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           
           <section className="bg-white p-0 rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-gradient-to-r from-blue-700 to-indigo-800 p-5 md:p-8">
-              <h2 className="text-2xl md:text-3xl font-black text-white">📋 Tour Information</h2>
-              <p className="text-blue-100 text-sm md:text-base mt-2 font-medium">Key details about your journey</p>
+              <h2 className="text-2xl md:text-3xl font-black text-white">📋 Information of {tour.title} </h2>
+              <p className="text-blue-100 text-sm md:text-base mt-2 font-medium">Key details about {tour.title}</p>
             </div>
             
             <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -239,7 +239,10 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
               <div className="md:col-span-2 flex items-start gap-4 pt-6 border-t border-gray-100">
                 <div className="bg-purple-50 p-4 rounded-2xl text-purple-600 text-2xl">📸</div>
                 <div className="w-full">
-                  <span className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Places to Visit</span>
+                  {/* 🌟 Updated "Places to Visit in {targetCity}" */}
+                  <span className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">
+                    Places to Visit {targetCity ? `in ${targetCity}` : ''}
+                  </span>
                   <div className="flex flex-wrap gap-2">
                     {placesToVisitStr.split(',').map((place: string, idx: number) => (
                       <span key={idx} className="bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-bold border border-gray-200 shadow-sm">
@@ -262,7 +265,10 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                 <div className="md:col-span-2 bg-amber-50 rounded-2xl p-6 border border-amber-100 mt-2">
                   <div className="flex items-center gap-3 mb-4">
                     <span className="text-3xl">🌤️</span>
-                    <h3 className="text-xl font-black text-amber-900">Best Time to Visit</h3>
+                    {/* 🌟 DYNAMIC HEADING 1: Best Time to Visit (Destination) */}
+                    <h3 className="text-xl font-black text-amber-900">
+                      Best Time to Visit {targetCity ? `in ${targetCity}` : ''}
+                    </h3>
                   </div>
                   
                   {bestTimeToVisitText && (
@@ -316,7 +322,10 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
           {(itineraryDays.length > 0 || meta.itinerary) && (
             <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
-              <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">Day-wise Itinerary</h2>
+              {/* 🌟 DYNAMIC HEADING 2: Day-wise Itinerary */}
+              <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
+                Itinerary of {tour.title}
+              </h2>
               {itineraryDays.length > 0 ? (
                 <div className="space-y-8">
                   {itineraryDays.map((day: any, idx: number) => (
@@ -333,24 +342,30 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
+          {/* 🌟 DYNAMIC HEADING 3 & STRUCTURE: Inclusions & Exclusions */}
           {(meta.inclusions || meta.exclusions) && (
-            <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {meta.inclusions && (
-                <div className="bg-emerald-50/50 p-8 rounded-3xl border border-emerald-100 shadow-sm">
-                  <h3 className="text-xl font-black text-emerald-900 mb-5 flex items-center gap-3"><span className="text-2xl">✅</span> Price Includes</h3>
-                  <div className="text-emerald-800 text-base space-y-2 font-medium">
-                    {formatListWithEmoji(meta.inclusions, '✅')}
+            <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+              <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
+                What is Including and Not including in {tour.title}
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {meta.inclusions && (
+                  <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100">
+                    <h3 className="text-xl font-black text-emerald-900 mb-5 flex items-center gap-3"><span className="text-2xl">✅</span> Price Includes</h3>
+                    <div className="text-emerald-800 text-base space-y-2 font-medium">
+                      {formatListWithEmoji(meta.inclusions, '✅')}
+                    </div>
                   </div>
-                </div>
-              )}
-              {meta.exclusions && (
-                <div className="bg-red-50/50 p-8 rounded-3xl border border-red-100 shadow-sm">
-                  <h3 className="text-xl font-black text-red-900 mb-5 flex items-center gap-3"><span className="text-2xl">❌</span> Not Included</h3>
-                  <div className="text-red-800 text-base space-y-2 font-medium">
-                    {formatListWithEmoji(meta.exclusions, '❌')}
+                )}
+                {meta.exclusions && (
+                  <div className="bg-red-50/50 p-6 rounded-2xl border border-red-100">
+                    <h3 className="text-xl font-black text-red-900 mb-5 flex items-center gap-3"><span className="text-2xl">❌</span> Not Included</h3>
+                    <div className="text-red-800 text-base space-y-2 font-medium">
+                      {formatListWithEmoji(meta.exclusions, '❌')}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </section>
           )}
 
@@ -395,7 +410,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
           {meta.faqs && meta.faqs.length > 0 && (
             <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
-              <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">Frequently Asked Questions</h2>
+              <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">Frequently Asked Questions ({tour.title})</h2>
               <div className="space-y-5">
                 {meta.faqs.map((faq: any, idx: number) => (
                   <div key={idx} className="border border-gray-100 rounded-2xl p-6 bg-gray-50 hover:bg-white hover:shadow-md transition-all">
