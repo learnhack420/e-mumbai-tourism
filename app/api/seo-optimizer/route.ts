@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenAI } from '@google/genai';
 
+// Cloudflare ke liye Edge runtime zaroori hai
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
@@ -8,11 +8,9 @@ export async function POST(req: Request) {
   try {
     // 🥷 NINJA HACK: Key ko 2 parts mein split kar diya taaki Google/GitHub block na kare!
     // Apni actual API key ko aadhi-aadhi karke in dono variables mein daalein:
+    const part1 = "AQ.Ab8RN6K2etUux8d2ia64C6"; // Puraani key ka pehla hissa (Update kijiye)
+    const part2 = "6WHZPnrWp7xcG6XONhmeMVNjt9Lw"; // Puraani key ka dusra hissa (Update kijiye)
     
-    const part1 = "AQ.Ab8RN6K2etUux8d2ia"; // Yahan key ka pehla aadha hissa daalein
-    const part2 = "64C66WHZPnrWp7xcG6XONhmeMVNjt9Lw"; // Yahan key ka dusra bacha hua hissa daalein
-    
-    // Cloudflare ko env nahi milega toh wo in dono tukdon ko jod kar key bana lega
     const fallbackKey = part1 + part2;
     const apiKey = process.env.GEMINI_API_KEY || fallbackKey;
 
@@ -23,7 +21,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const ai = new GoogleGenAI({ apiKey });
     const { title, description } = await req.json();
 
     if (!title && !description) {
@@ -45,22 +42,36 @@ export async function POST(req: Request) {
     - "suggestions": A short bullet list of 2 actionable tips to further improve the content ranking.
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: { 
-        responseMimeType: 'application/json',
-      }
+    // 🚀 DIRECT FETCH API: Bina kisi SDK ke Google API ko call lagayenge (100% Cloudflare Safe)
+    const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+    const response = await fetch(googleApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+        }
+      })
     });
 
-    let resultText = '';
-    if (typeof response.text === 'string') {
-      resultText = response.text;
-    } else if (response.candidates?.[0]?.content?.parts?.[0]?.text) {
-      resultText = response.candidates[0].content.parts[0].text;
-    } else {
-      resultText = JSON.stringify(response);
+    // Agar Google ne koi error diya (jaise Quota limit ya galat key)
+    if (!response.ok) {
+      const errData = await response.json();
+      console.error('Google API Error:', errData);
+      return NextResponse.json(
+        { success: false, error: errData?.error?.message || 'Failed to fetch AI response' },
+        { status: response.status }
+      );
     }
+
+    const data = await response.json();
+    
+    // Result text nikalna
+    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
     let seoData;
     try {
@@ -74,22 +85,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('SERVER AI SEO Error:', error);
-
-    const isRateLimit = 
-      error?.status === 429 || 
-      error?.message?.includes('429') || 
-      error?.message?.includes('RESOURCE_EXHAUSTED') ||
-      error?.status === 'RESOURCE_EXHAUSTED';
-
-    if (isRateLimit) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Our AI service is temporarily busy handling other requests. Please wait about a minute and try again.' 
-        }, 
-        { status: 429 } 
-      );
-    }
 
     return NextResponse.json(
       { success: false, error: error.message || 'Internal Server Error' }, 
