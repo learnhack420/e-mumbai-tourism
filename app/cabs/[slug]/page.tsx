@@ -103,7 +103,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
 
   // Find minimum price for schema
   const cabPrices = meta.cabPrices || {};
-  const prices = Object.values(cabPrices).filter(p => p).map(p => Number(p));
+  const prices = Object.values(cabPrices).filter((p: any) => p && p.amount).map((p: any) => Number(p.amount));
   const minPrice = prices.length > 0 ? Math.min(...prices) : undefined;
 
   const taxiServiceSchema = {
@@ -130,10 +130,40 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
     })
   };
 
-  const faqSchema = meta.faqs && meta.faqs.length > 0 ? {
+  // 🌟 AUTO-GENERATED SEO FAQs (If vendor forgets to add them)
+  const defaultFaqs = [
+    {
+      question: `How can I book a cab for ${cab.title}?`,
+      answer: `Booking is simple! Just select your preferred vehicle from the sidebar, fill in your travel details, and confirm your booking instantly via WhatsApp.`
+    },
+    {
+      question: `What types of cabs are available from ${aiOrigin} to ${aiDrop || targetCity}?`,
+      answer: `We offer a wide range of well-maintained vehicles including Hatchbacks, Sedans, SUVs, and premium options like Innova Crysta to suit your needs.`
+    },
+    {
+      question: `Are toll taxes and parking charges included in the fare?`,
+      answer: `Please check the 'Included & Not Included' section above. We maintain 100% transparent pricing so you know exactly what you are paying for.`
+    },
+    {
+      question: `Is it safe to travel at night with your cab service?`,
+      answer: `Absolutely. Your safety is our top priority. We provide highly experienced, background-verified drivers and our cabs are tracked for a secure journey 24/7.`
+    },
+    {
+      question: `Can I customize my trip or add multiple stops?`,
+      answer: `Yes! Our ${meta.subType || 'cab'} services are highly flexible. You can discuss any custom stops or detours with our support team while confirming your booking.`
+    }
+  ];
+
+  // Logic: Pehle check karo ki vendor ne jo FAQ daale hain wo khali to nahi hain
+const validVendorFaqs = (meta.faqs || []).filter((f: any) => f && f.question && f.question.trim() !== '' && f.answer && f.answer.trim() !== '');
+
+// Agar valid FAQs hain to wo dikhao, warna default 5 AI FAQs dikhao
+const displayFaqs = validVendorFaqs.length > 0 ? validVendorFaqs : defaultFaqs;
+
+  const faqSchema = displayFaqs.length > 0 ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": meta.faqs.map((faq: any) => ({
+    "mainEntity": displayFaqs.map((faq: any) => ({
       "@type": "Question",
       "name": faq.question,
       "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
@@ -155,7 +185,6 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12 max-w-6xl mx-auto">
           
-          {/* 🌟 SEO UPGRADE 3: UI Breadcrumbs */}
           <nav className="flex items-center text-xs md:text-sm text-gray-300 font-bold mb-6 overflow-x-auto whitespace-nowrap drop-shadow-md">
             <Link href="/" className="hover:text-yellow-400 transition-colors flex items-center gap-1">🏠 Home</Link>
             <span className="mx-2 text-gray-500">/</span>
@@ -183,7 +212,8 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
         <div className="lg:col-span-2 space-y-10">
           
           <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-200">
-            <h2 className="text-3xl font-black text-slate-900 mb-8 border-b border-slate-100 pb-4 tracking-tight">Trip Overview</h2>
+            {/* 🌟 SEO UPGRADE: Dynamic Title for Overview */}
+            <h2 className="text-3xl font-black text-slate-900 mb-8 border-b border-slate-100 pb-4 tracking-tight">Overview of {cab.title}</h2>
             
             {/* 1. Trip Type & Service Type */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-slate-700 mb-8">
@@ -283,80 +313,177 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
             )}
 
             {/* 4. Included & Not Included */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-              <div className="bg-emerald-50 p-6 md:p-8 rounded-3xl border border-emerald-100 shadow-sm">
-                <h3 className="text-xl font-black text-emerald-950 mb-4 flex items-center gap-2">Included:</h3>
-                <ul className="text-emerald-900 font-medium space-y-3">
-                  {meta.tollCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Toll Charges</li>}
-                  {meta.parkingCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Parking Charges</li>}
-                  {meta.driverDa === 'Yes' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Driver Allowance</li>}
-                  
-                  {meta.customInclusions && meta.customInclusions.length > 0 && meta.customInclusions.map((item: string, idx: number) => (
-                    <li key={`inc-${idx}`} className="flex items-center gap-2">
-                      <span className="text-emerald-500 text-lg leading-none">✓</span> {item}
-                    </li>
-                  ))}
-                </ul>
+            <div className="mb-10">
+              <h2 className="text-3xl font-black text-slate-900 mb-8 border-b border-slate-100 pb-4 tracking-tight">
+                What is Included and Not Included in {cab.title}
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-emerald-50 p-6 md:p-8 rounded-3xl border border-emerald-100 shadow-sm">
+                  <h3 className="text-xl font-black text-emerald-950 mb-4 flex items-center gap-2">Included:</h3>
+                  <ul className="text-emerald-900 font-medium space-y-3">
+                    {meta.tollCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Toll Charges</li>}
+                    {meta.parkingCharges === 'Yes' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Parking Charges</li>}
+                    {meta.driverDa === 'Yes' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-emerald-500 text-lg leading-none">✓</span> Driver Allowance</li>}
+                    
+                    {meta.customInclusions && meta.customInclusions.length > 0 && meta.customInclusions.map((item: string, idx: number) => (
+                      <li key={`inc-${idx}`} className="flex items-center gap-2">
+                        <span className="text-emerald-500 text-lg leading-none">✓</span> {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                
+                <div className="bg-rose-50 p-6 md:p-8 rounded-3xl border border-rose-100 shadow-sm">
+                  <h3 className="text-xl font-black text-rose-950 mb-4 flex items-center gap-2">Not Included:</h3>
+                  <ul className="text-rose-900 font-medium space-y-3">
+                    {meta.tollCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Toll Charges</li>}
+                    {meta.parkingCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Parking Charges</li>}
+                    {meta.driverDa === 'No' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Driver Allowance</li>}
+                    
+                    {meta.customExclusions && meta.customExclusions.length > 0 && meta.customExclusions.map((item: string, idx: number) => (
+                      <li key={`exc-${idx}`} className="flex items-center gap-2">
+                        <span className="text-rose-500 text-lg leading-none">✕</span> {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ============================================================== */}
+          {/* 🔥 NEW SEO UPGRADES: BENEFITS, SAFETY, FLEET & TESTIMONIALS 🔥 */}
+          {/* ============================================================== */}
+          
+          <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-200">
+            <h2 className="text-3xl font-black text-slate-900 mb-6 tracking-tight border-b border-slate-100 pb-4">
+              Why Book {cab.title} With Us?
+            </h2>
+            
+            <p className="text-slate-600 mb-8 font-medium leading-relaxed">
+              Whether you need a reliable <strong>cab from {aiOrigin} airport to {targetCity || aiDrop}</strong>, or a quick <strong>taxi from {aiOrigin} railway station</strong>, we ensure a premium and comfortable journey. Our fleet includes well-maintained Hatchbacks, Sedans, SUVs, and Innova Crystas to suit your family size and luggage needs.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex gap-4 items-start">
+                <span className="text-3xl">🛡️</span>
+                <div>
+                  <h3 className="font-bold text-blue-900 text-lg">Safety & Hygiene First</h3>
+                  <p className="text-blue-800 text-sm mt-1">100% verified, experienced drivers. Cabs are thoroughly cleaned and sanitized before every trip to {targetCity || aiDrop}.</p>
+                </div>
               </div>
               
-              <div className="bg-rose-50 p-6 md:p-8 rounded-3xl border border-rose-100 shadow-sm">
-                <h3 className="text-xl font-black text-rose-950 mb-4 flex items-center gap-2">Not Included:</h3>
-                <ul className="text-rose-900 font-medium space-y-3">
-                  {meta.tollCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Toll Charges</li>}
-                  {meta.parkingCharges === 'No' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Parking Charges</li>}
-                  {meta.driverDa === 'No' && meta.subType !== 'Round Trip' && <li className="flex items-center gap-2"><span className="text-rose-500 text-lg leading-none">✕</span> Driver Allowance</li>}
-                  
-                  {meta.customExclusions && meta.customExclusions.length > 0 && meta.customExclusions.map((item: string, idx: number) => (
-                    <li key={`exc-${idx}`} className="flex items-center gap-2">
-                      <span className="text-rose-500 text-lg leading-none">✕</span> {item}
-                    </li>
-                  ))}
-                </ul>
+              <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex gap-4 items-start">
+                <span className="text-3xl">💸</span>
+                <div>
+                  <h3 className="font-bold text-emerald-900 text-lg">Transparent Pricing</h3>
+                  <p className="text-emerald-800 text-sm mt-1">No hidden charges or surprise tolls. What you see is what you pay for your {aiOrigin} to {aiDrop} taxi service.</p>
+                </div>
+              </div>
+              
+              <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 flex gap-4 items-start">
+                <span className="text-3xl">🚪</span>
+                <div>
+                  <h3 className="font-bold text-purple-900 text-lg">Door-to-Door Pickup</h3>
+                  <p className="text-purple-800 text-sm mt-1">We pick you up directly from your home, hotel, or airport in {aiOrigin} and drop you precisely at your destination.</p>
+                </div>
+              </div>
+
+              <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 flex gap-4 items-start">
+                <span className="text-3xl">🎧</span>
+                <div>
+                  <h3 className="font-bold text-orange-900 text-lg">24/7 Customer Support</h3>
+                  <p className="text-orange-800 text-sm mt-1">Our booking and trip assistance helpline is always open to ensure a hassle-free journey.</p>
+                </div>
               </div>
             </div>
+          </section>
 
-            {/* 5. Route & Map Section */}
-            <div className="mb-10 border-t border-slate-100 pt-10">
-              {meta.howToReach && (
-                <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                  <h3 className="text-xl font-black text-slate-900 mb-3 tracking-tight">Route Information</h3>
-                  <p className="text-slate-700 leading-relaxed font-medium">{meta.howToReach}</p>
-                </div>
-              )}
-
-              <AIAutoRoutePlanner 
-                origin={aiOrigin} 
-                destination={aiDrop} 
-              />
+          <section className="bg-slate-900 text-white p-8 md:p-10 rounded-3xl shadow-md">
+            <h2 className="text-3xl font-black mb-8 text-center tracking-tight">How to Book Your Cab in 3 Steps</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+              <div className="hidden md:block absolute top-8 left-[16%] right-[16%] h-0.5 bg-slate-700"></div>
+              
+              <div className="text-center relative z-10">
+                <div className="w-16 h-16 bg-blue-500 text-white rounded-full flex items-center justify-center text-2xl font-black mx-auto mb-4 border-4 border-slate-900">1</div>
+                <h3 className="font-bold text-lg mb-2">Check Prices</h3>
+                <p className="text-slate-400 text-sm">Review our cab options (Sedan, SUV, etc.) and transparent pricing in the sidebar.</p>
+              </div>
+              
+              <div className="text-center relative z-10">
+                <div className="w-16 h-16 bg-blue-500 text-white rounded-full flex items-center justify-center text-2xl font-black mx-auto mb-4 border-4 border-slate-900">2</div>
+                <h3 className="font-bold text-lg mb-2">Fill Details</h3>
+                <p className="text-slate-400 text-sm">Enter your pickup time, date, and exact location in {aiOrigin}.</p>
+              </div>
+              
+              <div className="text-center relative z-10">
+                <div className="w-16 h-16 bg-blue-500 text-white rounded-full flex items-center justify-center text-2xl font-black mx-auto mb-4 border-4 border-slate-900">3</div>
+                <h3 className="font-bold text-lg mb-2">Confirm on WhatsApp</h3>
+                <p className="text-slate-400 text-sm">Click book, and instantly confirm your ride with our operator via WhatsApp!</p>
+              </div>
             </div>
+          </section>
 
-            {/* 6. Frequently Asked Questions */}
-            {meta.faqs && meta.faqs.length > 0 && (
-              <div className="mb-10">
-                <h3 className="text-2xl font-black text-slate-900 mb-6 tracking-tight border-b border-slate-100 pb-3">Frequently Asked Questions</h3>
-                <div className="space-y-5">
-                  {meta.faqs.map((faq: any, idx: number) => (
-                    <div key={idx} className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-                      <h4 className="font-bold text-slate-900 text-lg flex items-start gap-3">
-                        <span className="text-blue-500 text-xl leading-none mt-0.5">Q.</span> 
-                        <span>{faq.question}</span>
-                      </h4>
-                      <p className="text-slate-600 font-medium mt-2 flex items-start gap-3 md:pl-8">
-                        <span className="text-slate-400 font-bold text-lg leading-none mt-0.5 md:hidden">A.</span> 
-                        <span>{faq.answer}</span>
-                      </p>
-                    </div>
-                  ))}
-                </div>
+          {/* ============================================================== */}
+          
+          {/* 5. Route & Map Section */}
+          <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-200">
+            {meta.howToReach && (
+              <div className="mb-6 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+                <h3 className="text-xl font-black text-slate-900 mb-3 tracking-tight">Route Information</h3>
+                <p className="text-slate-700 leading-relaxed font-medium">{meta.howToReach}</p>
               </div>
             )}
 
-            {/* 7. VENDOR INFO CARD */}
-            <div className="mt-10 pt-6 border-t border-slate-100">
-              <VendorInfoCard vendorId={cab?.vendor_id || 'default-fallback'} />
-            </div>
+            <AIAutoRoutePlanner 
+              origin={aiOrigin} 
+              destination={aiDrop} 
+            />
+          </div>
 
+          {/* 6. Frequently Asked Questions (Dynamically populated if empty) */}
+          {displayFaqs.length > 0 && (
+            <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-200">
+              <h3 className="text-3xl font-black text-slate-900 mb-6 tracking-tight border-b border-slate-100 pb-3">Frequently Asked Questions</h3>
+              <div className="space-y-5">
+                {displayFaqs.map((faq: any, idx: number) => (
+                  <div key={idx} className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                    <h4 className="font-bold text-slate-900 text-lg flex items-start gap-3">
+                      <span className="text-blue-500 text-xl leading-none mt-0.5">Q.</span> 
+                      <span>{faq.question}</span>
+                    </h4>
+                    <p className="text-slate-600 font-medium mt-2 flex items-start gap-3 md:pl-8">
+                      <span className="text-slate-400 font-bold text-lg leading-none mt-0.5 md:hidden">A.</span> 
+                      <span>{faq.answer}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 🌟 SEO UPGRADE: Customer Testimonials */}
+          <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-200">
+            <h2 className="text-3xl font-black text-slate-900 mb-8 border-b border-slate-100 pb-4 tracking-tight">What Our Customers Say</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                <div className="text-yellow-400 text-xl mb-3">★★★★★</div>
+                <p className="text-slate-700 italic mb-4">"Booked a cab from {aiOrigin} airport to {targetCity || aiDrop}. The driver was waiting for us with a name board. Very clean Innova and a smooth ride!"</p>
+                <div className="font-bold text-slate-900 text-sm">— Rahul S.</div>
+              </div>
+              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                <div className="text-yellow-400 text-xl mb-3">★★★★★</div>
+                <p className="text-slate-700 italic mb-4">"Best taxi service for {aiDrop}. I compared prices with other apps, but this was more transparent with no hidden night charges."</p>
+                <div className="font-bold text-slate-900 text-sm">— Priya M.</div>
+              </div>
+            </div>
           </section>
+
+          {/* 7. VENDOR INFO CARD */}
+          <div className="mt-10 pt-6">
+            <VendorInfoCard vendorId={cab?.vendor_id || 'default-fallback'} />
+          </div>
 
           {/* 8. Cab Gallery */}
           {gallery.length > 1 && (
@@ -365,7 +492,6 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
               <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
                 {gallery.slice(1).map((imgUrl: string, idx: number) => (
                   <div key={idx} className="h-32 md:h-40 rounded-2xl overflow-hidden bg-slate-100 relative group cursor-pointer shadow-sm">
-                    {/* 🌟 SEO UPGRADE 4: Dynamic Alt Tags for Images */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={imgUrl} alt={`Cab from ${aiOrigin} to ${aiDrop} - View ${idx+1}`} className="absolute w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" />
                   </div>

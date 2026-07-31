@@ -170,7 +170,7 @@ Kindly provide more details.`.trim()
         {/* Sidebar Section: Available Cabs & Rates */}
         {meta.cabPrices && (
           <div className="mb-8 space-y-4">
-            <h4 className="text-base font-black text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">Available Cabs & Rates</h4>
+            <h4 className="text-base font-black text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-3">Cab cost of {cab.title}</h4>
             {Object.entries(meta.cabPrices).map(([cabType, data]: [string, any]) => {
               if (!data || !data.amount) return null;
               

@@ -4,7 +4,7 @@ import { supabase } from '../../../utils/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-// 👇 Import LocationSelector component (Path verify kar lein agar error aaye to)
+// 👇 Import LocationSelector component
 import LocationSelector from '../../components/LocationSelector' 
 
 function CabFormContent() {
@@ -17,9 +17,19 @@ function CabFormContent() {
   const [vendorId, setVendorId] = useState('')
   const [message, setMessage] = useState({ type: '', text: '' })
 
+  // 🌟 AI SEO Co-pilot States
+  const [isAiOptimizing, setIsAiOptimizing] = useState(false)
+  const [seoScore, setSeoScore] = useState<number | null>(null)
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
+
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('') 
   const [slugEdited, setSlugEdited] = useState(false) 
+
+  // 🌟 SEO Meta States (New)
+  const [metaTitle, setMetaTitle] = useState('')
+  const [metaDescription, setMetaDescription] = useState('')
+  const [metaKeywords, setMetaKeywords] = useState('')
 
   const [mainType, setMainType] = useState('Local') 
   const [subType, setSubType] = useState('Point to Point') 
@@ -35,7 +45,6 @@ function CabFormContent() {
   const [cabPrices, setCabPrices] = useState(initialCabPrices)
   const [description, setDescription] = useState('')
 
-  // 🌟 Locations ab LocationSelector handle karega
   const [serviceCity, setServiceCity] = useState('')
   const [pickupPoint, setPickupPoint] = useState('')
   const [dropPoint, setDropPoint] = useState('')
@@ -105,9 +114,13 @@ function CabFormContent() {
       setSlug(listing.slug || '')
       setSlugEdited(true)
 
-      // Safe metadata parsing
       const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
       
+      // Load SEO Data
+      setMetaTitle(meta.seo?.metaTitle || '')
+      setMetaDescription(meta.seo?.metaDescription || '')
+      setMetaKeywords(meta.seo?.metaKeywords || '')
+
       setMainType(meta.mainType || 'Local')
       setSubType(meta.subType || 'Point to Point')
       if (meta.cabPrices) setCabPrices(meta.cabPrices)
@@ -127,14 +140,12 @@ function CabFormContent() {
       setParkingCharges(meta.parkingCharges || 'Yes')
       setDriverDa(meta.driverDa || 'Yes')
 
-      // Load Custom Inclusions properly
       if (meta.customInclusions && Array.isArray(meta.customInclusions) && meta.customInclusions.length > 0) {
         setCustomInclusions(meta.customInclusions)
       } else {
         setCustomInclusions([''])
       }
       
-      // Load Custom Exclusions properly
       if (meta.customExclusions && Array.isArray(meta.customExclusions) && meta.customExclusions.length > 0) {
         setCustomExclusions(meta.customExclusions)
       } else {
@@ -155,6 +166,42 @@ function CabFormContent() {
     }
 
     setLoading(false)
+  }
+
+  // 🌟 AI SEO Optimizer Handler Function
+  const handleAiSeoOptimize = async () => {
+    if (!title && !description) {
+      alert("Please enter a Service Title or Description first!")
+      return
+    }
+
+    setIsAiOptimizing(true)
+    try {
+      const res = await fetch('/api/seo-optimizer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          title: title, 
+          description: description 
+        })
+      })
+
+      const json = await res.json()
+      if (json.success && json.data) {
+        if (json.data.metaTitle) setMetaTitle(json.data.metaTitle)
+        if (json.data.metaDescription) setMetaDescription(json.data.metaDescription)
+        if (json.data.metaKeywords) setMetaKeywords(json.data.metaKeywords)
+        if (json.data.seoScore) setSeoScore(json.data.seoScore)
+        if (json.data.suggestions) setAiSuggestions(json.data.suggestions)
+      } else {
+        alert(`AI SEO Error: ${json.error || 'Unknown error'}`)
+      }
+    } catch (err: any) {
+      console.error(err)
+      alert(`Network/Client Error: ${err.message}`)
+    } finally {
+      setIsAiOptimizing(false)
+    }
   }
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -313,7 +360,12 @@ ${formattedFaqs}
       customInclusions: cleanCustomIncl, 
       customExclusions: cleanCustomExcl, 
       gallery: cleanGallery, 
-      faqs
+      faqs,
+      seo: {
+        metaTitle,
+        metaDescription,
+        metaKeywords
+      }
     }
 
     let error;
@@ -380,6 +432,51 @@ ${formattedFaqs}
 
           <form onSubmit={handleSubmit} className="space-y-8">
             
+            {/* --- 🤖 AI SEO OPTIMIZER WIDGET --- */}
+            <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-xl border border-indigo-500/30">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                <div>
+                  <span className="bg-amber-500 text-slate-950 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                    🤖 AI Co-pilot
+                  </span>
+                  <h3 className="text-xl font-black mt-2">Autonomous SEO Optimizer</h3>
+                  <p className="text-slate-300 text-sm">Let AI audit your Title & Description to auto-generate high-ranking Meta tags.</p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleAiSeoOptimize}
+                  disabled={isAiOptimizing}
+                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-6 py-3 rounded-xl transition-all shadow-lg disabled:opacity-50 whitespace-nowrap"
+                >
+                  {isAiOptimizing ? 'Analyzing Content...' : '✨ Run AI SEO Audit & Fix'}
+                </button>
+              </div>
+
+              {/* SEO Score & Suggestions feedback panel */}
+              {seoScore !== null && (
+                <div className="mt-4 pt-4 border-t border-indigo-700/50 flex flex-col md:flex-row gap-6 items-start">
+                  <div className="bg-indigo-950/80 px-6 py-4 rounded-xl border border-indigo-500/40 text-center min-w-[140px]">
+                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">SEO Score</span>
+                    <span className={`text-3xl font-black ${seoScore > 75 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                      {seoScore}/100
+                    </span>
+                  </div>
+
+                  {aiSuggestions.length > 0 && (
+                    <div className="flex-1">
+                      <span className="block text-xs font-bold text-amber-400 uppercase tracking-widest mb-1">AI Recommendations:</span>
+                      <ul className="list-disc list-inside text-sm text-slate-200 space-y-1">
+                        {aiSuggestions.map((tip, idx) => (
+                          <li key={idx}>{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Title & SEO Slug */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">1. Service Title & SEO</h2>
@@ -394,6 +491,22 @@ ${formattedFaqs}
                     <span className="px-3 py-2 bg-gray-200 border border-gray-300 border-r-0 rounded-l-lg text-gray-500 text-sm select-none">/cabs/</span>
                     <input type="text" required className="w-full px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-blue-700" value={slug} onChange={handleSlugChange} placeholder="e.g. mumbai-to-pune-cab" />
                   </div>
+                </div>
+              </div>
+
+              {/* 🌟 New Meta Fields for SEO */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-blue-900 mb-1">Meta Title (SEO)</label>
+                  <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none bg-white" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} placeholder="e.g. Best Mumbai to Pune Cab Service - Book Taxi Online" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-blue-900 mb-1">Meta Description</label>
+                  <textarea rows={2} className="w-full px-4 py-2 border rounded-lg outline-none bg-white resize-none" value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} placeholder="Short description for Google search results..."></textarea>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-blue-900 mb-1">Meta Keywords</label>
+                  <textarea rows={2} className="w-full px-4 py-2 border rounded-lg outline-none bg-white resize-none" value={metaKeywords} onChange={(e) => setMetaKeywords(e.target.value)} placeholder="e.g. mumbai to pune cab, one way taxi, round trip"></textarea>
                 </div>
               </div>
             </div>
@@ -433,7 +546,7 @@ ${formattedFaqs}
               )}
             </div>
 
-            {/* 🌟 Route & Details Configuration (Updated with LocationSelector) */}
+            {/* Route & Details Configuration */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">3. Route & Details</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
