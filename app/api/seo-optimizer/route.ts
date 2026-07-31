@@ -3,10 +3,14 @@ import { GoogleGenAI } from '@google/genai';
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    // 🚀 FIX: Cloudflare ke liye direct fallback add kar diya hai.
+    // Agar process.env khali milta hai, toh yeh direct yahan se key utha lega.
+    // DHYAN DEIN: Niche 'AIzaSy...' ki jagah apni ASLI Gemini API key daalein!
+    const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyBbnZZI53moJlhsojlOJD2yKrkaq2r9kvM';
+
+    if (!apiKey || apiKey === 'AIzaSyBbnZZI53moJlhsojlOJD2yKrkaq2r9kvM') {
       return NextResponse.json(
-        { success: false, error: 'GEMINI_API_KEY is missing in your .env.local file!' }, 
+        { success: false, error: 'GEMINI_API_KEY is missing or invalid! Please update it in the code.' }, 
         { status: 400 }
       );
     }
