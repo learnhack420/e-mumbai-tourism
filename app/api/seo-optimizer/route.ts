@@ -41,10 +41,9 @@ export async function POST(req: Request) {
       }
     });
 
+    // 🚀 FIXED: Removed the function call response.text() to satisfy TypeScript
     let resultText = '';
-    if (typeof response.text === 'function') {
-      resultText = response.text();
-    } else if (typeof response.text === 'string') {
+    if (typeof response.text === 'string') {
       resultText = response.text;
     } else if (response.candidates?.[0]?.content?.parts?.[0]?.text) {
       resultText = response.candidates[0].content.parts[0].text;
@@ -78,7 +77,7 @@ export async function POST(req: Request) {
           success: false, 
           error: 'Our AI service is temporarily busy handling other requests. Please wait about a minute and try again.' 
         }, 
-        { status: 429 } // Send back the correct HTTP 429 code
+        { status: 429 } 
       );
     }
 
