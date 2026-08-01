@@ -1,36 +1,43 @@
-import { NextResponse } from 'next/server';
-
-// 🔥 CLOUDFLARE FIX: Edge config
+// 🚀 NextResponse hata diya hai. Pure Web API (Response) use karenge jo Cloudflare par 100% stable hai.
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    // 🛠️ FIX 1: Safely parse body to prevent edge crashes
-    const textBody = await req.text();
-    if (!textBody) {
-      return NextResponse.json({ success: false, error: 'Request body is empty.' }, { status: 400 });
+    // 🛡️ Safe JSON Parsing: Agar frontend se galat data aaya toh server crash nahi hoga
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      return new Response(JSON.stringify({ success: false, error: 'Invalid request body sent from frontend.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
-    
-    const body = JSON.parse(textBody);
+
     const { title, description } = body;
 
     if (!title && !description) {
-      return NextResponse.json({ success: false, error: 'Title or description is required.' }, { status: 400 });
+      return new Response(JSON.stringify({ success: false, error: 'Title or description is required.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error("Cloudflare mein GEMINI_API_KEY missing hai!");
-      return NextResponse.json({ success: false, error: 'GEMINI_API_KEY is missing!' }, { status: 500 });
+      return new Response(JSON.stringify({ success: false, error: 'GEMINI_API_KEY is missing in Environment Variables!' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const prompt = `
     You are an expert SEO specialist for an Indian travel portal ("India Tour Operators"). 
     Analyze the following content and provide SEO optimizations in strict JSON format.
 
-    Title: "${title}"
-    Content: "${description}"
+    Title: "${title || ''}"
+    Content: "${description || ''}"
 
     Return ONLY a valid JSON object with the following keys:
     - "metaTitle": Catchy, SEO-optimized title under 60 characters containing key search terms.
@@ -40,11 +47,10 @@ export async function POST(req: Request) {
     - "suggestions": A short bullet list of 2 actionable tips to further improve the content ranking.
     `;
 
-    // 🛠️ FIX 2: Correct model version (gemini-2.5-flash)
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    const timeoutId = setTimeout(() => controller.abort(), 8500);
 
     const apiResponse = await fetch(url, {
       method: 'POST',
@@ -60,8 +66,10 @@ export async function POST(req: Request) {
 
     if (!apiResponse.ok) {
       const errData = await apiResponse.text();
-      console.error('Google API Error:', errData);
-      return NextResponse.json({ success: false, error: 'Google AI error or invalid key.' }, { status: apiResponse.status });
+      return new Response(JSON.stringify({ success: false, error: 'Google AI limit reached or invalid key.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const data = await apiResponse.json();
@@ -72,19 +80,28 @@ export async function POST(req: Request) {
     try {
       seoData = JSON.parse(cleanedJson);
     } catch (e) {
-      return NextResponse.json({ success: false, error: 'AI returned invalid data format.' }, { status: 500 });
+      return new Response(JSON.stringify({ success: false, error: 'AI returned invalid data format.' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    return NextResponse.json({ success: true, data: seoData });
+    // ✅ Har condition mein perfectly formatted JSON jayega
+    return new Response(JSON.stringify({ success: true, data: seoData }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
 
   } catch (error: any) {
     const isTimeout = error.name === 'AbortError';
-    console.error('SERVER AI SEO Error:', error.message);
     
-    // 🛠️ FIX 3: Added { status: 500 } so frontend knows it's an actual error
-    return NextResponse.json({ 
+    // 🚨 Agar Code Phat Bhi Gaya, Toh Pure JSON Response Jayega, Plain Text Nahi
+    return new Response(JSON.stringify({ 
       success: false, 
-      error: isTimeout ? 'AI optimization took too long. Please try a shorter description.' : 'Internal Server Error' 
-    }, { status: 500 });
+      error: isTimeout ? 'AI optimization took too long. Please try again.' : `Backend Error: ${error.message}` 
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
