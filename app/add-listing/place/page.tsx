@@ -177,7 +177,7 @@ function PlaceFormContent() {
     setSlugEdited(true)
   }
 
-  // 🌟 SECURE AI SEO CALL (Sending tiny payload to avoid Cloudflare WAF block)
+  // 🌟 CACHE-BUSTER AI SEO CALL
   const handleAiSeoOptimize = async () => {
     if (!formData.placeName) {
       alert("Please enter a Place Name first!")
@@ -186,21 +186,23 @@ function PlaceFormContent() {
 
     setIsAiOptimizing(true)
     try {
-      // Sirf naam aur city bhej rahe hain, data ekdum lightweight hai!
-      const res = await fetch('/api/ai-seo', {
+      // 🚀 THE MAGIC TRICK: Har request par alag timestamp lagana (Cache todne ke liye)
+      const url = `/api/ai-seo?t=${Date.now()}`;
+
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           title: formData.placeName,
           location: location || "India" 
         })
-      })
+      });
 
       // 🔥 MAGIC SHIELD
       if (!res.ok) {
         const errorText = await res.text();
         console.error("Cloudflare Crash Details:", errorText);
-        alert(`AI Server Error (${res.status}). Cloudflare limits crossed. Check console.`);
+        alert(`AI Server Error (${res.status}). Setup or Cloudflare limit issue.`);
         setIsAiOptimizing(false);
         return; 
       }
@@ -213,7 +215,7 @@ function PlaceFormContent() {
         if (json.data.seoScore) setSeoScore(json.data.seoScore)
         if (json.data.suggestions) setAiSuggestions(json.data.suggestions)
       } else {
-        alert("Failed to optimize SEO via AI.")
+        alert("Failed to optimize SEO via AI. Server might be busy.");
       }
     } catch (err) {
       console.error("Frontend Fetch Error:", err)

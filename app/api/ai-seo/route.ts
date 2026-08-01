@@ -1,30 +1,31 @@
 import { NextResponse } from 'next/server';
 
+// 🔥 CLOUDFLARE FIX: Exactly same as your working transit code
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic'; 
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}));
+    // Exact Transit API style parsing (No extra catch blocks)
+    const body = await req.json();
     const { title, location } = body;
     
-    if (!title) {
+    if (!title || !location) {
       return NextResponse.json({ success: false, data: {} });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error("Cloudflare mein GEMINI_API_KEY missing hai!");
       return NextResponse.json({ success: false, data: {} });
     }
 
-    // 🚀 PROMPT MEIN SIRF TITLE AUR LOCATION HAI (No long description)
-    const prompt = `Act as an expert SEO specialist. Write SEO optimizations for a tourist place named "${title}" located in "${location}". Return ONLY a valid JSON object with: metaTitle, metaDescription (catchy, 150 chars), metaKeywords, seoScore (random 85-98), suggestions (2 short tips).`;
+    const prompt = `Act as an expert SEO specialist. Write SEO optimizations for a tourist place named "${title}" located in "${location}". Return ONLY a valid JSON object with: metaTitle, metaDescription, metaKeywords, seoScore, suggestions.`;
     
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
+    // 🔥 7-Second Timeout: Exactly same as Transit
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6500);
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
 
     const apiResponse = await fetch(url, {
       method: 'POST',
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, data: seoData });
 
   } catch (error) {
+    // Exact Transit style Catch block
     return NextResponse.json({ success: false, data: {} });
   }
 }
