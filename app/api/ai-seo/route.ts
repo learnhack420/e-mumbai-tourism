@@ -1,32 +1,28 @@
 import { NextResponse } from 'next/server';
 
-// 🔥 CLOUDFLARE FIX: Edge runtime
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic'; 
 
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { title, description } = body;
+    const { title, location } = body;
     
-    if (!title && !description) {
+    if (!title) {
       return NextResponse.json({ success: false, data: {} });
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
+      console.error("Cloudflare mein GEMINI_API_KEY missing hai!");
       return NextResponse.json({ success: false, data: {} });
     }
 
-    // 🚀 CPU CRASH PREVENTER: Lamba description Cloudflare ko crash kar deta hai.
-    const safeTitle = title ? String(title).substring(0, 150) : '';
-    const safeDescription = description ? String(description).substring(0, 1500) : '';
-
-    const prompt = `Act as an expert SEO specialist. Analyze the following and provide SEO optimizations in strict JSON format. Title: "${safeTitle}" Content: "${safeDescription}". Return ONLY a valid JSON object with: metaTitle, metaDescription, metaKeywords, seoScore, suggestions.`;
+    // 🚀 PROMPT MEIN SIRF TITLE AUR LOCATION HAI (No long description)
+    const prompt = `Act as an expert SEO specialist. Write SEO optimizations for a tourist place named "${title}" located in "${location}". Return ONLY a valid JSON object with: metaTitle, metaDescription (catchy, 150 chars), metaKeywords, seoScore (random 85-98), suggestions (2 short tips).`;
     
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    // 🔥 6.5 Second Timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6500);
 

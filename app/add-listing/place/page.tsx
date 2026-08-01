@@ -177,37 +177,30 @@ function PlaceFormContent() {
     setSlugEdited(true)
   }
 
-  // 🌟 AI SEO Optimizer Handler Function (WITH PAYLOAD TRIM)
+  // 🌟 SECURE AI SEO CALL (Sending tiny payload to avoid Cloudflare WAF block)
   const handleAiSeoOptimize = async () => {
-    if (!formData.placeName && !formData.description) {
-      alert("Please enter a Place Name or Main Story/Description first!")
+    if (!formData.placeName) {
+      alert("Please enter a Place Name first!")
       return
     }
 
     setIsAiOptimizing(true)
     try {
-      // 🚀 THE MASTER FIX: Data ko API tak bhejne se pehle hi chhota kar do (Max 1200 characters)
-      // Isse Cloudflare ka server data read karte waqt CPU limit cross nahi karega!
-      const safeTitle = formData.placeName ? String(formData.placeName).substring(0, 150) : "";
-      
-      // HTML tags hata kar sirf text bhejenge, aur max 1200 characters
-      const cleanDesc = formData.description ? formData.description.replace(/(<([^>]+)>)/gi, "") : "";
-      const safeDescription = cleanDesc.substring(0, 1200);
-
+      // Sirf naam aur city bhej rahe hain, data ekdum lightweight hai!
       const res = await fetch('/api/ai-seo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          title: safeTitle, 
-          description: safeDescription 
+          title: formData.placeName,
+          location: location || "India" 
         })
       })
 
-      // 🔥 THE MAGIC SHIELD
+      // 🔥 MAGIC SHIELD
       if (!res.ok) {
         const errorText = await res.text();
         console.error("Cloudflare Crash Details:", errorText);
-        alert(`AI Server Error (${res.status}). Cloudflare ko API key nahi mili ya limit cross hui hai.`);
+        alert(`AI Server Error (${res.status}). Cloudflare limits crossed. Check console.`);
         setIsAiOptimizing(false);
         return; 
       }
