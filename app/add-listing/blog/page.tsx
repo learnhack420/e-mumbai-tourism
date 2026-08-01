@@ -1,20 +1,18 @@
 "use client"
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/utils/supabase' 
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-// 👇 Import LocationSelector component for consistent location tags
 import LocationSelector from '../../components/LocationSelector'
 
-// Dynamically import ReactQuill to avoid SSR issues
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
 import "react-quill-new/dist/quill.snow.css"
 
 function BlogFormContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const editId = searchParams.get('edit') // 🌟 Fetch ID from URL for Edit Mode
+  const editId = searchParams.get('edit')
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -22,12 +20,6 @@ function BlogFormContent() {
   const [vendorId, setVendorId] = useState('')
   const [userRole, setUserRole] = useState('')
 
-  // 🌟 AI SEO Co-pilot States
-  const [isAiOptimizing, setIsAiOptimizing] = useState(false)
-  const [seoScore, setSeoScore] = useState<number | null>(null)
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([])
-
-  // Form States
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
@@ -36,10 +28,8 @@ function BlogFormContent() {
   const [longDescription, setLongDescription] = useState('')
   const [gallery, setGallery] = useState([''])
   
-  // FAQ State
   const [faqItems, setFaqItems] = useState([{ question: "", answer: "" }])
 
-  // Category States
   const [category, setCategory] = useState("Travel Guide")
   const [availableCategories, setAvailableCategories] = useState<string[]>([])
   const [isManagingCategories, setIsManagingCategories] = useState(false)
@@ -73,7 +63,6 @@ function BlogFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
-    // Load saved categories from localStorage
     let currentCats = ["Travel Guide", "Tips & Tricks", "Itinerary", "Food & Culture"]
     const savedCats = localStorage.getItem("adminBlogCategories")
     if (savedCats) {
@@ -83,7 +72,6 @@ function BlogFormContent() {
       setAvailableCategories(currentCats)
     }
 
-    // 🔥 FETCH EXISTING DATA IF IN EDIT MODE
     if (editId) {
       const { data: listing, error } = await supabase
         .from('listings')
@@ -108,7 +96,6 @@ function BlogFormContent() {
       
       if (meta.blogCategory) {
         setCategory(meta.blogCategory)
-        // Agar category nayi hai jo list me nahi hai, to add kar do
         if (!currentCats.includes(meta.blogCategory)) {
           const updatedCats = [...currentCats, meta.blogCategory]
           setAvailableCategories(updatedCats)
@@ -124,50 +111,12 @@ function BlogFormContent() {
         setFaqItems(meta.faqItems)
       }
     } else {
-      // Default category for new blog
       if (currentCats.length > 0) setCategory(currentCats[0])
     }
 
     setLoading(false)
   }
 
-  // 🌟 AI SEO Optimizer Handler Function
-  const handleAiSeoOptimize = async () => {
-    if (!title && (!longDescription || longDescription === '<p><br></p>')) {
-      alert("Please enter a Blog Title or Article Content first!")
-      return
-    }
-
-    setIsAiOptimizing(true)
-    try {
-      const res = await fetch('/api/seo-optimizer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          title: title, 
-          description: longDescription 
-        })
-      })
-
-      const json = await res.json()
-      if (json.success && json.data) {
-        if (json.data.metaDescription) {
-          setShortDescription(json.data.metaDescription)
-        }
-        if (json.data.seoScore) setSeoScore(json.data.seoScore)
-        if (json.data.suggestions) setAiSuggestions(json.data.suggestions)
-      } else {
-        alert(`AI SEO Error: ${json.error || 'Unknown error'}`)
-      }
-    } catch (err: any) {
-      console.error(err)
-      alert(`Network/Client Error: ${err.message}`)
-    } finally {
-      setIsAiOptimizing(false)
-    }
-  }
-
-  // --- Category Management Functions ---
   const handleAddNewCategory = () => {
     if (newCategory.trim() !== "") {
       const formattedCategory = newCategory.trim()
@@ -211,7 +160,6 @@ function BlogFormContent() {
     setEditingCatName("")
   }
 
-  // --- URL Slug Generator ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
@@ -226,7 +174,6 @@ function BlogFormContent() {
     setSlugEdited(true) 
   }
 
-  // --- Gallery Handlers ---
   const handleGalleryChange = (index: number, value: string) => {
     const newGallery = [...gallery]
     newGallery[index] = value
@@ -239,7 +186,6 @@ function BlogFormContent() {
     }
   }
 
-  // --- FAQ Handlers ---
   const handleFaqChange = (index: number, field: string, value: string) => {
     const newFaqs = [...faqItems]
     newFaqs[index] = { ...newFaqs[index], [field]: value }
@@ -253,11 +199,6 @@ function BlogFormContent() {
     newFaqs.splice(index, 1)
     setFaqItems(newFaqs)
   }
-
-  // --- Rich Text Editor Handler ---
-  const handleDescriptionChange = useCallback((value: string) => {
-    setLongDescription(value)
-  }, [])
 
   const quillModules = {
     toolbar: [
@@ -298,14 +239,12 @@ function BlogFormContent() {
     let error;
 
     if (editId) {
-      // UPDATE EXISTING BLOG
       const res = await supabase
         .from('listings')
         .update(dbPayload)
         .eq('id', editId)
       error = res.error
     } else {
-      // INSERT NEW BLOG
       const res = await supabase
         .from('listings')
         .insert([{
@@ -357,52 +296,6 @@ function BlogFormContent() {
 
           <form onSubmit={handleSubmit} className="space-y-8">
             
-            {/* --- 🤖 AI SEO OPTIMIZER WIDGET --- */}
-            <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-xl border border-indigo-500/30">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                <div>
-                  <span className="bg-amber-500 text-slate-950 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">
-                    🤖 AI Co-pilot
-                  </span>
-                  <h3 className="text-xl font-black mt-2">Autonomous SEO Optimizer</h3>
-                  <p className="text-slate-300 text-sm">Let AI audit your blog content and auto-generate high-ranking Meta tags.</p>
-                </div>
-                
-                <button
-                  type="button"
-                  onClick={handleAiSeoOptimize}
-                  disabled={isAiOptimizing}
-                  className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-6 py-3 rounded-xl transition-all shadow-lg disabled:opacity-50 whitespace-nowrap"
-                >
-                  {isAiOptimizing ? 'Analyzing Content...' : '✨ Run AI SEO Audit & Fix'}
-                </button>
-              </div>
-
-              {/* SEO Score & Suggestions feedback panel */}
-              {seoScore !== null && (
-                <div className="mt-4 pt-4 border-t border-indigo-700/50 flex flex-col md:flex-row gap-6 items-start">
-                  <div className="bg-indigo-950/80 px-6 py-4 rounded-xl border border-indigo-500/40 text-center min-w-[140px]">
-                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">SEO Score</span>
-                    <span className={`text-3xl font-black ${seoScore > 75 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {seoScore}/100
-                    </span>
-                  </div>
-
-                  {aiSuggestions.length > 0 && (
-                    <div className="flex-1">
-                      <span className="block text-xs font-bold text-amber-400 uppercase tracking-widest mb-1">AI Recommendations:</span>
-                      <ul className="list-disc list-inside text-sm text-slate-200 space-y-1">
-                        {aiSuggestions.map((tip, idx) => (
-                          <li key={idx}>{tip}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Title & SEO Slug */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">1. Title & Direct URL (Slug)</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -430,7 +323,6 @@ function BlogFormContent() {
               </div>
             </div>
 
-            {/* --- Blog Category Manager --- */}
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
               <div className="flex justify-between items-center mb-3">
                 <label className="block text-sm font-bold text-slate-800">Select Blog Category*</label>
@@ -493,7 +385,6 @@ function BlogFormContent() {
               </div>
             </div>
 
-            {/* Descriptions & Rich Text */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <h2 className="text-lg font-bold text-gray-800 mb-4">2. Article Content</h2>
               <div className="space-y-6">
@@ -508,7 +399,7 @@ function BlogFormContent() {
                     <ReactQuill 
                       theme="snow" 
                       value={longDescription} 
-                      onChange={handleDescriptionChange} 
+                      onChange={setLongDescription} 
                       modules={quillModules}
                       className="h-[350px]" 
                       placeholder="Write your complete blog article here. You can add links, images, bullet points, and headers..."
@@ -518,7 +409,6 @@ function BlogFormContent() {
               </div>
             </div>
 
-            {/* Gallery / Featured Image */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-800">3. Featured Image & Gallery URLs</h2>
@@ -536,7 +426,6 @@ function BlogFormContent() {
               </div>
             </div>
 
-            {/* --- FAQ Builder --- */}
             <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
               <h3 className="font-bold text-indigo-900 mb-4 flex items-center gap-2">4. ❓ FAQ Builder (Google Schema Ready)</h3>
               <div className="space-y-4">
