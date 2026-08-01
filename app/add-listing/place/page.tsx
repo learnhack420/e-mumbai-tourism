@@ -177,7 +177,7 @@ function PlaceFormContent() {
     setSlugEdited(true)
   }
 
-  // 🌟 AI SEO Optimizer Handler Function (WITH MAGIC SHIELD)
+  // 🌟 AI SEO Optimizer Handler Function (WITH PAYLOAD TRIM)
   const handleAiSeoOptimize = async () => {
     if (!formData.placeName && !formData.description) {
       alert("Please enter a Place Name or Main Story/Description first!")
@@ -186,22 +186,30 @@ function PlaceFormContent() {
 
     setIsAiOptimizing(true)
     try {
+      // 🚀 THE MASTER FIX: Data ko API tak bhejne se pehle hi chhota kar do (Max 1200 characters)
+      // Isse Cloudflare ka server data read karte waqt CPU limit cross nahi karega!
+      const safeTitle = formData.placeName ? String(formData.placeName).substring(0, 150) : "";
+      
+      // HTML tags hata kar sirf text bhejenge, aur max 1200 characters
+      const cleanDesc = formData.description ? formData.description.replace(/(<([^>]+)>)/gi, "") : "";
+      const safeDescription = cleanDesc.substring(0, 1200);
+
       const res = await fetch('/api/ai-seo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          title: formData.placeName, 
-          description: formData.description 
+          title: safeTitle, 
+          description: safeDescription 
         })
       })
 
-      // 🔥 THE MAGIC SHIELD: JSON parse karne se pehle status check karenge
+      // 🔥 THE MAGIC SHIELD
       if (!res.ok) {
         const errorText = await res.text();
         console.error("Cloudflare Crash Details:", errorText);
-        alert(`AI Server Error (${res.status}). Cloudflare ko API key nahi mili ya limit cross hui hai. Console check karein!`);
+        alert(`AI Server Error (${res.status}). Cloudflare ko API key nahi mili ya limit cross hui hai.`);
         setIsAiOptimizing(false);
-        return; // Yahan se code ruk jayega, aur "Unexpected token I" nahi aayega!
+        return; 
       }
 
       const json = await res.json()
@@ -216,7 +224,7 @@ function PlaceFormContent() {
       }
     } catch (err) {
       console.error("Frontend Fetch Error:", err)
-      alert("An error occurred during AI optimization. Please check your network connection.")
+      alert("An error occurred during AI optimization.")
     } finally {
       setIsAiOptimizing(false)
     }
