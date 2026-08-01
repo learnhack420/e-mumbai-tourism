@@ -177,7 +177,7 @@ function PlaceFormContent() {
     setSlugEdited(true)
   }
 
-  // 🌟 AI SEO Optimizer Handler Function
+  // 🌟 AI SEO Optimizer Handler Function (WITH MAGIC SHIELD)
   const handleAiSeoOptimize = async () => {
     if (!formData.placeName && !formData.description) {
       alert("Please enter a Place Name or Main Story/Description first!")
@@ -195,6 +195,15 @@ function PlaceFormContent() {
         })
       })
 
+      // 🔥 THE MAGIC SHIELD: JSON parse karne se pehle status check karenge
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Cloudflare Crash Details:", errorText);
+        alert(`AI Server Error (${res.status}). Cloudflare ko API key nahi mili ya limit cross hui hai. Console check karein!`);
+        setIsAiOptimizing(false);
+        return; // Yahan se code ruk jayega, aur "Unexpected token I" nahi aayega!
+      }
+
       const json = await res.json()
       if (json.success && json.data) {
         if (json.data.metaDescription) {
@@ -206,8 +215,8 @@ function PlaceFormContent() {
         alert("Failed to optimize SEO via AI.")
       }
     } catch (err) {
-      console.error(err)
-      alert("An error occurred during AI optimization.")
+      console.error("Frontend Fetch Error:", err)
+      alert("An error occurred during AI optimization. Please check your network connection.")
     } finally {
       setIsAiOptimizing(false)
     }
