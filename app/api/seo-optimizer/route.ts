@@ -1,35 +1,23 @@
-// 🚀 NextResponse hata diya hai. Pure Web API (Response) use karenge jo Cloudflare par 100% stable hai.
+import { NextResponse } from 'next/server';
+
+// 🔥 CLOUDFLARE FIX: Edge runtime aur force-dynamic
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    // 🛡️ Safe JSON Parsing: Agar frontend se galat data aaya toh server crash nahi hoga
-    let body;
-    try {
-      body = await req.json();
-    } catch (parseError) {
-      return new Response(JSON.stringify({ success: false, error: 'Invalid request body sent from frontend.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
+    const body = await req.json();
     const { title, description } = body;
 
     if (!title && !description) {
-      return new Response(JSON.stringify({ success: false, error: 'Title or description is required.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return NextResponse.json({ success: false, error: 'Title or description is required.' }, { status: 400 });
     }
 
+    // 🔒 Direct process.env se key le rahe hain
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ success: false, error: 'GEMINI_API_KEY is missing in Environment Variables!' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      console.error("Cloudflare mein GEMINI_API_KEY missing hai!");
+      return NextResponse.json({ success: false, error: 'GEMINI_API_KEY is missing in Environment Variables!' }, { status: 400 });
     }
 
     const prompt = `
@@ -49,9 +37,11 @@ export async function POST(req: Request) {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
+    // 🔥 8.5-Second Timeout: Cloudflare ke 10-second kill se bachne ke liye
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8500);
 
+    // 🚀 Pure native fetch (No Google SDK imported anywhere)
     const apiResponse = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,42 +56,33 @@ export async function POST(req: Request) {
 
     if (!apiResponse.ok) {
       const errData = await apiResponse.text();
-      return new Response(JSON.stringify({ success: false, error: 'Google AI limit reached or invalid key.' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      console.error('Google API Error:', errData);
+      return NextResponse.json({ success: false, error: 'Google AI limit reached or invalid key.' }, { status: 400 });
     }
 
     const data = await apiResponse.json();
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    
+    // JSON clean karna
     const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
 
     let seoData;
     try {
       seoData = JSON.parse(cleanedJson);
     } catch (e) {
-      return new Response(JSON.stringify({ success: false, error: 'AI returned invalid data format.' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return NextResponse.json({ success: false, error: 'AI returned invalid data format.' }, { status: 500 });
     }
 
-    // ✅ Har condition mein perfectly formatted JSON jayega
-    return new Response(JSON.stringify({ success: true, data: seoData }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return NextResponse.json({ success: true, data: seoData });
 
   } catch (error: any) {
     const isTimeout = error.name === 'AbortError';
+    console.error('SERVER AI SEO Error:', error.message);
     
-    // 🚨 Agar Code Phat Bhi Gaya, Toh Pure JSON Response Jayega, Plain Text Nahi
-    return new Response(JSON.stringify({ 
+    // 🚨 Agar Code Phat Bhi Gaya, Toh Properly Formatted JSON Error Jayega
+    return NextResponse.json({ 
       success: false, 
-      error: isTimeout ? 'AI optimization took too long. Please try again.' : `Backend Error: ${error.message}` 
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+      error: isTimeout ? 'AI optimization took too long. Please try a shorter description.' : 'Internal Server Error' 
+    }, { status: 500 });
   }
 }
