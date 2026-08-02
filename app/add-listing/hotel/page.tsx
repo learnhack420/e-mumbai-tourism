@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { supabase } from '@/utils/supabase'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -9,10 +9,10 @@ import LocationSelector from '../../components/LocationSelector'
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
 
-export default function AddOrEditHotelListing() {
+function HotelFormContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const editId = searchParams.get('id') // URL se check karenge ki edit mode hai ya nahi (e.g. ?id=xyz)
+  const editId = searchParams.get('id')
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -20,7 +20,6 @@ export default function AddOrEditHotelListing() {
   const [userRole, setUserRole] = useState('') 
   const [message, setMessage] = useState({ type: '', text: '' })
 
-  // Form States
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('') 
   const [slugEdited, setSlugEdited] = useState(false) 
@@ -86,9 +85,8 @@ export default function AddOrEditHotelListing() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
-    // 🌟 Agar Edit ID di gayi hai, toh purana data fetch karke states mein bharein
     if (editId) {
-      const { data: listing, error } = await supabase
+      const { data: listing } = await supabase
         .from('listings')
         .select('*')
         .eq('id', editId)
@@ -220,7 +218,6 @@ ${formattedFaqs}
     let error;
 
     if (editId) {
-      // 🌟 UPDATE EXISTING LISTING
       const { error: updateError } = await supabase
         .from('listings')
         .update({
@@ -234,7 +231,6 @@ ${formattedFaqs}
         .eq('id', editId)
       error = updateError
     } else {
-      // 🌟 INSERT NEW LISTING
       const { error: insertError } = await supabase
         .from('listings')
         .insert([{
@@ -359,12 +355,12 @@ ${formattedFaqs}
                   <div key={room} className="flex flex-col md:flex-row items-center gap-4 bg-white p-4 rounded-lg border border-blue-200">
                     <span className="font-bold text-gray-700 md:w-1/3">{room}</span>
                     <input 
-                      type="number" min="0" className="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-lg outline-none font-bold text-blue-700" placeholder="₹ Price / night"
+                      type="number" min="0" className="w-full md:w-1/3 px-3 py-2 border rounded-lg outline-none font-bold text-blue-700" placeholder="₹ Price / night"
                       value={roomPrices[room as keyof typeof roomPrices]} 
                       onChange={(e) => setRoomPrices({...roomPrices, [room]: e.target.value})}
                     />
                     <input 
-                      type="number" min="0" className="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-lg outline-none text-gray-700" placeholder="Total Available Rooms"
+                      type="number" min="0" className="w-full md:w-1/3 px-3 py-2 border rounded-lg outline-none text-gray-700" placeholder="Total Available Rooms"
                       value={roomCounts[room as keyof typeof roomCounts]} 
                       onChange={(e) => setRoomCounts({...roomCounts, [room]: e.target.value})}
                     />
@@ -449,5 +445,13 @@ ${formattedFaqs}
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AddOrEditHotelListing() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center font-bold">Loading...</div>}>
+      <HotelFormContent />
+    </Suspense>
   )
 }
