@@ -1,34 +1,33 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { supabase } from '@/utils/supabase' // Use Path alias
-import { useRouter } from 'next/navigation'
+import { supabase } from '@/utils/supabase'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
-// 👇 Import LocationSelector component
 import LocationSelector from '../../components/LocationSelector' 
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
 
-export default function AddHotelListing() {
+export default function AddOrEditHotelListing() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('id') // URL se check karenge ki edit mode hai ya nahi (e.g. ?id=xyz)
+
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [vendorId, setVendorId] = useState('')
-  const [userRole, setUserRole] = useState('') // Store role for redirection
+  const [userRole, setUserRole] = useState('') 
   const [message, setMessage] = useState({ type: '', text: '' })
 
-  // 1. Basic Details & SEO
+  // Form States
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('') 
   const [slugEdited, setSlugEdited] = useState(false) 
-  
-  // 🌟 Location ab LocationSelector se handle hogi
-  const [location, setLocation] = useState('') 
-  
+  const [city, setCity] = useState('') 
+  const [fullAddress, setFullAddress] = useState('')
   const [starRating, setStarRating] = useState('3 Star')
   
-  // 2. Room Types, Pricing & Availability
   const [roomPrices, setRoomPrices] = useState({
     'Standard Room': '', 'Deluxe Room': '', 'Super Deluxe Room': '', 'Suite': '', 'Family Room': ''
   })
@@ -36,22 +35,16 @@ export default function AddHotelListing() {
     'Standard Room': '', 'Deluxe Room': '', 'Super Deluxe Room': '', 'Suite': '', 'Family Room': ''
   })
 
-  // 3. Amenities (Yes/No)
   const [wifi, setWifi] = useState('Yes')
   const [ac, setAc] = useState('Yes')
   const [breakfast, setBreakfast] = useState('No')
   const [pool, setPool] = useState('No')
   const [parking, setParking] = useState('Yes')
 
-  // 4. Hotel Policies & Description
   const [checkIn, setCheckIn] = useState('12:00 PM')
   const [checkOut, setCheckOut] = useState('11:00 AM')
   const [description, setDescription] = useState('')
-  
-  // 5. Image Gallery (Links)
   const [gallery, setGallery] = useState([''])
-
-  // 6. FAQs
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
 
   const quillModules = {
@@ -64,11 +57,10 @@ export default function AddHotelListing() {
   }
 
   useEffect(() => {
-    checkVendorStatus()
-  }, [])
+    initPage()
+  }, [editId])
 
-  // UPDATE: Admin aur Approved Vendor dono is form ko access kar sakte hain
-  async function checkVendorStatus() {
+  async function initPage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
       router.push('/login')
@@ -81,24 +73,59 @@ export default function AddHotelListing() {
       .eq('id', session.user.id)
       .single()
 
-    // Sirf admin ya vendor hone par hi entry milegi
     if (!profile || (profile.role !== 'vendor' && profile.role !== 'admin')) {
       router.push('/login')
       return
     }
 
-    // Agar user vendor hai, toh uska 'approved' hona zaroori hai
     if (profile.role === 'vendor' && profile.approval_status !== 'approved') {
       router.push('/login')
       return
     }
 
     setVendorId(session.user.id)
-    setUserRole(profile.role) // Save role for later redirection
+    setUserRole(profile.role)
+
+    // 🌟 Agar Edit ID di gayi hai, toh purana data fetch karke states mein bharein
+    if (editId) {
+      const { data: listing, error } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('id', editId)
+        .single()
+
+      if (listing) {
+        setTitle(listing.title || '')
+        setSlug(listing.slug || '')
+        setSlugEdited(true)
+        setCity(listing.location || listing.metadata?.city || '')
+        setFullAddress(listing.metadata?.fullAddress || '')
+        
+        if (listing.metadata) {
+          setStarRating(listing.metadata.starRating || '3 Star')
+          if (listing.metadata.roomPrices) setRoomPrices(listing.metadata.roomPrices)
+          if (listing.metadata.roomCounts) setRoomCounts(listing.metadata.roomCounts)
+          setWifi(listing.metadata.wifi || 'Yes')
+          setAc(listing.metadata.ac || 'Yes')
+          setBreakfast(listing.metadata.breakfast || 'No')
+          setPool(listing.metadata.pool || 'No')
+          setParking(listing.metadata.parking || 'Yes')
+          setCheckIn(listing.metadata.checkIn || '12:00 PM')
+          setCheckOut(listing.metadata.checkOut || '11:00 AM')
+          setDescription(listing.metadata.description || listing.description || '')
+          if (listing.metadata.gallery && listing.metadata.gallery.length > 0) {
+            setGallery(listing.metadata.gallery)
+          }
+          if (listing.metadata.faqs && listing.metadata.faqs.length > 0) {
+            setFaqs(listing.metadata.faqs)
+          }
+        }
+      }
+    }
+
     setLoading(false)
   }
 
-  // --- SLUG LOGIC ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
@@ -118,16 +145,13 @@ export default function AddHotelListing() {
     setSlug(manualSlug)
     setSlugEdited(true) 
   }
-  // ------------------
 
-  // Gallery Handlers
   const handleGalleryChange = (index: number, value: string) => {
     const newGallery = [...gallery]; newGallery[index] = value; setGallery(newGallery)
   }
   const addGalleryImage = () => setGallery([...gallery, ''])
   const removeGalleryImage = (index: number) => { if (gallery.length > 1) setGallery(gallery.filter((_, i) => i !== index)) }
 
-  // FAQ Handlers
   const handleFaqChange = (index: number, field: 'question' | 'answer', value: string) => {
     const newFaqs = [...faqs]; newFaqs[index][field] = value; setFaqs(newFaqs)
   }
@@ -137,16 +161,14 @@ export default function AddHotelListing() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Safety check for location selection
-    if (!location) {
-      setMessage({ type: 'error', text: 'Error: Hotel ki location select karna zaroori hai!' })
+    if (!city) {
+      setMessage({ type: 'error', text: 'Error: Hotel ki City select karna zaroori hai!' })
       return
     }
 
     setSubmitting(true)
     setMessage({ type: '', text: '' })
 
-    // Price & Count Logic
     const activeRooms = Object.entries(roomPrices).filter(([_, price]) => price.trim() !== '')
     if (activeRooms.length === 0) {
       setMessage({ type: 'error', text: 'Error: Kam se kam ek Room Type ka amount daalna zaroori hai!' })
@@ -160,7 +182,6 @@ export default function AddHotelListing() {
       return `• ${room}: ₹${price} / night (Available Rooms: ${count || 'Not Specified'})`
     }).join('\n')
 
-    // Amenities formatting
     let availableAmenities = []
     if (wifi === 'Yes') availableAmenities.push('Free WiFi')
     if (ac === 'Yes') availableAmenities.push('Air Conditioning')
@@ -189,22 +210,46 @@ ${formattedFaqs}
     `.trim()
 
     const metadata = {
-      starRating, roomPrices, roomCounts, wifi, ac, breakfast, pool, parking, checkIn, checkOut, description, gallery: cleanGallery, faqs
+      starRating, roomPrices, roomCounts, wifi, ac, breakfast, pool, parking, checkIn, checkOut, description, 
+      city: city,
+      fullAddress: fullAddress,
+      gallery: cleanGallery, 
+      faqs
     }
 
-    const { error } = await supabase
-      .from('listings')
-      .insert([{
+    let error;
+
+    if (editId) {
+      // 🌟 UPDATE EXISTING LISTING
+      const { error: updateError } = await supabase
+        .from('listings')
+        .update({
+          title: title,
+          slug: slug,
+          description: detailedDescription,
+          location: city,
+          price: lowestPrice,
+          metadata: metadata
+        })
+        .eq('id', editId)
+      error = updateError
+    } else {
+      // 🌟 INSERT NEW LISTING
+      const { error: insertError } = await supabase
+        .from('listings')
+        .insert([{
           vendor_id: vendorId,
           title: title,
-          slug: slug, // Saving slug to database
+          slug: slug,
           description: detailedDescription,
           category: 'hotel',
-          location: location, // 🌟 Standardised Location string saved here
+          location: city,
           price: lowestPrice,
-          status: 'pending', // By default pending. Admin can approve later from dashboard.
+          status: 'pending',
           metadata: metadata
-      }])
+        }])
+      error = insertError
+    }
 
     if (error) {
       if (error.code === '23505') {
@@ -214,30 +259,11 @@ ${formattedFaqs}
       }
       setSubmitting(false)
     } else {
-
-      // 🌟 NEW: EMAIL TRIGGER API CALL FOR NEW HOTEL LISTING
-      fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'New Hotel Listing Added 🏨',
-          data: {
-            Hotel_Name: title,
-            Star_Rating: starRating,
-            Location: location,
-            Base_Price: `₹${lowestPrice}`,
-            Vendor_ID: vendorId,
-            Action: 'Please review and approve from Admin Panel'
-          }
-        })
-      }).catch(err => console.error("Email bhejte waqt error aaya:", err))
-
-      setMessage({ type: 'success', text: 'Hotel successfully add ho gaya hai! Admin approval ke liye bhej diya gaya hai.' })
+      setMessage({ type: 'success', text: editId ? 'Hotel successfully update ho gaya hai!' : 'Hotel successfully add ho gaya hai! Admin approval ke liye bhej diya gaya hai.' })
       setSubmitting(false)
-      // Redirect based on role
       setTimeout(() => { 
         router.push(userRole === 'admin' ? '/admin' : '/vendor') 
-      }, 2500)
+      }, 2000)
     }
   }
 
@@ -249,10 +275,10 @@ ${formattedFaqs}
         
         <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-extrabold">Add Hotel Property</h1>
-            <p className="text-blue-100 text-sm mt-1">Apne hotel aur rooms ki details bharein</p>
+            <h1 className="text-2xl font-extrabold">{editId ? 'Edit Hotel Property' : 'Add Hotel Property'}</h1>
+            <p className="text-blue-100 text-sm mt-1">Apne hotel aur rooms ki details manage karein</p>
           </div>
-          <Link href={userRole === 'admin' ? '/admin' : '/add-listing'} className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">← Back</Link>
+          <Link href={userRole === 'admin' ? '/admin' : '/vendor'} className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-medium text-sm transition-colors">← Back</Link>
         </div>
 
         <div className="p-8">
@@ -263,7 +289,6 @@ ${formattedFaqs}
           )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
-            {/* 1. Basic Info & SEO */}
             <div>
               <h2 className="text-lg font-bold text-gray-800 border-b pb-2 mb-4">1. Hotel Information & SEO</h2>
               
@@ -273,7 +298,6 @@ ${formattedFaqs}
                   <input type="text" required className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50" value={title} onChange={handleTitleChange} placeholder="e.g. Taj Palace" />
                 </div>
                 
-                {/* SLUG FIELD UI */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">SEO URL (Slug)</label>
                   <div className="flex items-center">
@@ -288,11 +312,10 @@ ${formattedFaqs}
                       placeholder="e.g. taj-palace-mumbai" 
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Google search ke liye clean URL. (Sirf dashes aur letters use karein)</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Star Rating</label>
                   <select className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 h-[42px]" value={starRating} onChange={(e) => setStarRating(e.target.value)}>
@@ -304,35 +327,44 @@ ${formattedFaqs}
                   </select>
                 </div>
                 
-                <div className="md:col-span-2">
-                  {/* 🌟 REPLACED WITH NEW LOCATION SELECTOR COMPONENT */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Select City</label>
                   <LocationSelector 
-                    label="City / Full Address" 
-                    selected={location} 
-                    onChange={setLocation} 
+                    label="" 
+                    selected={city} 
+                    onChange={setCity} 
                     multiple={false}
-                    placeholder="Select Hotel Location..." 
+                    placeholder="Select City..." 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Full Address / Google Map Link</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white h-[42px]" 
+                    value={fullAddress} 
+                    onChange={(e) => setFullAddress(e.target.value)} 
+                    placeholder="e.g. Near Station or Google Map URL" 
                   />
                 </div>
               </div>
             </div>
 
-            {/* 2. Room Types, Prices & Inventory */}
+            {/* 2. Room Types */}
             <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
               <h2 className="text-lg font-bold text-blue-900 mb-2">2. Room Types, Pricing & Inventory</h2>
-              <p className="text-sm text-blue-700 mb-5">Jo rooms aap offer karte hain, unka Price aur Total Available Rooms daalein.</p>
-              
               <div className="grid grid-cols-1 gap-4">
                 {Object.keys(roomPrices).map((room) => (
                   <div key={room} className="flex flex-col md:flex-row items-center gap-4 bg-white p-4 rounded-lg border border-blue-200">
                     <span className="font-bold text-gray-700 md:w-1/3">{room}</span>
                     <input 
-                      type="number" min="0" className="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-bold text-blue-700" placeholder="₹ Price / night"
+                      type="number" min="0" className="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-lg outline-none font-bold text-blue-700" placeholder="₹ Price / night"
                       value={roomPrices[room as keyof typeof roomPrices]} 
                       onChange={(e) => setRoomPrices({...roomPrices, [room]: e.target.value})}
                     />
                     <input 
-                      type="number" min="0" className="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 font-medium text-gray-700" placeholder="Total Available Rooms"
+                      type="number" min="0" className="w-full md:w-1/3 px-3 py-2 border border-gray-300 rounded-lg outline-none text-gray-700" placeholder="Total Available Rooms"
                       value={roomCounts[room as keyof typeof roomCounts]} 
                       onChange={(e) => setRoomCounts({...roomCounts, [room]: e.target.value})}
                     />
@@ -356,38 +388,27 @@ ${formattedFaqs}
                 <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Check-in Time</label>
-                    <input type="time" className="w-full px-4 py-2 border rounded-lg outline-none bg-white" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+                    <input type="time" className="w-full px-4 py-2 border rounded-lg bg-white" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
                   </div>
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Check-out Time</label>
-                    <input type="time" className="w-full px-4 py-2 border rounded-lg outline-none bg-white" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+                    <input type="time" className="w-full px-4 py-2 border rounded-lg bg-white" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 4. Image Gallery */}
+            {/* 4. Gallery */}
             <div className="border border-gray-200 p-6 rounded-xl bg-gray-50">
               <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">4. Hotel Gallery (Images)</h2>
-                  <p className="text-xs text-gray-500">Apne hotel ki images ke links (URLs) yahan add karein.</p>
-                </div>
-                <button type="button" onClick={addGalleryImage} className="text-sm bg-blue-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm">+ Add Image Link</button>
+                <h2 className="text-lg font-bold text-gray-800">4. Hotel Gallery (Images)</h2>
+                <button type="button" onClick={addGalleryImage} className="text-sm bg-blue-600 text-white font-bold px-4 py-2 rounded-lg">+ Add Image Link</button>
               </div>
               <div className="space-y-3">
                 {gallery.map((url, index) => (
                   <div key={index} className="flex items-center gap-3">
-                    <input 
-                      type="url" 
-                      className="flex-1 px-4 py-2 border rounded-lg outline-none bg-white focus:ring-2 focus:ring-blue-500" 
-                      placeholder="e.g. https://website.com/image1.jpg"
-                      value={url} 
-                      onChange={(e) => handleGalleryChange(index, e.target.value)} 
-                    />
-                    {gallery.length > 1 && (
-                      <button type="button" onClick={() => removeGalleryImage(index)} className="text-red-500 hover:text-red-700 font-bold px-2 py-2">✕ Remove</button>
-                    )}
+                    <input type="url" className="flex-1 px-4 py-2 border rounded-lg bg-white" placeholder="Image URL" value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
+                    {gallery.length > 1 && (<button type="button" onClick={() => removeGalleryImage(index)} className="text-red-500 font-bold px-2">✕</button>)}
                   </div>
                 ))}
               </div>
@@ -406,29 +427,23 @@ ${formattedFaqs}
             <div>
               <div className="flex justify-between items-center border-b pb-2 mb-4">
                 <h2 className="text-lg font-bold text-gray-800">6. Hotel Policies & FAQs</h2>
-                <button type="button" onClick={addFaq} className="text-sm bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full hover:bg-blue-200">+ Add Rule/FAQ</button>
+                <button type="button" onClick={addFaq} className="text-sm bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full">+ Add Rule/FAQ</button>
               </div>
               <div className="space-y-4">
                 {faqs.map((faq, index) => (
                   <div key={index} className="bg-gray-50 p-4 rounded-xl border border-gray-200 relative">
-                    {faqs.length > 1 && (<button type="button" onClick={() => removeFaq(index)} className="absolute top-4 right-4 text-red-500 text-sm font-bold">✕</button>)}
+                    {faqs.length > 1 && (<button type="button" onClick={() => removeFaq(index)} className="absolute top-4 right-4 text-red-500 font-bold">✕</button>)}
                     <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-1">Policy / Question {index + 1}</label>
-                        <input type="text" className="w-full px-4 py-2 border rounded-lg bg-white" value={faq.question} onChange={(e) => handleFaqChange(index, 'question', e.target.value)} placeholder="e.g. Unmarried couples allowed?" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-1">Details / Answer</label>
-                        <textarea rows={2} className="w-full px-4 py-2 border rounded-lg bg-white" value={faq.answer} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)}></textarea>
-                      </div>
+                      <input type="text" className="w-full px-4 py-2 border rounded-lg bg-white" value={faq.question} onChange={(e) => handleFaqChange(index, 'question', e.target.value)} placeholder="Question/Rule" />
+                      <textarea rows={2} className="w-full px-4 py-2 border rounded-lg bg-white" value={faq.answer} onChange={(e) => handleFaqChange(index, 'answer', e.target.value)} placeholder="Answer/Details"></textarea>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors disabled:bg-blue-400 text-lg shadow-lg">
-              {submitting ? 'Submitting Hotel...' : 'Submit Hotel for Approval'}
+            <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors text-lg shadow-lg">
+              {submitting ? 'Saving...' : (editId ? 'Update Hotel Property' : 'Submit Hotel for Approval')}
             </button>
           </form>
         </div>
