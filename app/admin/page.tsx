@@ -210,8 +210,9 @@ export default function AdminDashboard() {
     
     // 2. Search Query Filter (Title or Location)
     const q = searchQuery.toLowerCase();
-    const title = listing.title ? listing.title.toLowerCase() : '';
-    const location = listing.location ? listing.location.toLowerCase() : '';
+    // Naya Safe Code
+const title = typeof listing.title === 'string' ? listing.title.toLowerCase() : '';
+const location = typeof listing.location === 'string' ? listing.location.toLowerCase() : '';
     const matchesSearch = title.includes(q) || location.includes(q);
 
     return matchesCategory && matchesSearch;

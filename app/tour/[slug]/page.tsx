@@ -4,6 +4,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import TourBookingSidebar from '../../components/TourBookingSidebar'
 import AIAutoRoutePlanner from '../../components/AIAutoRoutePlanner'
+// 🌟 NAYA COMPONENT IMPORT KIYA HAI
+import AIAutoFAQs from '../../components/AIAutoFAQs'
 import VendorInfoCard from '../../components/VendorInfoCard'
 import RelatedTourSections from '../../components/RelatedTourSections'
 
@@ -134,7 +136,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
     ]
   };
 
-  // 2. TouristTrip Schema (Helps Google show this in "Things to do" & Tour rich results)
+  // 2. TouristTrip Schema
   const tourSchema = {
     "@context": "https://schema.org",
     "@type": "TouristTrip",
@@ -239,7 +241,6 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
               <div className="md:col-span-2 flex items-start gap-4 pt-6 border-t border-gray-100">
                 <div className="bg-purple-50 p-4 rounded-2xl text-purple-600 text-2xl">📸</div>
                 <div className="w-full">
-                  {/* 🌟 Updated "Places to Visit in {targetCity}" */}
                   <span className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">
                     Places to Visit {targetCity ? `in ${targetCity}` : ''}
                   </span>
@@ -265,7 +266,6 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                 <div className="md:col-span-2 bg-amber-50 rounded-2xl p-6 border border-amber-100 mt-2">
                   <div className="flex items-center gap-3 mb-4">
                     <span className="text-3xl">🌤️</span>
-                    {/* 🌟 DYNAMIC HEADING 1: Best Time to Visit (Destination) */}
                     <h3 className="text-xl font-black text-amber-900">
                       Best Time to Visit {targetCity ? `in ${targetCity}` : ''}
                     </h3>
@@ -301,7 +301,6 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
               <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
                 {gallery.map((imgUrl: string, idx: number) => (
                   <div key={idx} className="h-40 md:h-48 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 relative group cursor-pointer">
-                    {/* 🌟 SEO UPGRADE 4: Dynamic Alt Tags for Images */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={imgUrl} alt={`${tour.title} highlights - ${destinationsCovered} - Image ${idx+1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   </div>
@@ -322,7 +321,6 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
 
           {(itineraryDays.length > 0 || meta.itinerary) && (
             <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
-              {/* 🌟 DYNAMIC HEADING 2: Day-wise Itinerary */}
               <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
                 Itinerary of {tour.title}
               </h2>
@@ -342,7 +340,6 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
-          {/* 🌟 DYNAMIC HEADING 3 & STRUCTURE: Inclusions & Exclusions */}
           {(meta.inclusions || meta.exclusions) && (
             <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
               <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
@@ -408,19 +405,14 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </div>
           </section>
 
-          {meta.faqs && meta.faqs.length > 0 && (
-            <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
-              <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">Frequently Asked Questions ({tour.title})</h2>
-              <div className="space-y-5">
-                {meta.faqs.map((faq: any, idx: number) => (
-                  <div key={idx} className="border border-gray-100 rounded-2xl p-6 bg-gray-50 hover:bg-white hover:shadow-md transition-all">
-                    <h4 className="font-black text-gray-800 flex gap-3 text-lg"><span className="text-xl">❓</span> {faq.question}</h4>
-                    <p className="text-gray-600 text-base mt-3 flex gap-3 leading-relaxed"><span className="text-xl text-blue-400">👉</span> {faq.answer}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          {/* 🌟 NAYA AI FAQs COMPONENT */}
+          {/* Yeh automatically check karega ki naye banane hain ya purane faqs dikhane hain */}
+          <AIAutoFAQs 
+            origin={origin} 
+            destination={destinationsCovered} 
+            tourName={tour.title}
+            existingFaqs={meta.faqs} 
+          />
 
           {tour?.vendor_id && <VendorInfoCard vendorId={tour.vendor_id} />}
 

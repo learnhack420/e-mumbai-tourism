@@ -61,13 +61,12 @@ export default function AIAutoRoutePlanner({
 
   useEffect(() => {
     async function fetchGeminiRouteEstimates() {
-      // Create a unique key for the database (e.g., "mumbai_pune")
       const routeKey = `${finalOrigin}_${finalDestination}`.replace(/\s+/g, '_').toLowerCase();
       
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-      // 1. SUPABASE DATABASE CHECK
+      // 1. SUPABASE DATABASE CHECK (Cache)
       if (supabaseUrl && supabaseKey) {
         try {
           const dbCheckRes = await fetch(`${supabaseUrl}/rest/v1/ai_route_cache?route_key=eq.${routeKey}&select=data`, {
@@ -82,71 +81,46 @@ export default function AIAutoRoutePlanner({
             if (rows.length > 0 && rows[0].data) {
               setEstimates(rows[0].data);
               setLoading(false);
-              console.log(`Loaded ${finalOrigin} to ${finalDestination} from Supabase Database!`);
-              return; // Halt execution here. No Gemini API Call!
+              return; 
             }
           }
         } catch (dbErr) {
-          console.warn("Supabase read failed, attempting Gemini fetch...", dbErr);
+          console.warn("Supabase read failed, moving to backend fetch...", dbErr);
         }
       }
 
-      // 2. FETCH FROM GEMINI (If DB misses)
+      // 2. FETCH FROM SECURE BACKEND API
       let parsedData: RouteData | null = null;
 
       try {
-        const rawApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-        const geminiApiKey = rawApiKey ? rawApiKey.trim() : "";
-        
-        if (!geminiApiKey) throw new Error("Missing Gemini API Key in .env file");
-        if (!geminiApiKey.startsWith('AIzaSy')) throw new Error("Invalid API Key Format");
-
-        const prompt = `You are a professional mapping and travel guide in India. Calculate the accurate road distance, realistic travel times, and current fair market costs for traveling from "${finalOrigin}" to "${finalDestination}".
-        Return exactly this JSON structure with real estimates:
-        {
-          "distance": "exact road distance e.g. 170 km",
-          "driveTime": "e.g. 4h 15m",
-          "driveDetails": "Name of best highway/route e.g. via Mumbai-Agra National Hwy",
-          "trainTime": "e.g. 3h 45m",
-          "trainOptions": "Names of 2-3 popular trains e.g. Panchavati Exp, Tapovan Exp",
-          "busTime": "e.g. 4h 30m",
-          "busOptions": "Types/Operators e.g. MSRTC Shivneri AC, Neeta Volvo, Sleeper",
-          "taxiTime": "e.g. 4h 15m",
-          "taxiOptions": "Types of cabs e.g. Sedan/SUV via Ola/Uber/MakeMyTrip",
-          "trainCost": "in INR, e.g. ₹140 - ₹550 (2S to CC)",
-          "busCost": "in INR, e.g. ₹350 - ₹950 (Non-AC to AC Sleeper)",
-          "cabCost": "in INR, e.g. ₹3,200 - ₹4,500 (Hatchback to SUV)",
-          "fuelCost": "in INR, e.g. ₹1,400 - ₹2,100"
-        }`;
-
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
-
-        const response = await fetch(apiUrl, {
+        const response = await fetch('/api/generate-route', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
+          body: JSON.stringify({ 
+            origin: finalOrigin, 
+            destination: finalDestination 
           })
         });
 
-        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Backend Status Error: ${response.status}`);
+        }
 
         const data = await response.json();
-        const content = data.candidates[0].content.parts[0].text;
-        parsedData = JSON.parse(content);
         
-        setEstimates(parsedData as RouteData);
+        // 🔥 ACTUAL ERROR LOGGING: Backend se aaya hua exact error padhega
+        if (data.success === false) {
+          throw new Error(`Backend Error: ${data.error || 'Unknown issue'}`);
+        }
+
+        parsedData = (data.routes || data) as RouteData;
+        setEstimates(parsedData);
         
       } catch (err: any) {
-        console.warn("Gemini Error:", err);
-        const errorMsg = err.message || "";
-        const cleanMessage = (errorMsg.includes("Quota") || errorMsg.includes("429")) 
-            ? "Data unavailable right now (Server Busy)" 
-            : "Data temporarily unavailable";
-
+        console.error("🚨 Route Planner Failed:", err.message);
+        
         setEstimates({
-          distance: cleanMessage, driveTime: "--", trainTime: "--", busTime: "--",
+          distance: "Data temporarily unavailable", driveTime: "--", trainTime: "--", busTime: "--",
           taxiTime: "--", trainCost: "--", busCost: "--", cabCost: "--", fuelCost: "--",
           trainOptions: "Please check back later", busOptions: "Please check back later",
           driveDetails: "Please check back later", taxiOptions: "Please check back later"
@@ -155,8 +129,8 @@ export default function AIAutoRoutePlanner({
         setLoading(false);
       }
 
-      // 3. SAVE TO SUPABASE (If Gemini data was fetched successfully)
-      if (parsedData && supabaseUrl && supabaseKey) {
+      // 3. SAVE TO SUPABASE CACHE
+      if (parsedData && parsedData.distance && !parsedData.distance.includes("unavailable") && supabaseUrl && supabaseKey) {
         try {
           await fetch(`${supabaseUrl}/rest/v1/ai_route_cache`, {
             method: 'POST',
@@ -164,14 +138,13 @@ export default function AIAutoRoutePlanner({
               'apikey': supabaseKey,
               'Authorization': `Bearer ${supabaseKey}`,
               'Content-Type': 'application/json',
-              'Prefer': 'resolution=merge-duplicates' // Overwrites if route already exists
+              'Prefer': 'resolution=merge-duplicates'
             },
             body: JSON.stringify({
               route_key: routeKey,
               data: parsedData
             })
           });
-          console.log(`Saved ${finalOrigin} to ${finalDestination} into Supabase!`);
         } catch (dbSaveErr) {
           console.warn("Failed to save to Supabase Database", dbSaveErr);
         }
