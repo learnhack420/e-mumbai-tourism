@@ -164,7 +164,7 @@ export default function AdminDashboard() {
   const getEditUrl = (listing: any) => {
     const cat = listing.category
     if (cat === 'tour') return `/add-listing/tour?edit=${listing.id}`
-    if (cat === 'hotel') return `/add-listing/hotel?edit=${listing.id}`
+    if (cat === 'hotel') return `/add-listing/hotel?id=${listing.id}`
     if (cat === 'cab') return `/add-listing/cab?edit=${listing.id}`
     if (cat === 'destination') return `/add-listing/place?edit=${listing.id}`
     if (cat === 'blog') return `/add-listing/blog?edit=${listing.id}` 
