@@ -365,11 +365,12 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* 🌟 Naya SEO Analyzer Component yahan lagaya gaya hai */}
+            {/* 🌟 SEO Analyzer Component */}
             <SeoAnalyzer 
               pageTitle={title}
               pageDescription={description}
               location={city}
+              categoryType="hotel" // 👈 Yeh property missing thi, ise add kar dein
               metaTitle={metaTitle}
               setMetaTitle={setMetaTitle}
               metaDescription={metaDescription}
