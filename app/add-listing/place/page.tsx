@@ -437,7 +437,7 @@ function PlaceFormContent() {
               pageTitle={formData.placeName}
               pageDescription={formData.description || formData.metaDescription}
               location={location}
-              categoryType="place"
+              categoryType="tour" // 👈 "place" ki jagah "tour" kar dein
               metaTitle={formData.metaTitle}
               setMetaTitle={(val) => setFormData(prev => ({ ...prev, metaTitle: val }))}
               metaDescription={formData.metaDescription}
