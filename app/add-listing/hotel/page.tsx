@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import LocationSelector from '../../components/LocationSelector' 
+import SeoAnalyzer from '../../components/SeoAnalyzer' // 🌟 Advanced SEO Component Import Kiya
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
@@ -26,6 +27,11 @@ function HotelFormContent() {
   const [city, setCity] = useState('') 
   const [fullAddress, setFullAddress] = useState('')
   const [starRating, setStarRating] = useState('3 Star')
+
+  // 🌟 SEO States Add Kiye
+  const [metaTitle, setMetaTitle] = useState('')
+  const [metaDescription, setMetaDescription] = useState('')
+  const [metaKeywords, setMetaKeywords] = useState('')
   
   const [roomPrices, setRoomPrices] = useState({
     'Standard Room': '', 'Deluxe Room': '', 'Super Deluxe Room': '', 'Suite': '', 'Family Room': ''
@@ -117,6 +123,12 @@ function HotelFormContent() {
           if (listing.metadata.faqs && listing.metadata.faqs.length > 0) {
             setFaqs(listing.metadata.faqs)
           }
+          // 🌟 Edit mode me SEO data load karna
+          if (listing.metadata.seo) {
+            setMetaTitle(listing.metadata.seo.metaTitle || '')
+            setMetaDescription(listing.metadata.seo.metaDescription || '')
+            setMetaKeywords(listing.metadata.seo.metaKeywords || '')
+          }
         }
       }
     }
@@ -207,12 +219,18 @@ ${description}
 ${formattedFaqs}
     `.trim()
 
+    // 🌟 Metadata me SEO save karna
     const metadata = {
       starRating, roomPrices, roomCounts, wifi, ac, breakfast, pool, parking, checkIn, checkOut, description, 
       city: city,
       fullAddress: fullAddress,
       gallery: cleanGallery, 
-      faqs
+      faqs,
+      seo: {
+        metaTitle,
+        metaDescription,
+        metaKeywords
+      }
     }
 
     let error;
@@ -286,7 +304,7 @@ ${formattedFaqs}
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <div>
-              <h2 className="text-lg font-bold text-gray-800 border-b pb-2 mb-4">1. Hotel Information & SEO</h2>
+              <h2 className="text-lg font-bold text-gray-800 border-b pb-2 mb-4">1. Hotel Information</h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
@@ -346,6 +364,19 @@ ${formattedFaqs}
                 </div>
               </div>
             </div>
+
+            {/* 🌟 Naya SEO Analyzer Component yahan lagaya gaya hai */}
+            <SeoAnalyzer 
+              pageTitle={title}
+              pageDescription={description}
+              location={city}
+              metaTitle={metaTitle}
+              setMetaTitle={setMetaTitle}
+              metaDescription={metaDescription}
+              setMetaDescription={setMetaDescription}
+              metaKeywords={metaKeywords}
+              setMetaKeywords={setMetaKeywords}
+            />
 
             {/* 2. Room Types */}
             <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">

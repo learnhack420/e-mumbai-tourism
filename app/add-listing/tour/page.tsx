@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import LocationSelector from '../../components/LocationSelector' 
+import SeoAnalyzer from '../../components/SeoAnalyzer' // 🌟 Advanced AI SEO Component Import Kiya
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
@@ -431,6 +432,11 @@ ${formattedFaqs}
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-xl">Loading Form...</div>
 
+  // 🌟 location formatting helper AI component ke liye
+  const combinedLocationForSEO = destinations.length > 0 
+    ? `${startLocation} to ${destinations.join(', ')}` 
+    : startLocation
+
   return (
     <div className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
@@ -454,7 +460,7 @@ ${formattedFaqs}
 
           <form onSubmit={handleSubmit} className="space-y-10">
 
-            {/* Section 1: Basic Info & SEO */}
+            {/* Section 1: Basic Info */}
             <div>
               <h2 className="text-xl font-bold text-gray-800 border-b pb-2 mb-6">1. Basic Info & SEO Metadata</h2>
               
@@ -469,22 +475,6 @@ ${formattedFaqs}
                     <span className="px-3 py-2 bg-gray-200 border border-gray-300 border-r-0 rounded-l-lg text-gray-500 text-sm select-none">/tour/</span>
                     <input type="text" required className="w-full px-4 py-2 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white font-medium text-blue-700" value={slug} onChange={handleSlugChange} placeholder="e.g. kerala-backwaters" />
                   </div>
-                </div>
-              </div>
-
-              {/* SEO Meta Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-bold text-blue-900 mb-1">Meta Title (SEO)</label>
-                  <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none bg-white" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} placeholder="e.g. Best Kerala Backwaters Tour Package - Book Now" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-blue-900 mb-1">Meta Description</label>
-                  <textarea rows={2} className="w-full px-4 py-2 border rounded-lg outline-none bg-white resize-none" value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} placeholder="Short description for Google search results..."></textarea>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-blue-900 mb-1">Meta Keywords</label>
-                  <textarea rows={2} className="w-full px-4 py-2 border rounded-lg outline-none bg-white resize-none" value={metaKeywords} onChange={(e) => setMetaKeywords(e.target.value)} placeholder="e.g. kerala tour, backwaters, munnar package"></textarea>
                 </div>
               </div>
 
@@ -555,6 +545,20 @@ ${formattedFaqs}
                 </div>
               </div>
             </div>
+
+            {/* 🌟 Naya SEO Analyzer Component yahan lagaya gaya hai */}
+            <SeoAnalyzer 
+              pageTitle={title}
+              pageDescription={overview} 
+              location={combinedLocationForSEO}
+              categoryType="tour" // 👈 Tour Type Pass Kiya AI ke liye
+              metaTitle={metaTitle}
+              setMetaTitle={setMetaTitle}
+              metaDescription={metaDescription}
+              setMetaDescription={setMetaDescription}
+              metaKeywords={metaKeywords}
+              setMetaKeywords={setMetaKeywords}
+            />
 
             {/* Best Time to Visit Block */}
             <div>

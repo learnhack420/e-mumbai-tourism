@@ -76,15 +76,9 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ sl
 
       <div className="max-w-6xl mx-auto px-4 md:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-8 overflow-hidden">
           
-          {/* Hotel Overview */}
-          <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-            <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">About the Hotel</h2>
-            <div className="prose max-w-none text-gray-600 leading-relaxed" dangerouslySetInnerHTML={{ __html: meta.description || hotel.description.replace(/\n/g, '<br/>') }} />
-          </section>
-
-          {/* Amenities */}
+          {/* 🌟 Top Amenities (Shifted to the Top) */}
           <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
             <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">Top Amenities</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -94,6 +88,12 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ sl
               {meta.pool === 'Yes' && <div className="flex items-center gap-2 text-gray-700 font-medium">🏊‍♂️ Swimming Pool</div>}
               {meta.parking === 'Yes' && <div className="flex items-center gap-2 text-gray-700 font-medium">🚗 Free Parking</div>}
             </div>
+          </section>
+
+          {/* Hotel Overview (With break-words to prevent overflow) */}
+          <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
+            <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">About the Hotel</h2>
+            <div className="prose max-w-none text-gray-600 leading-relaxed break-words overflow-hidden" dangerouslySetInnerHTML={{ __html: meta.description || hotel.description.replace(/\n/g, '<br/>') }} />
           </section>
 
           {/* Gallery */}
@@ -111,15 +111,15 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ sl
             </section>
           )}
 
-          {/* Hotel Policies / FAQs */}
+          {/* Hotel Policies / FAQs (With break-words) */}
           {meta.faqs && meta.faqs.length > 0 && (
-            <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">Hotel Policies</h2>
+            <section className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <h2 className="text-2xl font-extrabold text-gray-900 mb-4 border-b pb-2">Hotel Policies & FAQs</h2>
               <div className="space-y-4">
                 {meta.faqs.map((faq: any, idx: number) => (
-                  <div key={idx} className="border border-gray-100 rounded-xl p-4 bg-gray-50">
-                    <h4 className="font-bold text-gray-800 flex gap-2"><span>📋</span> {faq.question}</h4>
-                    <p className="text-gray-600 text-sm mt-2 flex gap-2"><span>👉</span> {faq.answer}</p>
+                  <div key={idx} className="border border-gray-100 rounded-xl p-4 bg-gray-50 break-words">
+                    <h4 className="font-bold text-gray-800 flex gap-2"><span>📋</span> <span className="break-words">{faq.question}</span></h4>
+                    <p className="text-gray-600 text-sm mt-2 flex gap-2"><span>👉</span> <span className="break-words">{faq.answer}</span></p>
                   </div>
                 ))}
               </div>
@@ -129,40 +129,57 @@ export default async function HotelDetailPage({ params }: { params: Promise<{ sl
 
         {/* Pricing Sidebar */}
         <div className="lg:col-span-1">
-          <div className="bg-white p-6 rounded-2xl shadow-xl border border-blue-100 sticky top-24">
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-blue-100 sticky top-24 relative">
+            
+            {/* 🌟 NEW: Star Rating Ribbon (Bada Star) */}
+            {meta.starRating && (
+              <div className="mb-4">
+                <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-orange-400 to-orange-500 text-black text-xs font-extrabold px-3 py-1.5 rounded-md shadow-sm">
+                  <span className="text-lg">⭐</span> {meta.starRating}
+                </span>
+              </div>
+            )}
+
             <h3 className="text-gray-500 font-bold uppercase tracking-wider text-xs mb-2">Starting From</h3>
-            <div className="text-4xl font-extrabold text-blue-600 mb-6">
+            <div className="text-4xl font-extrabold text-blue-600 mb-6 break-words">
               ₹{hotel.price} <span className="text-sm font-medium text-gray-500">/ night</span>
             </div>
 
             <div className="flex gap-4 mb-6 text-sm bg-gray-50 p-3 rounded-lg border border-gray-200">
               <div className="w-1/2">
                 <span className="block text-gray-500 text-xs font-bold uppercase">Check-in</span>
-                <span className="font-bold text-gray-800">{meta.checkIn || '12:00 PM'}</span>
+                <span className="font-bold text-gray-800 break-words">{meta.checkIn || '12:00 PM'}</span>
               </div>
               <div className="w-1/2 border-l border-gray-200 pl-4">
                 <span className="block text-gray-500 text-xs font-bold uppercase">Check-out</span>
-                <span className="font-bold text-gray-800">{meta.checkOut || '11:00 AM'}</span>
+                <span className="font-bold text-gray-800 break-words">{meta.checkOut || '11:00 AM'}</span>
               </div>
             </div>
 
             {meta.roomPrices && (
               <div className="mb-6 space-y-3">
-                <h4 className="text-sm font-bold text-gray-800 border-b border-gray-100 pb-1">Available Rooms</h4>
+                <h4 className="text-sm font-bold text-gray-800 border-b border-gray-100 pb-2 mb-3">Available Rooms</h4>
                 {Object.entries(meta.roomPrices).map(([room, price]) => {
                   if (!price) return null;
+                  const roomCount = meta.roomCounts?.[room];
+                  
                   return (
-                    <div key={room} className="flex justify-between items-center text-sm">
-                      <span className="text-gray-700 font-medium">{room}</span> 
-                      <span className="font-bold text-blue-700">₹{price as string}</span>
+                    <div key={room} className="flex justify-between items-center text-sm gap-2 border-b border-gray-50 pb-3 last:border-0 last:pb-0">
+                      <div className="flex flex-col flex-1">
+                        <span className="text-gray-700 font-medium break-words">{room}</span> 
+                        {roomCount && (
+                          <span className="text-xs text-green-600 font-bold mt-0.5">{roomCount} Room(s) Left</span>
+                        )}
+                      </div>
+                      <span className="font-bold text-blue-700 whitespace-nowrap">₹{price as string}</span>
                     </div>
                   )
                 })}
               </div>
             )}
 
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-              <p className="text-xs text-blue-800 font-medium text-center">
+            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-4">
+              <p className="text-xs text-blue-800 font-medium text-center break-words">
                 Click the WhatsApp button to check availability and book your stay! 💬
               </p>
             </div>

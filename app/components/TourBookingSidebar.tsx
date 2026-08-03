@@ -16,6 +16,13 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
   }, [])
 
   // ==========================================
+  // HELPER: Calculate Original Price (+15%)
+  // ==========================================
+  const getOriginalPrice = (price: string | number) => {
+    return Math.round(Number(price) * 1.15)
+  }
+
+  // ==========================================
   // 1. BOOKING FORM STATE & HANDLERS
   // ==========================================
   const [formData, setFormData] = useState({
@@ -233,6 +240,10 @@ Kindly provide more details.`.trim()
                 <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <span className="text-gray-700 font-bold">Min 2 Pax:</span> 
                   <div className="text-right">
+                    <div className="flex justify-end items-center gap-1.5 mb-1">
+                      <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min2)}</span>
+                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                    </div>
                     <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min2} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min2 * 2}</span>
                   </div>
@@ -243,6 +254,10 @@ Kindly provide more details.`.trim()
                 <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <span className="text-gray-700 font-bold">Min 4 Pax:</span> 
                   <div className="text-right">
+                    <div className="flex justify-end items-center gap-1.5 mb-1">
+                      <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min4)}</span>
+                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                    </div>
                     <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min4} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min4 * 4}</span>
                   </div>
@@ -253,6 +268,10 @@ Kindly provide more details.`.trim()
                 <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <span className="text-gray-700 font-bold">Min 6 Pax:</span> 
                   <div className="text-right">
+                    <div className="flex justify-end items-center gap-1.5 mb-1">
+                      <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min6)}</span>
+                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                    </div>
                     <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min6} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min6 * 6}</span>
                   </div>
@@ -263,6 +282,10 @@ Kindly provide more details.`.trim()
                 <div className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded-lg border border-gray-100">
                   <span className="text-gray-700 font-bold">Min 8+ Pax:</span> 
                   <div className="text-right">
+                    <div className="flex justify-end items-center gap-1.5 mb-1">
+                      <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min8)}</span>
+                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                    </div>
                     <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min8} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min8 * 8}</span>
                   </div>
@@ -278,31 +301,80 @@ Kindly provide more details.`.trim()
               
               {meta.cabPrices.hatchback && (
                 <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
-                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">Hatchback:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.hatchback}</span></div>
+                  <div className="flex justify-between items-start">
+                    <span className="text-gray-800 font-medium mt-1">Hatchback:</span> 
+                    <div className="text-right">
+                      <div className="flex justify-end items-center gap-1.5 mb-0.5">
+                        <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.hatchback)}</span>
+                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      </div>
+                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.hatchback}</span>
+                    </div>
+                  </div>
                   {meta.cabExtraCharges?.hatchback && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.hatchback}/hr</span>}
                 </div>
               )}
+              
               {meta.cabPrices.sedan && (
                 <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
-                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">Sedan:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.sedan}</span></div>
+                  <div className="flex justify-between items-start">
+                    <span className="text-gray-800 font-medium mt-1">Sedan:</span> 
+                    <div className="text-right">
+                      <div className="flex justify-end items-center gap-1.5 mb-0.5">
+                        <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.sedan)}</span>
+                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      </div>
+                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.sedan}</span>
+                    </div>
+                  </div>
                   {meta.cabExtraCharges?.sedan && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.sedan}/hr</span>}
                 </div>
               )}
+              
               {meta.cabPrices.suv && (
                 <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
-                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">SUV/Ertiga:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.suv}</span></div>
+                  <div className="flex justify-between items-start">
+                    <span className="text-gray-800 font-medium mt-1">SUV/Ertiga:</span> 
+                    <div className="text-right">
+                      <div className="flex justify-end items-center gap-1.5 mb-0.5">
+                        <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.suv)}</span>
+                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      </div>
+                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.suv}</span>
+                    </div>
+                  </div>
                   {meta.cabExtraCharges?.suv && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.suv}/hr</span>}
                 </div>
               )}
+              
               {meta.cabPrices.innova && (
                 <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
-                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">Innova/Crysta:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.innova}</span></div>
+                  <div className="flex justify-between items-start">
+                    <span className="text-gray-800 font-medium mt-1">Innova/Crysta:</span> 
+                    <div className="text-right">
+                      <div className="flex justify-end items-center gap-1.5 mb-0.5">
+                        <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.innova)}</span>
+                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      </div>
+                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.innova}</span>
+                    </div>
+                  </div>
                   {meta.cabExtraCharges?.innova && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.innova}/hr</span>}
                 </div>
               )}
+              
               {meta.cabPrices.tempo && (
                 <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
-                  <div className="flex justify-between items-center"><span className="text-gray-800 font-medium">Tempo Traveller:</span> <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.tempo}</span></div>
+                  <div className="flex justify-between items-start">
+                    <span className="text-gray-800 font-medium mt-1">Tempo Traveller:</span> 
+                    <div className="text-right">
+                      <div className="flex justify-end items-center gap-1.5 mb-0.5">
+                        <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.tempo)}</span>
+                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      </div>
+                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.tempo}</span>
+                    </div>
+                  </div>
                   {meta.cabExtraCharges?.tempo && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.tempo}/hr</span>}
                 </div>
               )}
