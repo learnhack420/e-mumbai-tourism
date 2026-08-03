@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import LocationSelector from '../../components/LocationSelector'
+// 👇 Import SeoAnalyzer component
+import SeoAnalyzer from '../../components/SeoAnalyzer'
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
 import "react-quill-new/dist/quill.snow.css"
@@ -28,6 +30,11 @@ function BlogFormContent() {
   const [longDescription, setLongDescription] = useState('')
   const [gallery, setGallery] = useState([''])
   
+  // 🌟 SEO Meta States
+  const [metaTitle, setMetaTitle] = useState('')
+  const [metaDescription, setMetaDescription] = useState('')
+  const [metaKeywords, setMetaKeywords] = useState('')
+
   const [faqItems, setFaqItems] = useState([{ question: "", answer: "" }])
 
   const [category, setCategory] = useState("Travel Guide")
@@ -94,6 +101,11 @@ function BlogFormContent() {
       const meta = listing.metadata || {}
       setShortDescription(meta.shortDescription || '')
       
+      // Load SEO Data
+      setMetaTitle(meta.metaTitle || listing.title || '')
+      setMetaDescription(meta.metaDescription || meta.shortDescription || '')
+      setMetaKeywords(meta.metaKeywords || '')
+
       if (meta.blogCategory) {
         setCategory(meta.blogCategory)
         if (!currentCats.includes(meta.blogCategory)) {
@@ -163,6 +175,7 @@ function BlogFormContent() {
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
+    if (!metaTitle) setMetaTitle(newTitle)
     if (!slugEdited) {
       const generatedSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')    
       setSlug(generatedSlug)
@@ -225,7 +238,10 @@ function BlogFormContent() {
       shortDescription,
       gallery: cleanGallery,
       blogCategory: category,
-      faqItems: cleanFaqs
+      faqItems: cleanFaqs,
+      metaTitle,
+      metaDescription,
+      metaKeywords
     }
 
     const dbPayload = {
@@ -320,6 +336,37 @@ function BlogFormContent() {
                     placeholder="Select or Add Location (e.g. Uttarakhand, India)"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* 🌟 AI SEO Analyzer Component */}
+            <SeoAnalyzer 
+              pageTitle={title}
+              pageDescription={shortDescription || longDescription.replace(/<[^>]*>/g, '').substring(0, 160)}
+              location={location || 'India'}
+              categoryType="blog"
+              metaTitle={metaTitle}
+              setMetaTitle={setMetaTitle}
+              metaDescription={metaDescription}
+              setMetaDescription={setMetaDescription}
+              metaKeywords={metaKeywords}
+              setMetaKeywords={setMetaKeywords}
+            />
+
+            {/* Meta Fields for SEO */}
+            <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 space-y-4">
+              <h3 className="font-bold text-indigo-900">Search Engine Optimization (SEO) Metadata</h3>
+              <div>
+                <label className="block text-sm font-bold text-indigo-900 mb-1">Meta Title</label>
+                <input type="text" className="w-full px-4 py-2 border border-indigo-200 rounded-lg outline-none bg-white font-semibold text-sm" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} placeholder="Meta Title for Google search..." />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-indigo-900 mb-1">Meta Description</label>
+                <textarea rows={2} className="w-full px-4 py-2 border border-indigo-200 rounded-lg outline-none bg-white text-sm resize-none" value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} placeholder="Short description for Google search results (140-160 chars)..."></textarea>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-indigo-900 mb-1">Meta Keywords</label>
+                <input type="text" className="w-full px-4 py-2 border border-indigo-200 rounded-lg outline-none bg-white text-sm" value={metaKeywords} onChange={(e) => setMetaKeywords(e.target.value)} placeholder="keyword 1, keyword 2, keyword 3..." />
               </div>
             </div>
 

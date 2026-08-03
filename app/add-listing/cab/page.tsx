@@ -6,6 +6,8 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 // 👇 Import LocationSelector component
 import LocationSelector from '../../components/LocationSelector' 
+// 👇 Import SeoAnalyzer component
+import SeoAnalyzer from '../../components/SeoAnalyzer'
 
 function CabFormContent() {
   const router = useRouter()
@@ -166,6 +168,7 @@ function CabFormContent() {
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
+    if (!metaTitle) setMetaTitle(newTitle)
     if (!slugEdited) {
       const generatedSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')    
       setSlug(generatedSlug)
@@ -408,8 +411,24 @@ ${formattedFaqs}
                 </div>
               </div>
 
+              {/* 🌟 AI SEO Analyzer Component */}
+              <div className="mt-6">
+                <SeoAnalyzer 
+                  pageTitle={title}
+                  pageDescription={description || metaDescription}
+                  location={pickupCity || serviceCity || 'India'}
+                  categoryType="cab"
+                  metaTitle={metaTitle}
+                  setMetaTitle={setMetaTitle}
+                  metaDescription={metaDescription}
+                  setMetaDescription={setMetaDescription}
+                  metaKeywords={metaKeywords}
+                  setMetaKeywords={setMetaKeywords}
+                />
+              </div>
+
               {/* Meta Fields for SEO */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-blue-900 mb-1">Meta Title (SEO)</label>
                   <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none bg-white" value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} placeholder="e.g. Best Mumbai to Pune Cab Service - Book Taxi Online" />

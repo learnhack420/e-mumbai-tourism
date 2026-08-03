@@ -7,6 +7,8 @@ import Link from "next/link"
 import dynamic from "next/dynamic"
 // 👇 Import LocationSelector component
 import LocationSelector from "../../components/LocationSelector" 
+// 👇 Import SeoAnalyzer component
+import SeoAnalyzer from "../../components/SeoAnalyzer"
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
 import "react-quill-new/dist/quill.snow.css"
@@ -29,7 +31,9 @@ function PlaceFormContent() {
   const [formData, setFormData] = useState({
     placeName: "",
     slug: "",
+    metaTitle: "", // 🌟 Added Meta Title state
     metaDescription: "",
+    metaKeywords: "", // 🌟 Added Meta Keywords state
     category: "Historical",
     description: "",
     image: "",
@@ -121,7 +125,9 @@ function PlaceFormContent() {
       setFormData({
         placeName: data.title || "",
         slug: data.slug || "",
+        metaTitle: meta.metaTitle || data.title || "",
         metaDescription: meta.shortDescription || "",
+        metaKeywords: meta.metaKeywords || "",
         category: data.category || "Historical",
         description: data.description || "",
         image: meta.image || data.image || "", 
@@ -163,6 +169,7 @@ function PlaceFormContent() {
     setFormData(prev => ({
       ...prev,
       placeName: name,
+      metaTitle: prev.metaTitle ? prev.metaTitle : name,
       slug: slugEdited ? prev.slug : generateSlug(name)
     }))
   }
@@ -295,7 +302,9 @@ function PlaceFormContent() {
     const cleanFaqs = formData.faqItems.filter(f => f.question.trim() !== "" && f.answer.trim() !== "")
 
     const metadata = {
+      metaTitle: formData.metaTitle,
       shortDescription: formData.metaDescription,
+      metaKeywords: formData.metaKeywords,
       bestTimeToVisit: formData.bestTime,
       howToReach: formData.howToReach,
       topAttractions: cleanAttractions,
@@ -410,7 +419,7 @@ function PlaceFormContent() {
                   </div>
                 </div>
 
-                {/* 🌟 NEW LOCATION SELECTOR COMPONENT */}
+                {/* 🌟 LOCATION SELECTOR COMPONENT */}
                 <div className="md:col-span-2">
                   <LocationSelector 
                     label="Location (City / Area)*" 
@@ -423,16 +432,54 @@ function PlaceFormContent() {
               </div>
             </div>
 
-            <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
-              <label className="block text-sm font-bold mb-2 text-indigo-900">Meta Description (SEO)*</label>
-              <textarea 
-                rows={2} 
-                placeholder="Write a catchy 150-160 character summary for Google search results..." 
-                className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm" 
-                value={formData.metaDescription} 
-                onChange={(e) => setFormData({...formData, metaDescription: e.target.value})} 
-              />
-              <p className="text-xs text-indigo-600 mt-2 font-medium">Appears in Google search snippets. Keep it concise & engaging.</p>
+            {/* 🌟 AI SEO Analyzer Component */}
+            <SeoAnalyzer 
+              pageTitle={formData.placeName}
+              pageDescription={formData.description || formData.metaDescription}
+              location={location}
+              categoryType="place"
+              metaTitle={formData.metaTitle}
+              setMetaTitle={(val) => setFormData(prev => ({ ...prev, metaTitle: val }))}
+              metaDescription={formData.metaDescription}
+              setMetaDescription={(val) => setFormData(prev => ({ ...prev, metaDescription: val }))}
+              metaKeywords={formData.metaKeywords}
+              setMetaKeywords={(val) => setFormData(prev => ({ ...prev, metaKeywords: val }))}
+            />
+
+            <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 space-y-4">
+              <div>
+                <label className="block text-sm font-bold mb-1 text-indigo-900">SEO Meta Title</label>
+                <input 
+                  type="text" 
+                  placeholder="Meta Title for Google search..." 
+                  className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm font-semibold" 
+                  value={formData.metaTitle} 
+                  onChange={(e) => setFormData({...formData, metaTitle: e.target.value})} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 text-indigo-900">Meta Description (SEO)*</label>
+                <textarea 
+                  rows={2} 
+                  placeholder="Write a catchy 150-160 character summary for Google search results..." 
+                  className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm" 
+                  value={formData.metaDescription} 
+                  onChange={(e) => setFormData({...formData, metaDescription: e.target.value})} 
+                />
+                <p className="text-xs text-indigo-600 mt-2 font-medium">Appears in Google search snippets. Keep it concise & engaging.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold mb-1 text-indigo-900">SEO Meta Keywords</label>
+                <input 
+                  type="text" 
+                  placeholder="keyword 1, keyword 2, keyword 3..." 
+                  className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm" 
+                  value={formData.metaKeywords} 
+                  onChange={(e) => setFormData({...formData, metaKeywords: e.target.value})} 
+                />
+              </div>
             </div>
 
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
