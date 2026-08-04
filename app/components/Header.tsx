@@ -26,11 +26,14 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           
           {/* Logo Section */}
-<div className="flex-shrink-0 flex items-center">
-  <Link href="/" className="text-2xl font-extrabold text-blue-600 tracking-tight">
-    India Tour <span className="text-orange-500">Operators</span>
-  </Link>
-</div>
+          <div className="flex-shrink-0 flex items-center">
+            <Link href="/" className="text-2xl font-extrabold tracking-tight flex items-center">
+              <span className="text-orange-500">India</span> 
+              <span className="text-blue-900"> Tour</span> 
+              <span className="text-green-600"> Operators</span>
+              <span className="text-blue-900">.com</span> 
+            </Link>
+          </div>
 
           {/* Center Navigation Links */}
           <nav className="hidden md:flex space-x-8">

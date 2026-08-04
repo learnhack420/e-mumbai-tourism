@@ -16,14 +16,14 @@ const stripHtml = (html: string) => {
   return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');   
 }
 
-// 🌟 MOCK DATA FOR SEO & UX (You can later move this to database)
+// 🌟 MOCK DATA FOR SEO & UX
 const testimonials = [
   { name: "Rahul Sharma", location: "Mumbai", text: "Booked a Kerala tour package through this portal. The local operator was extremely professional, and the price was 20% lower than other big sites!", rating: 5 },
   { name: "Priya Desai", location: "Delhi", text: "Got an outstation cab for my Manali trip within 10 minutes. The driver was verified and the car was in top condition. Highly recommended.", rating: 5 },
   { name: "Amit Patel", location: "Ahmedabad", text: "Finding authentic local tour guides used to be hard. This platform made it so easy to compare prices and book a luxury hotel in Goa safely.", rating: 5 }
 ];
 
-// 🌟 UPDATED: Extended FAQs for Better SEO & User Trust
+// 🌟 Extended FAQs for Better SEO & User Trust
 const homeFaqs = [
   { q: "Why should I book through India Tour Operators?", a: "We connect you directly with verified local tour operators, cutting out the middlemen. This ensures you get the most authentic travel experience at the best guaranteed prices." },
   { q: "Are the outstation cabs and drivers verified?", a: "Yes, all our cab partners and drivers undergo a strict background check. We prioritize your safety, comfort, and reliability for long-distance trips." },
@@ -48,14 +48,28 @@ export default async function Home() {
     if (listing.category === 'hotel') return `/hotel/${slug}`
     if (listing.category === 'cab') return `/cabs/${slug}`
     if (listing.category === 'destination') return `/places/${slug}` 
-    if (listing.category === 'blog') return `/${slug}`               
+    if (listing.category === 'blog') return `/${slug}`             
     return `/listing/${slug}`
   }
 
+  // 🌟 PERFECT THUMBNAIL EXTRACTOR (Now with Custom Logo Fallback)
   const getThumbnail = (listing: any) => {
-    const meta = listing.metadata || {}
-    if (meta.gallery && meta.gallery.length > 0 && meta.gallery[0].trim() !== '') return meta.gallery[0];
-    return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=600'
+    const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
+    
+    // 1. Direct Image Match 
+    const exactImage = listing.image || listing.thumbnail || meta.thumbnail || meta.image;
+    if (exactImage && typeof exactImage === 'string' && exactImage.trim() !== '') {
+      return exactImage.trim();
+    }
+
+    // 2. Check meta.gallery array as fallback 
+    if (meta.gallery && Array.isArray(meta.gallery) && meta.gallery.length > 0) {
+      const firstValidImg = meta.gallery.find((img: string) => img && typeof img === 'string' && img.trim() !== '')
+      if (firstValidImg) return firstValidImg.trim()
+    }
+
+    // 3. Custom Default Logo (If no image is found anywhere)
+    return '/ITO LOGO.png'
   }
 
   const tours = listings?.filter((l) => l.category === 'tour') || []
@@ -174,9 +188,13 @@ export default async function Home() {
 
                   return (
                     <Link href={detailUrl} key={listing.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-2xl hover:border-blue-100 transition-all duration-300 flex flex-col group cursor-pointer">
-                      <div className="relative h-60 w-full bg-slate-200 overflow-hidden">
+                      <div className="relative h-60 w-full bg-slate-200 overflow-hidden flex items-center justify-center">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={imageUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out" />
+                        <img 
+                          src={imageUrl} 
+                          alt={listing.title} 
+                          className={`w-full h-full ${imageUrl === '/ITO LOGO.png' ? 'object-contain p-4' : 'object-cover group-hover:scale-110 transition-transform duration-700 ease-in-out'}`} 
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         <span className="absolute top-4 left-4 text-xs font-black text-white bg-slate-900/80 backdrop-blur-md px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg">
                           {listing.category === 'blog' && listing.metadata?.blogCategory ? listing.metadata.blogCategory : listing.category === 'destination' ? 'Tourist Place' : listing.category}

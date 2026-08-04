@@ -6,12 +6,12 @@ import Link from 'next/link'
 
 export default function Register() {
   const [formData, setFormData] = useState({
-    fullName: '',
+    fullName: '',       // Will be used for 'Name of Vendor'
     email: '',
     password: '',
-    phone: '',          // New: Mobile Number
-    location: '',       // New: Operating Location (For Vendors)
-    role: 'customer'    // Default role customer
+    phone: '',          
+    location: '',       
+    role: 'vendor'      // Role is strictly fixed to 'vendor' now
   })
   const [status, setStatus] = useState({ loading: false, success: false, error: '', message: '' })
   const router = useRouter()
@@ -37,36 +37,30 @@ export default function Register() {
     if (error) {
       setStatus({ loading: false, success: false, error: error.message, message: '' })
     } else {
-      // 🌟 NEW: EMAIL TRIGGER API CALL FOR REGISTRATION
+      // EMAIL TRIGGER API CALL FOR REGISTRATION
       fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: formData.role === 'vendor' ? 'New Vendor / Partner Registration 🏢' : 'New Customer Registration 👤',
+          type: 'New Vendor / Partner Registration 🏢',
           data: {
-            Full_Name: formData.fullName,
+            Name_of_Vendor: formData.fullName,
             Email: formData.email,
             Phone: formData.phone,
-            Account_Type: formData.role.toUpperCase(),
+            Account_Type: 'VENDOR',
             Operating_Location: formData.location || 'N/A',
-            Admin_Action: formData.role === 'vendor' ? 'Pending Approval (Please approve from Admin Panel)' : 'None Required'
+            Admin_Action: 'Pending Approval (Please approve from Admin Panel)'
           }
         })
       }).catch(err => console.error("Email bhejte waqt error aaya:", err))
 
-      // UI Success Message & Redirect Logic
-      let successMsg = 'Registration successful! '
-      if (formData.role === 'vendor') {
-        successMsg += 'Aapka Partner account abhi Pending hai. Admin ke approve karne ke baad aap login kar payenge.'
-      } else {
-        successMsg += 'Aap ab login kar sakte hain.'
-      }
+      // Set success state to show the success banner
+      setStatus({ loading: false, success: true, error: '', message: '' })
       
-      setStatus({ loading: false, success: true, error: '', message: successMsg })
-      
+      // Thoda time badha diya hai taaki vendor carefully message padh sake (6 seconds)
       setTimeout(() => {
         router.push('/login')
-      }, 4000)
+      }, 6000)
     }
   }
 
@@ -112,25 +106,33 @@ export default function Register() {
 
 
       {/* --- REGISTRATION CARD (GLASSMORPHISM) --- */}
-      <div className="relative z-10 w-full max-w-md bg-white/80 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.15)] p-8 border border-white/50">
+      <div className="relative z-10 w-full max-w-md bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.15)] p-8 border border-white/50">
         
         {/* SUCCESS SCREEN */}
         {status.success ? (
-          <div className="text-center py-10 animate-float">
-            <div className="text-7xl mb-6 animate-bounce">🎉🌴</div>
-            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-cyan-600 mb-4">
-              Welcome Aboard!
+          <div className="text-center py-6 animate-float">
+            <div className="text-6xl mb-4 animate-bounce">🎊</div>
+            
+            <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-cyan-600 mb-6 leading-tight">
+              Congratulations!<br/>Registration Successful
             </h2>
-            <p className="text-gray-700 font-medium mb-8 leading-relaxed">
-              {status.message}
-            </p>
-            <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-sm text-cyan-600 font-bold animate-pulse">Taking you to the login beach...</p>
+            
+            {/* 🌟 NEW: CHECK EMAIL BANNER */}
+            <div className="bg-amber-50 border-2 border-amber-200 p-5 rounded-2xl mb-8 shadow-sm">
+              <div className="text-4xl mb-2">📧</div>
+              <h3 className="text-xl font-black text-amber-800 mb-2">Check Your Email & Confirm!</h3>
+              <p className="text-amber-700 font-medium text-sm leading-relaxed">
+                A verification link has been sent to your email address. Please click on that link to confirm and activate your account.
+              </p>
+            </div>
+
+            <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-sm text-cyan-600 font-bold animate-pulse">Redirecting to login page...</p>
           </div>
         ) : (
           /* FORM SCREEN */
           <>
-            <h2 className="text-3xl font-black text-center text-slate-800 mb-2 drop-shadow-sm">Create Account</h2>
+            <h2 className="text-3xl font-black text-center text-slate-800 mb-2 drop-shadow-sm">Partner Sign Up</h2>
             <p className="text-center text-slate-500 mb-8 font-medium">India Tour Operators par aapka swagat hai 🏖️</p>
             
             {status.error && (
@@ -141,37 +143,18 @@ export default function Register() {
 
             <form onSubmit={handleRegister} className="space-y-5">
               
-              {/* 1. Account Type (Role) */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">Select Account Type</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className={`border-2 p-3 rounded-2xl cursor-pointer text-center font-bold transition-all duration-300 ${formData.role === 'customer' ? 'bg-cyan-500 text-white border-cyan-500 shadow-lg scale-[1.02]' : 'bg-white/50 border-white text-slate-600 hover:bg-white'}`}>
-                    <input type="radio" name="role" className="hidden" value="customer" 
-                      checked={formData.role === 'customer'} onChange={() => setFormData({...formData, role: 'customer'})} />
-                    <span className="text-xl block mb-1">🙎‍♂️</span>
-                    Customer
-                  </label>
-                  
-                  <label className={`border-2 p-3 rounded-2xl cursor-pointer text-center font-bold transition-all duration-300 ${formData.role === 'vendor' ? 'bg-cyan-500 text-white border-cyan-500 shadow-lg scale-[1.02]' : 'bg-white/50 border-white text-slate-600 hover:bg-white'}`}>
-                    <input type="radio" name="role" className="hidden" value="vendor" 
-                      checked={formData.role === 'vendor'} onChange={() => setFormData({...formData, role: 'vendor'})} />
-                    <span className="text-xl block mb-1">🏢</span>
-                    Partner
-                  </label>
-                </div>
-              </div>
-
-              {/* 2. Basic Details */}
+              {/* Name of Vendor */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">
-                  {formData.role === 'vendor' ? 'Agency / Business Name' : 'Full Name'}
+                  Name of Vendor / Agency
                 </label>
                 <input type="text" required 
                   className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
                   value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
-                  placeholder={formData.role === 'vendor' ? 'Ex: Raj Travels & Tours' : 'Ex: Rahul Sharma'} />
+                  placeholder="Ex: Raj Travels & Tours" />
               </div>
 
+              {/* Email Address */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
                 <input type="email" required 
@@ -180,6 +163,7 @@ export default function Register() {
                   placeholder="email@example.com" />
               </div>
 
+              {/* Mobile Number */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Mobile Number</label>
                 <input type="tel" required 
@@ -188,18 +172,17 @@ export default function Register() {
                   placeholder="Ex: 9876543210" />
               </div>
 
-              {/* 3. Operating Location (For Vendors only) */}
-              {formData.role === 'vendor' && (
-                <div className="bg-cyan-50/80 p-4 rounded-2xl border border-cyan-100 transition-all">
-                  <label className="block text-sm font-bold text-cyan-900 mb-1">Operating City / Location</label>
-                  <input type="text" required 
-                    className="w-full px-4 py-3 rounded-xl border border-white bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
-                    value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} 
-                    placeholder="Ex: Kochi, Kerala or Mumbai" />
-                  <p className="text-xs text-cyan-700 mt-2 font-medium">📍 Aap kis sheher se apni services operate karte hain?</p>
-                </div>
-              )}
+              {/* Operating Location */}
+              <div className="bg-cyan-50/80 p-4 rounded-2xl border border-cyan-100 transition-all">
+                <label className="block text-sm font-bold text-cyan-900 mb-1">Operating City / Location</label>
+                <input type="text" required 
+                  className="w-full px-4 py-3 rounded-xl border border-white bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                  value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} 
+                  placeholder="Ex: Kochi, Kerala or Mumbai" />
+                <p className="text-xs text-cyan-700 mt-2 font-medium">📍 Aap kis sheher se apni services operate karte hain?</p>
+              </div>
 
+              {/* Password */}
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
                 <input type="password" required 
@@ -215,7 +198,7 @@ export default function Register() {
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> 
                     Processing...
                   </span>
-                ) : 'Sign Up Now'}
+                ) : 'Sign Up as Partner'}
               </button>
             </form>
 

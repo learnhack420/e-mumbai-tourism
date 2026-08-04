@@ -8,17 +8,20 @@ export default function Footer() {
           
           {/* Brand Info */}
           <div className="col-span-1 md:col-span-2">
-            <h2 className="text-2xl font-extrabold text-white mb-4">
-              India Tour <span className="text-orange-500">Operators</span>
+            <h2 className="text-2xl font-extrabold text-white mb-4 flex items-center">
+              <span className="text-orange-500">India</span> 
+              <span className="text-blue-900">Tour</span> 
+              <span className="text-green-600">Operators</span>
+              <span className="text-blue-900">.com</span> 
             </h2>
-            <p className="text-sm text-gray-400 mb-4 max-w-sm">
+            <p className="text-sm text-gray-400 mb-4 max-w-sm leading-relaxed">
               Discover the beauty of India with our verified vendors. Best cab services, tour packages, and comfortable stays all in one place.
             </p>
-            <p className="text-sm">📧 support@indiatouroperators.com</p>
-            <p className="text-sm mt-1">📞 +91 9867600452</p>
+            <p className="text-sm">📧 rajtours14@gmail.com</p>
+            <p className="text-sm mt-1">📞 +91 98924 55466</p>
           </div>
 
-          {/* Quick Links */}
+          {/* Quick Links (For Customers) */}
           <div>
             <h3 className="text-lg font-bold text-white mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm">
@@ -26,14 +29,17 @@ export default function Footer() {
               <li><Link href="/tours" className="hover:text-blue-400 transition-colors">Tour Packages</Link></li>
               <li><Link href="/cabs" className="hover:text-blue-400 transition-colors">Book a Cab</Link></li>
               <li><Link href="/hotels" className="hover:text-blue-400 transition-colors">Find Hotels</Link></li>
+              <li><Link href="/contact" className="hover:text-blue-400 transition-colors">Contact Us</Link></li>
+              <li><Link href="/cancellation-policy" className="hover:text-blue-400 transition-colors">Cancellation Policy</Link></li>
             </ul>
           </div>
 
-          {/* For Partners */}
+          {/* For Partners / Legal */}
           <div>
             <h3 className="text-lg font-bold text-white mb-4">For Partners</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/signup" className="hover:text-orange-400 transition-colors">Register as Vendor</Link></li>
+              {/* Maine yahan /signup ki jagah /register kar diya hai kyunki aapke CTA mein /register link hai */}
+              <li><Link href="/register" className="hover:text-orange-400 transition-colors">Register as Vendor</Link></li>
               <li><Link href="/login" className="hover:text-orange-400 transition-colors">Vendor Login</Link></li>
               <li><Link href="/terms" className="hover:text-orange-400 transition-colors">Terms & Conditions</Link></li>
               <li><Link href="/privacy" className="hover:text-orange-400 transition-colors">Privacy Policy</Link></li>
