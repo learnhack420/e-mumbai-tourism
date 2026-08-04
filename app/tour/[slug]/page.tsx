@@ -309,16 +309,23 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             </section>
           )}
 
+          {/* 🌟 OVERVIEW FIX: Added Replace hacks for escaped HTML from visual editor */}
           {meta.overview && (
             <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
               <h2 className="text-3xl font-black text-gray-900 mb-6 border-b border-gray-100 pb-4">Overview of {tour.title}</h2>
               <div 
                 className="prose prose-lg max-w-none text-gray-600 leading-loose break-words overflow-x-auto marker:text-blue-500" 
-                dangerouslySetInnerHTML={{ __html: meta.overview }} 
+                dangerouslySetInnerHTML={{ 
+                  __html: meta.overview
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                }} 
               />
             </section>
           )}
 
+          {/* 🌟 ITINERARY FIX: Switched to prose block and added Replace hacks for escaped HTML */}
           {(itineraryDays.length > 0 || meta.itinerary) && (
             <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
               <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
@@ -330,12 +337,28 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                     <div key={idx} className="relative pl-8 border-l-4 border-blue-100">
                       <div className="absolute w-6 h-6 bg-blue-600 rounded-full -left-[15px] top-1 ring-8 ring-blue-50 flex items-center justify-center text-[10px] font-black text-white">{day.day}</div>
                       <h3 className="text-xl font-black text-gray-900">Day {day.day}: {day.title}</h3>
-                      <p className="text-gray-600 mt-3 text-base leading-relaxed whitespace-pre-wrap">{day.description}</p>
+                      <div 
+                        className="mt-3 prose prose-sm sm:prose-base max-w-none text-gray-600 leading-relaxed marker:text-blue-500"
+                        dangerouslySetInnerHTML={{ 
+                          __html: day.description
+                            .replace(/&nbsp;/g, ' ')
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="whitespace-pre-wrap text-gray-600 leading-relaxed prose prose-lg max-w-none">{meta.itinerary}</div>
+                <div 
+                  className="prose prose-lg max-w-none text-gray-600 leading-relaxed marker:text-blue-500"
+                  dangerouslySetInnerHTML={{ 
+                    __html: meta.itinerary
+                      .replace(/&nbsp;/g, ' ')
+                      .replace(/&lt;/g, '<')
+                      .replace(/&gt;/g, '>')
+                  }} 
+                />
               )}
             </section>
           )}
@@ -406,7 +429,6 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           </section>
 
           {/* 🌟 NAYA AI FAQs COMPONENT */}
-          {/* Yeh automatically check karega ki naye banane hain ya purane faqs dikhane hain */}
           <AIAutoFAQs 
             origin={origin} 
             destination={destinationsCovered} 

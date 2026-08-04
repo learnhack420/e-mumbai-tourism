@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import LocationSelector from '../../components/LocationSelector' 
-import SeoAnalyzer from '../../components/SeoAnalyzer' // 🌟 Advanced AI SEO Component Import Kiya
+import SeoAnalyzer from '../../components/SeoAnalyzer' 
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
@@ -674,10 +674,22 @@ ${formattedFaqs}
                         <label className="block text-xs font-bold text-gray-600 mb-1">Day Title</label>
                         <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-white" placeholder="e.g. Arrival in Mumbai & Local Sightseeing" value={day.title} onChange={(e) => handleItineraryChange(index, 'title', e.target.value)} />
                       </div>
+                      
+                      {/* 🌟 Yahan ReactQuill Add Kiya Gaya Hai */}
                       <div>
-                        <label className="block text-xs font-bold text-gray-600 mb-1">Day Description</label>
-                        <textarea rows={3} required className="w-full px-4 py-2 border rounded-lg outline-none bg-white resize-none" placeholder="Describe the activities for this day..." value={day.description} onChange={(e) => handleItineraryChange(index, 'description', e.target.value)}></textarea>
+                        <label className="block text-xs font-bold text-gray-600 mb-2">Day Description</label>
+                        <div className="bg-white rounded-lg overflow-hidden border border-gray-300">
+                          <ReactQuill 
+                            theme="snow" 
+                            value={day.description} 
+                            onChange={(value) => handleItineraryChange(index, 'description', value)} 
+                            modules={quillModules} 
+                            className="h-40" 
+                          />
+                        </div>
+                        <div className="mt-12"></div>
                       </div>
+
                     </div>
                   </div>
                 ))}
