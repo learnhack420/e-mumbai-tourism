@@ -602,9 +602,15 @@ ${formattedFaqs}
               <h2 className="text-xl font-bold text-gray-800 border-b pb-2 mb-6">3. Description & Pricing</h2>
               <div className="mb-8">
                 <label className="block text-sm font-bold text-gray-700 mb-2">Tour Overview</label>
-                <div className="bg-white rounded-lg overflow-hidden border border-gray-300">
-                  <ReactQuill theme="snow" value={overview} onChange={setOverview} modules={quillModules} className="h-48" />
-                </div>
+                <div className="bg-white rounded-lg border border-gray-300">
+  <ReactQuill 
+    theme="snow" 
+    value={overview} 
+    onChange={setOverview} 
+    modules={quillModules} 
+    className="[&_.ql-editor]:min-h-[200px] [&_.ql-editor]:max-h-[400px]" 
+  />
+</div>
                 <div className="mt-12"></div>
               </div>
 
@@ -678,15 +684,15 @@ ${formattedFaqs}
                       {/* 🌟 Yahan ReactQuill Add Kiya Gaya Hai */}
                       <div>
                         <label className="block text-xs font-bold text-gray-600 mb-2">Day Description</label>
-                        <div className="bg-white rounded-lg overflow-hidden border border-gray-300">
-                          <ReactQuill 
-                            theme="snow" 
-                            value={day.description} 
-                            onChange={(value) => handleItineraryChange(index, 'description', value)} 
-                            modules={quillModules} 
-                            className="h-40" 
-                          />
-                        </div>
+                        <div className="bg-white rounded-lg border border-gray-300">
+  <ReactQuill 
+    theme="snow" 
+    value={day.description} 
+    onChange={(value) => handleItineraryChange(index, 'description', value)} 
+    modules={quillModules} 
+    className="[&_.ql-editor]:min-h-[150px] [&_.ql-editor]:max-h-[300px]" 
+  />
+</div>
                         <div className="mt-12"></div>
                       </div>
 
