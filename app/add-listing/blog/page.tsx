@@ -324,7 +324,7 @@ function BlogFormContent() {
 
     const metadata = {
       shortDescription,
-      thumbnail, // 🌟 Save Thumbnail
+      thumbnail, 
       gallery: cleanGallery,
       blogCategory: category,
       faqItems: cleanFaqs,
@@ -532,8 +532,9 @@ function BlogFormContent() {
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">Full Article Content (Rich Text)</label>
                   <div className="h-[400px] mb-12">
+                    {/* @ts-ignore - Dynamic import causes ref type mismatch */}
                     <ReactQuill 
-                      ref={quillRef} // 🌟 Ref added for custom image handler
+                      ref={quillRef} 
                       theme="snow" 
                       value={longDescription} 
                       onChange={setLongDescription} 
