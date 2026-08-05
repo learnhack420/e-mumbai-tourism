@@ -160,6 +160,22 @@ export default function AdminDashboard() {
     if (!error) fetchListings()
   }
 
+  // 🌟 NAYA FUNCTION: Delete Listing Permanently
+  async function deleteListing(id: string) {
+    if (!window.confirm("WARNING: Kya aap sach mein is listing ko permanently delete karna chahte hain? Yeh wapas recover nahi hogi.")) return
+
+    const { error } = await supabase
+      .from('listings')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      alert("Error deleting listing: " + error.message)
+    } else {
+      fetchListings() // Table update karne ke liye
+    }
+  }
+
   // Helper to determine Edit URL
   const getEditUrl = (listing: any) => {
     const cat = listing.category
@@ -211,8 +227,8 @@ export default function AdminDashboard() {
     // 2. Search Query Filter (Title or Location)
     const q = searchQuery.toLowerCase();
     // Naya Safe Code
-const title = typeof listing.title === 'string' ? listing.title.toLowerCase() : '';
-const location = typeof listing.location === 'string' ? listing.location.toLowerCase() : '';
+    const title = typeof listing.title === 'string' ? listing.title.toLowerCase() : '';
+    const location = typeof listing.location === 'string' ? listing.location.toLowerCase() : '';
     const matchesSearch = title.includes(q) || location.includes(q);
 
     return matchesCategory && matchesSearch;
@@ -448,6 +464,11 @@ const location = typeof listing.location === 'string' ? listing.location.toLower
                           )}
                           {listing.status === 'approved' && (
                             <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
+                          )}
+                          
+                          {/* 🌟 NAYA BUTTON: Permanent Delete for declined listings */}
+                          {listing.status === 'declined' && (
+                            <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
                           )}
                         </td>
                       </tr>
