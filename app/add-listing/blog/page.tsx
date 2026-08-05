@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic'
 import LocationSelector from '../../components/LocationSelector'
 import SeoAnalyzer from '../../components/SeoAnalyzer'
 
-const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
+const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false }) as any
 import "react-quill-new/dist/quill.snow.css"
 
 function BlogFormContent() {
