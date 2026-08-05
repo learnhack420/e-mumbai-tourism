@@ -455,8 +455,8 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
         vendorId={tour.vendor_id} 
         location={tour.location} 
         targetCity={targetCity} 
+        originCity={origin} // 👈 Yeh line zaroor honi chahiye
       />
-
     </main>
   )
 }
