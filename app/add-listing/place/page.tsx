@@ -5,9 +5,7 @@ import { supabase } from "@/utils/supabase"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import dynamic from "next/dynamic"
-// 👇 Import LocationSelector component
 import LocationSelector from "../../components/LocationSelector" 
-// 👇 Import SeoAnalyzer component
 import SeoAnalyzer from "../../components/SeoAnalyzer"
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
@@ -16,7 +14,7 @@ import "react-quill-new/dist/quill.snow.css"
 function PlaceFormContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const editId = searchParams.get("edit") // 🌟 Fetch ID for Edit Mode
+  const editId = searchParams.get("edit")
 
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -25,15 +23,14 @@ function PlaceFormContent() {
   const [vendorId, setVendorId] = useState("")
   const [userRole, setUserRole] = useState("")
 
-  // 🌟 Unified Location State
   const [location, setLocation] = useState("")
 
   const [formData, setFormData] = useState({
     placeName: "",
     slug: "",
-    metaTitle: "", // 🌟 Added Meta Title state
+    metaTitle: "", 
     metaDescription: "",
-    metaKeywords: "", // 🌟 Added Meta Keywords state
+    metaKeywords: "", 
     category: "Historical",
     description: "",
     image: "",
@@ -50,7 +47,6 @@ function PlaceFormContent() {
 
   const [slugEdited, setSlugEdited] = useState(false)
 
-  // Categories Logic
   const [availableCategories, setAvailableCategories] = useState<string[]>([])
   const [isManagingCategories, setIsManagingCategories] = useState(false)
   const [isAddingCategory, setIsAddingCategory] = useState(false)
@@ -60,6 +56,7 @@ function PlaceFormContent() {
 
   const [topAttractions, setTopAttractions] = useState([""])
   const [gallery, setGallery] = useState([""])
+  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null) // 🌟 Loader state for gallery
 
   useEffect(() => {
     checkAccessAndLoadData()
@@ -92,7 +89,6 @@ function PlaceFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
-    // Load Categories
     const savedCats = typeof window !== "undefined" ? localStorage.getItem("adminPlaceCategories") : null
     if (savedCats) {
       try {
@@ -104,7 +100,6 @@ function PlaceFormContent() {
       setAvailableCategories(["Historical", "Pilgrimage", "Nature", "Beach", "Hill Station"])
     }
 
-    // 🔥 FETCH EXISTING DATA FOR EDIT
     if (editId) {
       const { data, error } = await supabase
         .from("listings")
@@ -118,7 +113,7 @@ function PlaceFormContent() {
         return
       }
 
-      setLocation(data.location || "") // 🌟 Load Location
+      setLocation(data.location || "")
 
       const meta = data.metadata || {}
 
@@ -153,6 +148,61 @@ function PlaceFormContent() {
     }
 
     setLoading(false)
+  }
+
+  // 🌟 IMGBB IMAGE UPLOAD HELPER FUNCTION (No Supabase Storage used)
+  const uploadImageToServer = async (file: File) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    
+    const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
+    
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await response.json()
+      if (data.success) {
+        return data.data.url 
+      } else {
+        throw new Error('Upload failed')
+      }
+    } catch (error) {
+      console.error("Image upload error:", error)
+      alert("Image upload fail ho gaya. Kripya image size chota rakhein ya URL direct paste karein.")
+      return null
+    }
+  }
+
+  // 🌟 Main Image Upload (Updated to ImgBB)
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    setMessage({ type: "", text: "" })
+
+    const url = await uploadImageToServer(file)
+    if (url) {
+      setFormData(prev => ({ ...prev, image: url }))
+    }
+    setIsUploading(false)
+  }
+
+  // 🌟 Gallery Upload Handler
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    setUploadingGalleryIndex(index)
+    const url = await uploadImageToServer(file)
+    if (url) {
+      const newGallery = [...gallery]
+      newGallery[index] = url
+      setGallery(newGallery)
+    }
+    setUploadingGalleryIndex(null)
   }
 
   const generateSlug = (name: string) => {
@@ -220,33 +270,6 @@ function PlaceFormContent() {
     }
     setEditingCatIndex(null)
     setEditingCatName("")
-  }
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setIsUploading(true)
-    setMessage({ type: "", text: "" })
-
-    try {
-      const fileExt = file.name.split(".").pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
-      const filePath = `tourist_places/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from("listings")
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data } = supabase.storage.from("listings").getPublicUrl(filePath)
-      setFormData(prev => ({ ...prev, image: data.publicUrl }))
-    } catch (error: any) {
-      alert("Image upload failed: " + error.message)
-    } finally {
-      setIsUploading(false)
-    }
   }
 
   const handleDescriptionChange = useCallback((value: string) => {
@@ -419,7 +442,6 @@ function PlaceFormContent() {
                   </div>
                 </div>
 
-                {/* 🌟 LOCATION SELECTOR COMPONENT */}
                 <div className="md:col-span-2">
                   <LocationSelector 
                     label="Location (City / Area)*" 
@@ -432,12 +454,11 @@ function PlaceFormContent() {
               </div>
             </div>
 
-            {/* 🌟 AI SEO Analyzer Component */}
             <SeoAnalyzer 
               pageTitle={formData.placeName}
               pageDescription={formData.description || formData.metaDescription}
               location={location}
-              categoryType="tour" // 👈 "place" ki jagah "tour" kar dein
+              categoryType="tour" 
               metaTitle={formData.metaTitle}
               setMetaTitle={(val) => setFormData(prev => ({ ...prev, metaTitle: val }))}
               metaDescription={formData.metaDescription}
@@ -569,7 +590,7 @@ function PlaceFormContent() {
                   <input type="text" placeholder="Paste Image URL..." className="w-full p-3 border border-amber-200 rounded-xl bg-white text-sm" value={formData.image} onChange={(e) => setFormData({...formData, image: e.target.value})} />
                   <div className="flex items-center gap-4">
                     <span className="text-xs font-bold text-amber-700 uppercase">Or Upload File</span>
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="text-xs text-slate-500 file:bg-amber-100 file:border-0 file:rounded-full file:px-4 file:py-2 file:text-amber-800 cursor-pointer" />
+                    <input type="file" accept="image/*" onChange={handleImageUpload} className="text-xs text-slate-500 file:bg-amber-100 file:border-0 file:rounded-full file:px-4 file:py-2 file:text-amber-800 cursor-pointer" disabled={isUploading} />
                   </div>
                 </div>
                 <div className="flex justify-center border-2 border-dashed border-amber-200 rounded-xl p-2 bg-white/50 min-h-[140px] items-center">
@@ -641,17 +662,25 @@ function PlaceFormContent() {
               </div>
             </div>
 
+            {/* 🌟 GALLERY UPLOAD FIX HERE */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-800">5. Photo Gallery (Extra Image URLs)</h2>
-                <button type="button" onClick={() => setGallery([...gallery, ""])} className="text-sm bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-lg hover:bg-gray-300">+ Add Image URL</button>
+                <button type="button" onClick={() => setGallery([...gallery, ""])} className="text-sm bg-gray-200 text-gray-700 font-bold px-3 py-1.5 rounded-lg hover:bg-gray-300">+ Add New Line</button>
               </div>
               <div className="space-y-3">
                 {gallery.map((url, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input type="url" className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 text-sm" placeholder="https://website.com/image.jpg" value={url} onChange={(e) => handleArrayChange(index, e.target.value, "gallery")} />
+                  <div key={index} className="flex items-center gap-2">
+                    <input type="url" className="flex-1 px-4 py-2 border rounded-lg outline-none bg-gray-50 text-sm" placeholder="https://website.com/image.jpg" value={url} onChange={(e) => handleArrayChange(index, e.target.value, "gallery")} />
+                    
+                    {/* 🌟 Folder Icon logic for ImgBB gallery upload */}
+                    <label className={`px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm transition-colors border ${uploadingGalleryIndex === index ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'}`}>
+                      {uploadingGalleryIndex === index ? '⏳...' : '📁'}
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleGalleryUpload(e, index)} disabled={uploadingGalleryIndex === index} />
+                    </label>
+
                     {gallery.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveArrayItem(index, "gallery")} className="text-red-500 font-bold px-3 hover:bg-red-50 rounded-lg">✕</button>
+                      <button type="button" onClick={() => handleRemoveArrayItem(index, "gallery")} className="text-red-500 hover:text-red-700 font-bold px-3 py-2 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100 transition-colors">✕</button>
                     )}
                   </div>
                 ))}
@@ -673,7 +702,7 @@ function PlaceFormContent() {
             </div>
 
             <div className="pt-6 border-t">
-              <button type="submit" disabled={submitting || isUploading} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform transform hover:scale-[1.01]">
+              <button type="submit" disabled={submitting || isUploading || uploadingGalleryIndex !== null} className="w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg transition-transform transform hover:scale-[1.01] disabled:bg-amber-400">
                 {submitting ? "Processing..." : (editId ? "Update Attraction Page" : "Submit Attraction for Approval")}
               </button>
             </div>

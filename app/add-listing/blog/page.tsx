@@ -1,11 +1,10 @@
 "use client"
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useRef, useCallback, useMemo } from 'react'
 import { supabase } from '@/utils/supabase' 
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import LocationSelector from '../../components/LocationSelector'
-// 👇 Import SeoAnalyzer component
 import SeoAnalyzer from '../../components/SeoAnalyzer'
 
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false })
@@ -28,7 +27,12 @@ function BlogFormContent() {
   const [location, setLocation] = useState('')
   const [shortDescription, setShortDescription] = useState('')
   const [longDescription, setLongDescription] = useState('')
+  
+  // 🌟 Thumbnail & Gallery States
+  const [thumbnail, setThumbnail] = useState('')
+  const [isUploadingThumb, setIsUploadingThumb] = useState(false)
   const [gallery, setGallery] = useState([''])
+  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null)
   
   // 🌟 SEO Meta States
   const [metaTitle, setMetaTitle] = useState('')
@@ -44,6 +48,9 @@ function BlogFormContent() {
   const [newCategory, setNewCategory] = useState("")
   const [editingCatIndex, setEditingCatIndex] = useState<number | null>(null)
   const [editingCatName, setEditingCatName] = useState("")
+
+  // 🌟 Quill Editor Ref (Image handler ke liye zaroori hai)
+  const quillRef = useRef<any>(null)
 
   useEffect(() => {
     checkAccessAndLoadData()
@@ -115,6 +122,8 @@ function BlogFormContent() {
         }
       }
 
+      setThumbnail(meta.thumbnail || meta.gallery?.[0] || '')
+
       if (meta.gallery && meta.gallery.length > 0) {
         setGallery(meta.gallery)
       }
@@ -129,6 +138,95 @@ function BlogFormContent() {
     setLoading(false)
   }
 
+  // 🌟 IMGBB IMAGE UPLOAD HELPER FUNCTION
+  const uploadImageToServer = async (file: File) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
+    
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await response.json()
+      if (data.success) {
+        return data.data.url 
+      } else {
+        throw new Error('Upload failed')
+      }
+    } catch (error) {
+      console.error("Image upload error:", error)
+      alert("Image upload fail ho gaya. Kripya image size chota rakhein.")
+      return null
+    }
+  }
+
+  // 🌟 REACT QUILL CUSTOM IMAGE HANDLER (Base64 Error Fix)
+  const imageHandler = useCallback(() => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      if (input.files && input.files[0]) {
+        const file = input.files[0];
+        
+        // Upload image to ImgBB
+        const url = await uploadImageToServer(file);
+        
+        // Insert URL into Quill editor
+        if (url && quillRef.current) {
+          const quill = quillRef.current.getEditor();
+          const range = quill.getSelection(true);
+          quill.insertEmbed(range.index, 'image', url);
+          quill.setSelection(range.index + 1); // Move cursor right after the image
+        }
+      }
+    };
+  }, []);
+
+  // 🌟 Memoized Quill Modules so it doesn't re-render infinitely
+  const quillModules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [2, 3, 4, false] }],
+        ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+        ['link', 'image'], 
+        ['clean']
+      ],
+      handlers: {
+        image: imageHandler // Custom handler hook kiya
+      }
+    }
+  }), [imageHandler]);
+
+  // 🌟 Regular Upload Handlers
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingThumb(true)
+    const url = await uploadImageToServer(file)
+    if (url) setThumbnail(url)
+    setIsUploadingThumb(false)
+  }
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingGalleryIndex(index)
+    const url = await uploadImageToServer(file)
+    if (url) {
+      const newGallery = [...gallery]
+      newGallery[index] = url
+      setGallery(newGallery)
+    }
+    setUploadingGalleryIndex(null)
+  }
+
+  // --- Category & Field Handlers ---
   const handleAddNewCategory = () => {
     if (newCategory.trim() !== "") {
       const formattedCategory = newCategory.trim()
@@ -213,16 +311,6 @@ function BlogFormContent() {
     setFaqItems(newFaqs)
   }
 
-  const quillModules = {
-    toolbar: [
-      [{ 'header': [2, 3, 4, false] }],
-      ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-      [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-      ['link', 'image'], 
-      ['clean']
-    ]
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!category) return alert("Please select or add a category!")
@@ -236,6 +324,7 @@ function BlogFormContent() {
 
     const metadata = {
       shortDescription,
+      thumbnail, // 🌟 Save Thumbnail
       gallery: cleanGallery,
       blogCategory: category,
       faqItems: cleanFaqs,
@@ -444,29 +533,51 @@ function BlogFormContent() {
                   <label className="block text-sm font-bold text-gray-700 mb-2">Full Article Content (Rich Text)</label>
                   <div className="h-[400px] mb-12">
                     <ReactQuill 
+                      ref={quillRef} // 🌟 Ref added for custom image handler
                       theme="snow" 
                       value={longDescription} 
                       onChange={setLongDescription} 
                       modules={quillModules}
                       className="h-[350px]" 
-                      placeholder="Write your complete blog article here. You can add links, images, bullet points, and headers..."
+                      placeholder="Write your complete blog article here. Use the image icon in the toolbar to safely upload pictures..."
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="border border-gray-200 p-6 rounded-xl">
+            {/* 🌟 Main Image & Gallery Uploads */}
+            <div className="border border-gray-200 p-6 rounded-xl bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-800 mb-4">3. Featured Image & Gallery</h2>
+              
+              <div className="mb-6 pb-6 border-b border-gray-200">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Main Thumbnail (Blog Cover Photo)*</label>
+                <div className="flex gap-2">
+                  <input type="url" required className="flex-1 px-4 py-2 border rounded-lg bg-white outline-none" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://.../blog-cover.jpg" />
+                  <label className="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 px-4 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm border border-indigo-200 transition-colors">
+                    {isUploadingThumb ? '⏳...' : '📁 Upload'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleThumbnailUpload} disabled={isUploadingThumb} />
+                  </label>
+                </div>
+              </div>
+
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-gray-800">3. Featured Image & Gallery URLs</h2>
-                <button type="button" onClick={() => setGallery([...gallery, ''])} className="text-sm bg-gray-200 text-gray-700 font-bold px-3 py-1 rounded hover:bg-gray-300">+ Add Image URL</button>
+                <label className="block text-sm font-bold text-gray-700">Extra Gallery Images</label>
+                <button type="button" onClick={() => setGallery([...gallery, ''])} className="text-sm bg-gray-200 text-gray-700 font-bold px-3 py-1 rounded hover:bg-gray-300">+ Add New Row</button>
               </div>
               <div className="space-y-3">
                 {gallery.map((url, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input type="url" className="w-full px-4 py-2 border rounded-lg outline-none bg-gray-50 focus:ring-2 focus:ring-indigo-500" placeholder="https://images.unsplash.com/photo-..." value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
+                  <div key={index} className="flex gap-2 items-center">
+                    <input type="url" className="flex-1 px-4 py-2 border rounded-lg outline-none bg-white focus:ring-2 focus:ring-indigo-500" placeholder="https://images.unsplash.com/photo-..." value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
+                    
+                    {/* 🌟 Folder Icon logic for ImgBB gallery upload */}
+                    <label className={`px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm transition-colors border ${uploadingGalleryIndex === index ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'}`}>
+                      {uploadingGalleryIndex === index ? '⏳...' : '📁'}
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleGalleryUpload(e, index)} disabled={uploadingGalleryIndex === index} />
+                    </label>
+
                     {gallery.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveGalleryItem(index)} className="text-red-500 font-bold px-3 hover:bg-red-50 rounded-lg">✕</button>
+                      <button type="button" onClick={() => handleRemoveGalleryItem(index)} className="text-red-500 font-bold px-3 py-2 bg-red-50 rounded-lg hover:bg-red-100">✕</button>
                     )}
                   </div>
                 ))}
@@ -510,7 +621,7 @@ function BlogFormContent() {
               </button>
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 text-lg shadow-lg transition-transform transform hover:scale-[1.01]">
+            <button type="submit" disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 text-lg shadow-lg transition-transform transform hover:scale-[1.01] disabled:bg-indigo-400">
               {submitting ? 'Saving Changes...' : (editId ? 'Update Blog Article' : 'Publish Blog Article')}
             </button>
           </form>

@@ -28,6 +28,8 @@ function TourFormContent() {
   
   // Thumbnail & Metadata
   const [thumbnail, setThumbnail] = useState('')
+  const [isUploadingThumb, setIsUploadingThumb] = useState(false) // 🌟 New state for thumbnail upload loader
+
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [metaKeywords, setMetaKeywords] = useState('')
@@ -63,6 +65,7 @@ function TourFormContent() {
 
   // 4. Image Gallery
   const [gallery, setGallery] = useState([''])
+  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null) // 🌟 New state for gallery upload loader
 
   // 5. FAQs State
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
@@ -177,6 +180,56 @@ function TourFormContent() {
     setLoading(false)
   }
 
+  // 🌟 NAYA FUNCTION: Image upload offloading to ImgBB (Free, No storage limit on your server)
+  const uploadImageToServer = async (file: File) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    
+    // IMPORTANT: Get a free API key from https://api.imgbb.com/ and paste it here, 
+    // or add it in your .env file as NEXT_PUBLIC_IMGBB_API_KEY
+    const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
+    
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await response.json()
+      if (data.success) {
+        return data.data.url // Returns the direct image URL
+      } else {
+        throw new Error('Upload failed')
+      }
+    } catch (error) {
+      console.error("Image upload error:", error)
+      alert("Image upload fail ho gaya. Kripya image size chota rakhein ya URL direct paste karein.")
+      return null
+    }
+  }
+
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingThumb(true)
+    const url = await uploadImageToServer(file)
+    if (url) setThumbnail(url)
+    setIsUploadingThumb(false)
+  }
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingGalleryIndex(index)
+    const url = await uploadImageToServer(file)
+    if (url) {
+      const newGallery = [...gallery]
+      newGallery[index] = url
+      setGallery(newGallery)
+    }
+    setUploadingGalleryIndex(null)
+  }
+
+  // --- BAKI SARE HANDLERS WAISE HI HAIN ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
@@ -432,7 +485,6 @@ ${formattedFaqs}
 
   if (loading) return <div className="min-h-screen flex items-center justify-center font-bold text-xl">Loading Form...</div>
 
-  // 🌟 location formatting helper AI component ke liye
   const combinedLocationForSEO = destinations.length > 0 
     ? `${startLocation} to ${destinations.join(', ')}` 
     : startLocation
@@ -534,24 +586,30 @@ ${formattedFaqs}
                 </div>
               </div>
 
+              {/* 🌟 THUMBNAIL UPLOAD FIX HERE */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Starting Price (₹)</label>
                   <input type="number" required min="0" className="w-full px-4 py-2 border rounded-lg bg-gray-50 font-bold text-blue-700 outline-none" value={price} onChange={(e) => setPrice(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">Main Thumbnail URL</label>
-                  <input type="url" required className="w-full px-4 py-2 border rounded-lg bg-gray-50 outline-none" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://.../image.jpg" />
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Main Thumbnail (Upload or URL)</label>
+                  <div className="flex gap-2">
+                    <input type="url" required className="flex-1 px-4 py-2 border rounded-lg bg-gray-50 outline-none" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://.../image.jpg" />
+                    <label className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm border border-blue-200 transition-colors">
+                      {isUploadingThumb ? '⏳ Uploading...' : '📁 Upload'}
+                      <input type="file" accept="image/*" className="hidden" onChange={handleThumbnailUpload} disabled={isUploadingThumb} />
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* 🌟 Naya SEO Analyzer Component yahan lagaya gaya hai */}
             <SeoAnalyzer 
               pageTitle={title}
               pageDescription={overview} 
               location={combinedLocationForSEO}
-              categoryType="tour" // 👈 Tour Type Pass Kiya AI ke liye
+              categoryType="tour" 
               metaTitle={metaTitle}
               setMetaTitle={setMetaTitle}
               metaDescription={metaDescription}
@@ -603,14 +661,14 @@ ${formattedFaqs}
               <div className="mb-8">
                 <label className="block text-sm font-bold text-gray-700 mb-2">Tour Overview</label>
                 <div className="bg-white rounded-lg border border-gray-300">
-  <ReactQuill 
-    theme="snow" 
-    value={overview} 
-    onChange={setOverview} 
-    modules={quillModules} 
-    className="[&_.ql-editor]:min-h-[200px] [&_.ql-editor]:max-h-[400px]" 
-  />
-</div>
+                  <ReactQuill 
+                    theme="snow" 
+                    value={overview} 
+                    onChange={setOverview} 
+                    modules={quillModules} 
+                    className="[&_.ql-editor]:min-h-[200px] [&_.ql-editor]:max-h-[400px]" 
+                  />
+                </div>
                 <div className="mt-12"></div>
               </div>
 
@@ -681,18 +739,17 @@ ${formattedFaqs}
                         <input type="text" required className="w-full px-4 py-2 border rounded-lg outline-none bg-white" placeholder="e.g. Arrival in Mumbai & Local Sightseeing" value={day.title} onChange={(e) => handleItineraryChange(index, 'title', e.target.value)} />
                       </div>
                       
-                      {/* 🌟 Yahan ReactQuill Add Kiya Gaya Hai */}
                       <div>
                         <label className="block text-xs font-bold text-gray-600 mb-2">Day Description</label>
                         <div className="bg-white rounded-lg border border-gray-300">
-  <ReactQuill 
-    theme="snow" 
-    value={day.description} 
-    onChange={(value) => handleItineraryChange(index, 'description', value)} 
-    modules={quillModules} 
-    className="[&_.ql-editor]:min-h-[150px] [&_.ql-editor]:max-h-[300px]" 
-  />
-</div>
+                          <ReactQuill 
+                            theme="snow" 
+                            value={day.description} 
+                            onChange={(value) => handleItineraryChange(index, 'description', value)} 
+                            modules={quillModules} 
+                            className="[&_.ql-editor]:min-h-[150px] [&_.ql-editor]:max-h-[300px]" 
+                          />
+                        </div>
                         <div className="mt-12"></div>
                       </div>
 
@@ -717,18 +774,24 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* Gallery */}
+            {/* 🌟 GALLERY UPLOAD FIX HERE */}
             <div>
               <div className="flex justify-between items-center border-b pb-2 mb-6">
                 <h2 className="text-xl font-bold text-gray-800">7. Tour Gallery</h2>
-                <button type="button" onClick={addGalleryImage} className="text-sm bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full hover:bg-blue-200">+ Add Image Link</button>
+                <button type="button" onClick={addGalleryImage} className="text-sm bg-blue-100 text-blue-700 font-bold px-3 py-1 rounded-full hover:bg-blue-200">+ Add New Line</button>
               </div>
               <div className="space-y-3">
                 {gallery.map((url, index) => (
-                  <div key={index} className="flex items-center gap-3">
+                  <div key={index} className="flex items-center gap-2">
                     <input type="url" className="flex-1 px-4 py-2 border rounded-lg outline-none bg-gray-50" placeholder="e.g. https://website.com/image.jpg" value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
+                    
+                    <label className={`px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm transition-colors border ${uploadingGalleryIndex === index ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'}`}>
+                      {uploadingGalleryIndex === index ? '⏳...' : '📁'}
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleGalleryUpload(e, index)} disabled={uploadingGalleryIndex === index} />
+                    </label>
+
                     {gallery.length > 1 && (
-                      <button type="button" onClick={() => removeGalleryImage(index)} className="text-red-500 font-bold px-2">✕</button>
+                      <button type="button" onClick={() => removeGalleryImage(index)} className="text-red-500 hover:text-red-700 font-bold px-3 py-2 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100 transition-colors">✕</button>
                     )}
                   </div>
                 ))}

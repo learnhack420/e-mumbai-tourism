@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import LocationSelector from '../../components/LocationSelector' 
-import SeoAnalyzer from '../../components/SeoAnalyzer' // 🌟 Advanced SEO Component Import Kiya
+import SeoAnalyzer from '../../components/SeoAnalyzer' 
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false })
 import 'react-quill-new/dist/quill.snow.css'
@@ -28,6 +28,10 @@ function HotelFormContent() {
   const [fullAddress, setFullAddress] = useState('')
   const [starRating, setStarRating] = useState('3 Star')
 
+  // 🌟 Main Thumbnail & Image Upload States
+  const [thumbnail, setThumbnail] = useState('')
+  const [isUploadingThumb, setIsUploadingThumb] = useState(false)
+
   // 🌟 SEO States Add Kiye
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
@@ -49,7 +53,10 @@ function HotelFormContent() {
   const [checkIn, setCheckIn] = useState('12:00 PM')
   const [checkOut, setCheckOut] = useState('11:00 AM')
   const [description, setDescription] = useState('')
+  
   const [gallery, setGallery] = useState([''])
+  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null) // 🌟 Loader for gallery upload
+
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
 
   const quillModules = {
@@ -107,6 +114,7 @@ function HotelFormContent() {
         
         if (listing.metadata) {
           setStarRating(listing.metadata.starRating || '3 Star')
+          setThumbnail(listing.metadata.thumbnail || listing.metadata.gallery?.[0] || '') // 🌟 Load Thumbnail
           if (listing.metadata.roomPrices) setRoomPrices(listing.metadata.roomPrices)
           if (listing.metadata.roomCounts) setRoomCounts(listing.metadata.roomCounts)
           setWifi(listing.metadata.wifi || 'Yes')
@@ -134,6 +142,55 @@ function HotelFormContent() {
     }
 
     setLoading(false)
+  }
+
+  // 🌟 IMGBB IMAGE UPLOAD HELPER FUNCTION (Free Image Hosting)
+  const uploadImageToServer = async (file: File) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    
+    // IMPORTANT: Make sure this key is added in your .env.local
+    const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
+    
+    try {
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: formData,
+      })
+      const data = await response.json()
+      if (data.success) {
+        return data.data.url 
+      } else {
+        throw new Error('Upload failed')
+      }
+    } catch (error) {
+      console.error("Image upload error:", error)
+      alert("Image upload fail ho gaya. Kripya image size chota rakhein ya URL direct paste karein.")
+      return null
+    }
+  }
+
+  // 🌟 Upload Handlers
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploadingThumb(true)
+    const url = await uploadImageToServer(file)
+    if (url) setThumbnail(url)
+    setIsUploadingThumb(false)
+  }
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingGalleryIndex(index)
+    const url = await uploadImageToServer(file)
+    if (url) {
+      const newGallery = [...gallery]
+      newGallery[index] = url
+      setGallery(newGallery)
+    }
+    setUploadingGalleryIndex(null)
   }
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,11 +276,12 @@ ${description}
 ${formattedFaqs}
     `.trim()
 
-    // 🌟 Metadata me SEO save karna
+    // 🌟 Metadata me SEO aur Thumbnail save karna
     const metadata = {
       starRating, roomPrices, roomCounts, wifi, ac, breakfast, pool, parking, checkIn, checkOut, description, 
       city: city,
       fullAddress: fullAddress,
+      thumbnail: thumbnail, // 🌟 Main image added to metadata
       gallery: cleanGallery, 
       faqs,
       seo: {
@@ -370,7 +428,7 @@ ${formattedFaqs}
               pageTitle={title}
               pageDescription={description}
               location={city}
-              categoryType="hotel" // 👈 Yeh property missing thi, ise add kar dein
+              categoryType="hotel" // 👈 Added hotel category
               metaTitle={metaTitle}
               setMetaTitle={setMetaTitle}
               metaDescription={metaDescription}
@@ -426,17 +484,39 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* 4. Gallery */}
+            {/* 🌟 4. Main Image & Gallery Uploads */}
             <div className="border border-gray-200 p-6 rounded-xl bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-800 mb-4">4. Hotel Images</h2>
+              
+              <div className="mb-6 pb-6 border-b border-gray-200">
+                <label className="block text-sm font-bold text-gray-700 mb-2">Main Thumbnail (Featured Image)*</label>
+                <div className="flex gap-2">
+                  <input type="url" required className="flex-1 px-4 py-2 border rounded-lg bg-white outline-none" value={thumbnail} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://.../main-image.jpg" />
+                  <label className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm border border-blue-200 transition-colors">
+                    {isUploadingThumb ? '⏳...' : '📁 Upload'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleThumbnailUpload} disabled={isUploadingThumb} />
+                  </label>
+                </div>
+              </div>
+
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-gray-800">4. Hotel Gallery (Images)</h2>
-                <button type="button" onClick={addGalleryImage} className="text-sm bg-blue-600 text-white font-bold px-4 py-2 rounded-lg">+ Add Image Link</button>
+                <label className="block text-sm font-bold text-gray-700">Extra Gallery Images</label>
+                <button type="button" onClick={addGalleryImage} className="text-sm bg-blue-600 text-white font-bold px-4 py-2 rounded-lg">+ Add New Row</button>
               </div>
               <div className="space-y-3">
                 {gallery.map((url, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <input type="url" className="flex-1 px-4 py-2 border rounded-lg bg-white" placeholder="Image URL" value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
-                    {gallery.length > 1 && (<button type="button" onClick={() => removeGalleryImage(index)} className="text-red-500 font-bold px-2">✕</button>)}
+                  <div key={index} className="flex items-center gap-2">
+                    <input type="url" className="flex-1 px-4 py-2 border rounded-lg bg-white outline-none text-sm" placeholder="Image URL" value={url} onChange={(e) => handleGalleryChange(index, e.target.value)} />
+                    
+                    {/* 🌟 Folder Icon logic for ImgBB gallery upload */}
+                    <label className={`px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm transition-colors border ${uploadingGalleryIndex === index ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'}`}>
+                      {uploadingGalleryIndex === index ? '⏳...' : '📁'}
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleGalleryUpload(e, index)} disabled={uploadingGalleryIndex === index} />
+                    </label>
+
+                    {gallery.length > 1 && (
+                      <button type="button" onClick={() => removeGalleryImage(index)} className="text-red-500 hover:text-red-700 font-bold px-3 py-2 bg-red-50 rounded-lg transition-colors">✕</button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -470,7 +550,7 @@ ${formattedFaqs}
               </div>
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors text-lg shadow-lg">
+            <button type="submit" disabled={submitting || isUploadingThumb || uploadingGalleryIndex !== null} className="w-full bg-blue-600 text-white font-bold py-4 px-4 rounded-xl hover:bg-blue-700 transition-colors text-lg shadow-lg disabled:bg-blue-400">
               {submitting ? 'Saving...' : (editId ? 'Update Hotel Property' : 'Submit Hotel for Approval')}
             </button>
           </form>
