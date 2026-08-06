@@ -40,9 +40,13 @@ export default function LocationSelector({ label, selected, onChange, multiple =
     fetchLocations()
   }, [])
 
+  // 1. UPDATE: Fetch 'name' instead of 'label' and map it
   const fetchLocations = async () => {
-    const { data, error } = await supabase.from('locations').select('*').order('label', { ascending: true })
-    if (data && !error) setLocations(data)
+    const { data, error } = await supabase.from('locations').select('*').order('name', { ascending: true })
+    if (data && !error) {
+      const formattedLocations = data.map(item => ({ id: item.id, label: item.name }))
+      setLocations(formattedLocations)
+    }
   }
 
   const filteredLocations = useMemo(() => {
@@ -71,13 +75,13 @@ export default function LocationSelector({ label, selected, onChange, multiple =
     }
   }
 
-  // Smart trigger jab koi search item na mile
   const startSmartAdd = (query: string) => {
-    setCityInput(query) // jo search kiya tha use city maan kar pre-fill kar diya
+    setCityInput(query)
     setAreaInput('')
     setIsInlineAdding(true)
   }
 
+  // 2. UPDATE: Save using 'name' and 'slug' columns to match DB
   const handleSaveInlineLocation = async () => {
     if (!cityInput.trim() || !stateName.trim() || !country.trim()) {
       return alert("City, State aur Country bharna zaroori hai!")
@@ -100,10 +104,14 @@ export default function LocationSelector({ label, selected, onChange, multiple =
       return
     }
     
-    const { data, error } = await supabase.from('locations').insert([{ label: newLabel }]).select().single()
+    // Create a URL-friendly slug for the database
+    const slug = newLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+
+    // Insert into 'name' and 'slug'
+    const { data, error } = await supabase.from('locations').insert([{ name: newLabel, slug: slug, type: 'custom' }]).select().single()
     
     if (error) {
-      if (error.code === '23505') {
+      if (error.code === '23505') { // Duplicate constraint error
         await fetchLocations()
         handleSelect(newLabel)
         setIsInlineAdding(false)
@@ -114,9 +122,10 @@ export default function LocationSelector({ label, selected, onChange, multiple =
         alert("Error saving location: " + error.message)
       }
     } else if (data) {
-      const updatedList = [...locations, data].sort((a, b) => a.label.localeCompare(b.label))
+      const newLoc = { id: data.id, label: data.name }
+      const updatedList = [...locations, newLoc].sort((a, b) => a.label.localeCompare(b.label))
       setLocations(updatedList)
-      handleSelect(data.label)
+      handleSelect(data.name)
       setIsInlineAdding(false)
       setSearch('')
       setCityInput('')
@@ -126,7 +135,7 @@ export default function LocationSelector({ label, selected, onChange, multiple =
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
-    if (confirm('Kya aap sach mein is location को delete karna chahte hain?')) {
+    if (confirm('Kya aap sach mein is location ko delete karna chahte hain?')) {
       await supabase.from('locations').delete().eq('id', id)
       fetchLocations()
     }
