@@ -1,10 +1,18 @@
+export const dynamic = 'force-dynamic';
+
 import { MetadataRoute } from 'next'
-import { supabase } from '@/utils/supabase'
+import { createClient } from '@supabase/supabase-js'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // 1. Initialize Supabase INSIDE the sitemap function
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! 
+  );
+
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
 
-  // 1. Static Pages
+  // 2. Static Pages
   const staticPages = [
     {
       url: baseUrl,
@@ -33,8 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   try {
-    // 2. Fetch all dynamic listings from Supabase
-    // Hum sirf slug aur category nikal rahe hain taaki koi column missing hone ka error na aaye
+    // 3. Fetch all dynamic listings from Supabase
     const { data: listings, error } = await supabase
       .from('listings')
       .select('slug, category')
@@ -48,7 +55,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return staticPages
     }
 
-    // 3. Map listings to sitemap entries
+    // 4. Map listings to sitemap entries
     const dynamicPages = listings
       .filter((item) => item.slug) // Jiska slug ho sirf wahi lein
       .map((item) => {
@@ -59,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         if (cat === 'tour' || cat === 'tours') {
           routePrefix = 'tours'
         } else if (cat === 'blog' || cat === 'blogs') {
-          routePrefix = 'blog' // ya 'blogs' jo bhi aapka route ho
+          routePrefix = 'blog' 
         } else if (cat === 'cab' || cat === 'cabs') {
           routePrefix = 'cabs'
         } else if (cat === 'destination' || cat === 'place' || cat === 'places') {
