@@ -91,10 +91,32 @@ export default function LocationSelector({ label, selected, onChange, multiple =
       newLabel = `${cityInput.trim()} > ${stateName.trim()} > ${country.trim()}`
     }
     
+    // Pehle check karein ki kya yeh label list mein pehle se hai
+    const existingLoc = locations.find(loc => loc.label.toLowerCase() === newLabel.toLowerCase())
+    if (existingLoc) {
+      handleSelect(existingLoc.label) // Agar pehle se hai toh seedha select kar lo
+      setIsInlineAdding(false)
+      setSearch('')
+      setCityInput('')
+      setAreaInput('')
+      return
+    }
+    
     const { data, error } = await supabase.from('locations').insert([{ label: newLabel }]).select().single()
     
     if (error) {
-      alert("Error saving location. Shayad yeh pehle se add hai.")
+      // Agar database mein UNIQUE constraint ki wajah se duplicate error aaye
+      if (error.code === '23505') {
+        // Dobara fetch karke us location ko find karke select kar lo
+        await fetchLocations()
+        handleSelect(newLabel)
+        setIsInlineAdding(false)
+        setSearch('')
+        setCityInput('')
+        setAreaInput('')
+      } else {
+        alert("Error saving location: " + error.message)
+      }
     } else if (data) {
       const updatedList = [...locations, data].sort((a, b) => a.label.localeCompare(b.label))
       setLocations(updatedList)
@@ -105,15 +127,6 @@ export default function LocationSelector({ label, selected, onChange, multiple =
       setAreaInput('')
     }
   }
-
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    if(confirm('Kya aap sach mein is location ko delete karna chahte hain?')) {
-      await supabase.from('locations').delete().eq('id', id)
-      fetchLocations()
-    }
-  }
-
   const selectedArray = Array.isArray(selected) ? selected : (selected ? [selected] : [])
 
   return (
