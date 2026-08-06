@@ -1,11 +1,10 @@
 export const runtime = 'edge';
 
-export async function POST(request) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { name, email, message } = body;
 
-    // Resend API ko direct fetch request bhej rahe hain
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -13,8 +12,8 @@ export async function POST(request) {
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
       },
       body: JSON.stringify({
-        from: 'onboarding@resend.dev', // Resend ka default testing email
-        to: 'info@rajcabs.in', 
+        from: 'onboarding@resend.dev',
+        to: 'info@rajcabs.in',
         subject: `New Inquiry from ${name}`,
         html: `
           <h3>New Message Details:</h3>
@@ -32,7 +31,7 @@ export async function POST(request) {
     }
 
     return Response.json({ success: true, data });
-  } catch (error) {
+  } catch (error: any) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 }
