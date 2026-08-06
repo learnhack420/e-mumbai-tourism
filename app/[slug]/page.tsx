@@ -3,8 +3,6 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-
-
 // FIXED COMPONENT IMPORT PATHS
 import FloatingContact from '../components/FloatingContact'
 import RelatedPlaceSections from '../components/RelatedPlaceSections'
@@ -14,18 +12,7 @@ export const runtime = 'edge';
 
 export const revalidate = 60
 
-export async function generateStaticParams() {
-  const { data: places } = await supabase
-    .from('listings')
-    .select('slug')
-    
-  if (!places) return []
-
-  return places.map((place) => ({
-    slug: place.slug,
-  }))
-}
-
+// Removed generateStaticParams to prevent conflicts with Edge runtime on Cloudflare
 export const dynamicParams = true
 
 // 🌟 Helper function to clean the new location format
