@@ -8,8 +8,8 @@ import FloatingContact from './components/FloatingContact' // Sahi relative path
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'India Tour Operators - Best Tour Packages, Cabs & Hotels',
-  description: 'Book Cabs, Tours and Hotels directly from verified vendors across India',
+  title: 'E-Mumbai Tourism - Best Mumbai, Lonavala & Pune Tour Packages',
+  description: 'Book verified Cabs, Tours and Hotels for Mumbai, Pune, Lonavala, and Alibag with E-Mumbai Tourism.',
 }
 
 export default function RootLayout({
