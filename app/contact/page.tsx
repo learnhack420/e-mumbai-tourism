@@ -5,52 +5,29 @@ import Link from "next/link";
 export default function ContactPage() {
   // Main Contact Form State
   const [formData, setFormData] = useState({ name: "", email: "", subject: "", message: "" });
-  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
   // WhatsApp Modal State
   const [showWaModal, setShowWaModal] = useState(false);
   const [waData, setWaData] = useState({ name: "", email: "", city: "", role: "Customer" });
 
-  // Main Form Submit with Real API Integration
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  // Main Form Submit -> Direct to WhatsApp
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMessage("");
 
-    try {
-      const res = await fetch("/api/send-email", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          message: `Subject: ${formData.subject}\n\nMessage:\n${formData.message}`,
-        }),
-      });
+    const phoneNumber = "919892455466";
+    const whatsappMessage = `Hello Raj Cabs! 👋\n\n*New Website Inquiry*\n*Name:* ${formData.name}\n*Email:* ${formData.email}\n*Subject:* ${formData.subject}\n*Message:* ${formData.message}`;
+    const encodedMessage = encodeURIComponent(whatsappMessage);
 
-      const result = await res.json();
+    // Open WhatsApp in new tab
+    window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, "_blank");
 
-      if (result.success) {
-        setSubmitted(true);
-        setFormData({ name: "", email: "", subject: "", message: "" });
-        setTimeout(() => {
-          setSubmitted(false);
-        }, 5000);
-      } else {
-        setErrorMessage(result.error || "Failed to send message.");
-      }
-    } catch (error) {
-      setErrorMessage("Something went wrong. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
+    setFormData({ name: "", email: "", subject: "", message: "" });
   };
 
-  // WhatsApp Form Submit
+  // WhatsApp Modal Form Submit
   const handleWaSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const phoneNumber = "919892455466";
@@ -278,75 +255,63 @@ export default function ContactPage() {
             <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-sm">
               <h3 className="text-xl font-black text-slate-900 mb-6">Send us a Message</h3>
               
-              {submitted ? (
-                <div className="bg-green-100 border border-green-200 text-green-800 p-6 rounded-2xl text-center">
-                  <div className="text-4xl mb-4">✅</div>
-                  <h4 className="font-bold text-lg mb-2">Message Sent Successfully!</h4>
-                  <p className="text-sm">Thank you for contacting us. Our team will get back to you within 24 hours.</p>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    placeholder="e.g. Rahul Sharma"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
                 </div>
-              ) : (
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Full Name</label>
-                    <input 
-                      type="text" 
-                      required 
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="e.g. Rahul Sharma"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
-                    <input 
-                      type="email" 
-                      required 
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="e.g. rahul@example.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    />
-                  </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+                  <input 
+                    type="email" 
+                    required 
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    placeholder="e.g. rahul@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Subject</label>
-                    <input 
-                      type="text" 
-                      required 
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="e.g. Inquiry about Kerala Tour"
-                      value={formData.subject}
-                      onChange={(e) => setFormData({...formData, subject: e.target.value})}
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Subject</label>
+                  <input 
+                    type="text" 
+                    required 
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    placeholder="e.g. Inquiry about Kerala Tour"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                  />
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1">Message</label>
-                    <textarea 
-                      required 
-                      rows={4}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
-                      placeholder="Write your query here..."
-                      value={formData.message}
-                      onChange={(e) => setFormData({...formData, message: e.target.value})}
-                    ></textarea>
-                  </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Message</label>
+                  <textarea 
+                    required 
+                    rows={4}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500 bg-white resize-none"
+                    placeholder="Write your query here..."
+                    value={formData.message}
+                    onChange={(e) => setFormData({...formData, message: e.target.value})}
+                  ></textarea>
+                </div>
 
-                  {errorMessage && (
-                    <p className="text-red-600 text-sm font-semibold">{errorMessage}</p>
-                  )}
-
-                  <button 
-                    type="submit" 
-                    disabled={loading}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
-                  >
-                    {loading ? "Sending Message..." : "Send Message 🚀"}
-                  </button>
-                </form>
-              )}
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-md transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <span>Send via WhatsApp 💬</span>
+                </button>
+              </form>
             </div>
 
           </div>
