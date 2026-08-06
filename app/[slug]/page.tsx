@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
+export const runtime = 'edge';
+
 // FIXED COMPONENT IMPORT PATHS
 import FloatingContact from '../components/FloatingContact'
 import RelatedPlaceSections from '../components/RelatedPlaceSections'

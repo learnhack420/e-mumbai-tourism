@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
+export const runtime = 'edge';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 1. Initialize Supabase INSIDE the sitemap function
   const supabase = createClient(
