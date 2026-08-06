@@ -83,7 +83,6 @@ export default function LocationSelector({ label, selected, onChange, multiple =
       return alert("City, State aur Country bharna zaroori hai!")
     }
     
-    // Format: Area > City > State > Country (Agar area diya ho) warna City > State > Country
     let newLabel = ''
     if (areaInput.trim()) {
       newLabel = `${areaInput.trim()} > ${cityInput.trim()} > ${stateName.trim()} > ${country.trim()}`
@@ -91,10 +90,9 @@ export default function LocationSelector({ label, selected, onChange, multiple =
       newLabel = `${cityInput.trim()} > ${stateName.trim()} > ${country.trim()}`
     }
     
-    // Pehle check karein ki kya yeh label list mein pehle se hai
     const existingLoc = locations.find(loc => loc.label.toLowerCase() === newLabel.toLowerCase())
     if (existingLoc) {
-      handleSelect(existingLoc.label) // Agar pehle se hai toh seedha select kar lo
+      handleSelect(existingLoc.label)
       setIsInlineAdding(false)
       setSearch('')
       setCityInput('')
@@ -105,9 +103,7 @@ export default function LocationSelector({ label, selected, onChange, multiple =
     const { data, error } = await supabase.from('locations').insert([{ label: newLabel }]).select().single()
     
     if (error) {
-      // Agar database mein UNIQUE constraint ki wajah se duplicate error aaye
       if (error.code === '23505') {
-        // Dobara fetch karke us location ko find karke select kar lo
         await fetchLocations()
         handleSelect(newLabel)
         setIsInlineAdding(false)
@@ -120,20 +116,28 @@ export default function LocationSelector({ label, selected, onChange, multiple =
     } else if (data) {
       const updatedList = [...locations, data].sort((a, b) => a.label.localeCompare(b.label))
       setLocations(updatedList)
-      handleSelect(data.label) // Automatically select the newly added location!
+      handleSelect(data.label)
       setIsInlineAdding(false)
       setSearch('')
       setCityInput('')
       setAreaInput('')
     }
   }
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    if (confirm('Kya aap sach mein is location को delete karna chahte hain?')) {
+      await supabase.from('locations').delete().eq('id', id)
+      fetchLocations()
+    }
+  }
+
   const selectedArray = Array.isArray(selected) ? selected : (selected ? [selected] : [])
 
   return (
     <div className="relative w-full">
       <label className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
       
-      {/* Selector Display */}
       <div 
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-4 py-2 border rounded-lg bg-gray-50 flex flex-wrap gap-2 items-center cursor-pointer min-h-[42px]"
@@ -150,11 +154,9 @@ export default function LocationSelector({ label, selected, onChange, multiple =
         ))}
       </div>
 
-      {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white border rounded-lg shadow-xl max-h-72 overflow-y-auto flex flex-col">
           
-          {/* SEARCH BAR (Always on Top for quick lookup) */}
           <div className="p-2 border-b bg-gray-50 sticky top-0 z-20">
             <input 
               type="text" 
@@ -170,7 +172,6 @@ export default function LocationSelector({ label, selected, onChange, multiple =
             />
           </div>
 
-          {/* SMART INLINE ADD FORM (Agar search karne par location na mile) */}
           {isInlineAdding ? (
             <div className="p-3 bg-blue-50 border-b space-y-2" onClick={(e) => e.stopPropagation()}>
               <div className="text-xs font-bold text-blue-800">
@@ -245,7 +246,6 @@ export default function LocationSelector({ label, selected, onChange, multiple =
             </div>
           ) : null}
 
-          {/* LOCATION LIST */}
           <div className="overflow-y-auto flex-1">
             {filteredLocations.length > 0 ? (
               filteredLocations.map((loc) => (
