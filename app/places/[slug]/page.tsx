@@ -2,6 +2,8 @@ import { supabase } from '../../../utils/supabase'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+
+// 👇 Inhe import rakha hai, par niche render karte waqt hide kar diya hai
 import FloatingContact from '../../components/FloatingContact'
 import RelatedPlaceSections from '../../components/RelatedPlaceSections'
 import AITouristGuide from '../../components/AITouristGuide'
@@ -9,9 +11,9 @@ import AITouristGuide from '../../components/AITouristGuide'
 export const runtime = 'edge';
 export const revalidate = 60 
 
-// 🌟 FIX 1: Make cleanText crash-proof (if data is not a string)
+// String safety function
 const cleanText = (htmlString: any) => {
-  if (!htmlString) return "";
+  if (!htmlString || typeof htmlString !== 'string') return "";
   return String(htmlString)
     .replace(/(<([^>]+)>)/gi, "") 
     .replace(/&nbsp;/gi, " ")     
@@ -23,54 +25,58 @@ const cleanText = (htmlString: any) => {
     .trim();
 };
 
-// 🌟 FIX 2: Handle cases where location might be an Array from older data
+// Location array to string safety
 const formatLocation = (locStr?: any) => {
   if (!locStr) return 'Not specified'
-  if (Array.isArray(locStr)) return locStr.join(', ') // Fallback for old arrays
+  if (Array.isArray(locStr)) return locStr.join(', ') 
   return String(locStr).replace(/ > /g, ', ')
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const resolvedParams = await params
-  const slug = resolvedParams.slug
+  try {
+    const resolvedParams = await params
+    const slug = resolvedParams.slug
 
-  const { data: place } = await supabase.from('listings').select('title, metadata, location, image').eq('slug', slug).single()
+    const { data: place, error } = await supabase.from('listings').select('title, metadata, location, image').eq('slug', slug).single()
 
-  if (!place) return { title: 'Place Not Found' }
+    if (error || !place) return { title: 'Place Not Found' }
 
-  const meta = place.metadata || {};
-  const descriptionText = meta.shortDescription ? cleanText(meta.shortDescription) : `Complete travel guide to visit ${place.title}. Find timings, entry fees, and attractions.`;
-  
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
-  const currentUrl = `${siteUrl}/places/${slug}`;
-  
-  // Safe Array Check for Gallery
-  const safeGallery = Array.isArray(meta.gallery) ? meta.gallery : [];
-  const imageUrl = place.image || (safeGallery.length > 0 ? safeGallery[0] : `${siteUrl}/default-tour.jpg`);
+    // Ensure metadata is treated as an object
+    const meta = typeof place.metadata === 'object' && place.metadata !== null ? place.metadata : {};
+    
+    const descriptionText = meta.shortDescription ? cleanText(meta.shortDescription) : `Complete travel guide to visit ${place.title}. Find timings, entry fees, and attractions.`;
+    
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
+    const currentUrl = `${siteUrl}/places/${slug}`;
+    
+    const safeGallery = Array.isArray(meta.gallery) ? meta.gallery : [];
+    const imageUrl = place.image || (safeGallery.length > 0 ? safeGallery[0] : `${siteUrl}/default-tour.jpg`);
 
-  // 🌟 FIX 3: Syncing exact keys saved from AddPlaceListing component
-  const seoTitle = meta.metaTitle || meta.seo?.metaTitle || `${place.title} - Ultimate Travel Guide`;
-  const seoDesc = meta.metaDescription || meta.seo?.metaDescription || descriptionText.substring(0, 160);
-  const seoKey = meta.metaKeywords || meta.seo?.metaKeywords || `${place.title}, visit ${place.title}, ${formatLocation(place.location)} tourism`;
+    const seoTitle = meta.metaTitle || meta.seo?.metaTitle || `${place.title} - Ultimate Travel Guide`;
+    const seoDesc = meta.metaDescription || meta.seo?.metaDescription || descriptionText.substring(0, 160);
+    const seoKey = meta.metaKeywords || meta.seo?.metaKeywords || `${place.title}, visit ${place.title}, ${formatLocation(place.location)} tourism`;
 
-  return {
-    title: seoTitle,
-    description: seoDesc,
-    keywords: seoKey,
-    alternates: { canonical: currentUrl },
-    openGraph: {
+    return {
       title: seoTitle,
       description: seoDesc,
-      url: currentUrl,
-      type: 'website',
-      images: [{ url: imageUrl, width: 1200, height: 630, alt: place.title }],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: seoTitle,
-      description: seoDesc,
-      images: [imageUrl],
+      keywords: seoKey,
+      alternates: { canonical: currentUrl },
+      openGraph: {
+        title: seoTitle,
+        description: seoDesc,
+        url: currentUrl,
+        type: 'website',
+        images: [{ url: imageUrl, width: 1200, height: 630, alt: place.title }],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: seoTitle,
+        description: seoDesc,
+        images: [imageUrl],
+      }
     }
+  } catch (err) {
+    return { title: 'Tourist Place' }
   }
 }
 
@@ -94,9 +100,9 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
   const formattedLocation = formatLocation(place.location);
   const targetCity = formattedLocation !== 'Not specified' ? formattedLocation.split(',')[0].trim() : '';
 
-  const meta = place.metadata || {}
+  // Force metadata to be an object to prevent undefined errors
+  const meta = typeof place.metadata === 'object' && place.metadata !== null ? place.metadata : {}
   
-  // 🌟 FIX 4: Safe Array mappings to prevent Edge Runtime map() crash
   const galleryUrls = Array.isArray(meta.gallery) ? meta.gallery : []
   const faqs = Array.isArray(meta.faqItems) ? meta.faqItems : []
   const topAttractions = Array.isArray(meta.topAttractions) ? meta.topAttractions : []
@@ -133,8 +139,8 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     "@type": "FAQPage",
     "mainEntity": faqs.map((faq: any) => ({
       "@type": "Question",
-      "name": faq.question,
-      "acceptedAnswer": { "@type": "Answer", "text": faq.answer }
+      "name": faq.question || "",
+      "acceptedAnswer": { "@type": "Answer", "text": faq.answer || "" }
     }))
   } : null;
 
@@ -148,7 +154,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
       {/* HERO SECTION */}
       <div className="relative h-[60vh] md:h-[75vh] w-full bg-slate-900 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image} alt={place.title} className="w-full h-full object-cover opacity-80" />
+        <img src={image} alt={place.title || 'Tourist Place'} className="w-full h-full object-cover opacity-80" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent flex items-end">
           <div className="max-w-7xl mx-auto w-full p-6 md:p-12 text-white">
             <Link href="/" className="text-amber-400 hover:text-white text-sm font-bold mb-4 inline-block transition-colors">← Back to Home</Link>
@@ -239,7 +245,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
             </h2>
             {meta.shortDescription && <p className="text-amber-800 font-bold text-lg leading-relaxed mb-8 border-l-4 border-amber-500 pl-5 bg-amber-50/60 py-4 pr-4 rounded-r-2xl">"{meta.shortDescription}"</p>}
             
-            {/* 🌟 FIX 5: Fallback to empty string to prevent React Server crash */}
             <div className="prose prose-slate prose-a:text-blue-600 max-w-none text-slate-600 leading-relaxed text-lg break-words marker:text-blue-500" dangerouslySetInnerHTML={{ __html: place.description || '' }} />
           </section>
 
@@ -271,12 +276,16 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
             </section>
           )}
 
+          {/* 👇 IN TEENO COMPONENTS KO LOCAL DEBUGGING KE LIYE HIDE KIYA HAI */}
+          
+          {/* 
           <AITouristGuide 
             placeId={place.id}
             targetCity={targetCity} 
             hasExistingFaqs={faqs.length > 0} 
             placeTitle={place.title}
-          />
+          /> 
+          */}
 
           {/* Existing FAQs */}
           {faqs.length > 0 && (
@@ -308,8 +317,9 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
         </div>
       </div>
 
-      <RelatedPlaceSections placeId={place.id} targetCity={targetCity} />
-      <FloatingContact />
+      {/* 👇 YAHAN BHI HIDE KIYA HAI */}
+      {/* <RelatedPlaceSections placeId={place.id} targetCity={targetCity} /> */}
+      {/* <FloatingContact /> */}
 
     </main>
   )
