@@ -7,12 +7,12 @@ import RelatedPlaceSections from '../../components/RelatedPlaceSections'
 import AITouristGuide from '../../components/AITouristGuide'
 
 export const runtime = 'edge';
-
 export const revalidate = 60 
 
-const cleanText = (htmlString: string) => {
+// 🌟 FIX 1: Make cleanText crash-proof (if data is not a string)
+const cleanText = (htmlString: any) => {
   if (!htmlString) return "";
-  return htmlString
+  return String(htmlString)
     .replace(/(<([^>]+)>)/gi, "") 
     .replace(/&nbsp;/gi, " ")     
     .replace(/&amp;/gi, "&")
@@ -23,12 +23,13 @@ const cleanText = (htmlString: string) => {
     .trim();
 };
 
-const formatLocation = (locStr?: string) => {
+// 🌟 FIX 2: Handle cases where location might be an Array from older data
+const formatLocation = (locStr?: any) => {
   if (!locStr) return 'Not specified'
-  return locStr.replace(/ > /g, ', ')
+  if (Array.isArray(locStr)) return locStr.join(', ') // Fallback for old arrays
+  return String(locStr).replace(/ > /g, ', ')
 }
 
-// 🌟 SEO UPGRADE 1: Advanced Metadata with OpenGraph & Twitter Cards
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params
   const slug = resolvedParams.slug
@@ -42,26 +43,32 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
   const currentUrl = `${siteUrl}/places/${slug}`;
-  const imageUrl = place.image || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : `${siteUrl}/default-tour.jpg`);
+  
+  // Safe Array Check for Gallery
+  const safeGallery = Array.isArray(meta.gallery) ? meta.gallery : [];
+  const imageUrl = place.image || (safeGallery.length > 0 ? safeGallery[0] : `${siteUrl}/default-tour.jpg`);
+
+  // 🌟 FIX 3: Syncing exact keys saved from AddPlaceListing component
+  const seoTitle = meta.metaTitle || meta.seo?.metaTitle || `${place.title} - Ultimate Travel Guide`;
+  const seoDesc = meta.metaDescription || meta.seo?.metaDescription || descriptionText.substring(0, 160);
+  const seoKey = meta.metaKeywords || meta.seo?.metaKeywords || `${place.title}, visit ${place.title}, ${formatLocation(place.location)} tourism`;
 
   return {
-    title: meta.seo?.metaTitle || `${place.title} - Ultimate Travel Guide & Details`,
-    description: meta.seo?.metaDescription || descriptionText.substring(0, 160),
-    keywords: meta.seo?.metaKeywords || `${place.title}, visit ${place.title}, ${formatLocation(place.location)} tourism, tourist places in ${formatLocation(place.location).split(',')[0]}`,
-    alternates: { 
-      canonical: currentUrl 
-    },
+    title: seoTitle,
+    description: seoDesc,
+    keywords: seoKey,
+    alternates: { canonical: currentUrl },
     openGraph: {
-      title: meta.seo?.metaTitle || place.title,
-      description: meta.seo?.metaDescription || descriptionText.substring(0, 160),
+      title: seoTitle,
+      description: seoDesc,
       url: currentUrl,
       type: 'website',
       images: [{ url: imageUrl, width: 1200, height: 630, alt: place.title }],
     },
     twitter: {
       card: 'summary_large_image',
-      title: meta.seo?.metaTitle || place.title,
-      description: meta.seo?.metaDescription || descriptionText.substring(0, 160),
+      title: seoTitle,
+      description: seoDesc,
       images: [imageUrl],
     }
   }
@@ -88,14 +95,16 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
   const targetCity = formattedLocation !== 'Not specified' ? formattedLocation.split(',')[0].trim() : '';
 
   const meta = place.metadata || {}
-  const image = place.image || (meta.gallery && meta.gallery.length > 0 ? meta.gallery[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
-  const galleryUrls = meta.gallery && meta.gallery.length > 0 ? meta.gallery : []
-  const faqs = meta.faqItems || []
+  
+  // 🌟 FIX 4: Safe Array mappings to prevent Edge Runtime map() crash
+  const galleryUrls = Array.isArray(meta.gallery) ? meta.gallery : []
+  const faqs = Array.isArray(meta.faqItems) ? meta.faqItems : []
+  const topAttractions = Array.isArray(meta.topAttractions) ? meta.topAttractions : []
+  
+  const image = place.image || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
 
-  // 🌟 SEO UPGRADE 2: JSON-LD Structured Data
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
 
-  // 1. Breadcrumb Schema
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -106,21 +115,19 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     ]
   };
 
-  // 2. TouristAttraction Schema
   const placeSchema = {
     "@context": "https://schema.org",
     "@type": "TouristAttraction",
     "name": place.title,
-    "description": meta.seo?.metaDescription || meta.shortDescription || `Explore ${place.title} located in ${formattedLocation}.`,
+    "description": meta.metaDescription || meta.shortDescription || `Explore ${place.title} located in ${formattedLocation}.`,
     "image": image,
     "address": {
       "@type": "PostalAddress",
-      "addressLocality": targetCity,
+      "addressLocality": targetCity || "India",
       "addressCountry": "IN"
     }
   };
 
-  // 3. FAQ Schema
   const faqSchema = faqs.length > 0 ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -134,7 +141,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
   return (
     <main className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-blue-600 selection:text-white">
       
-      {/* --- INJECT GOOGLE SCHEMAS --- */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(placeSchema) }} />
       {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
@@ -218,7 +224,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {galleryUrls.map((imgUrl: string, idx: number) => (
                   <div key={idx} className="h-48 rounded-2xl overflow-hidden bg-slate-100 group relative shadow-sm">
-                    {/* 🌟 SEO UPGRADE 3: Dynamic Image Alt Tags */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={imgUrl} alt={`${place.title} tourist spot in ${targetCity} - View ${idx+1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   </div>
@@ -233,7 +238,9 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
               <span className="w-8 h-1 bg-amber-500 rounded-full inline-block"></span> About {place.title}
             </h2>
             {meta.shortDescription && <p className="text-amber-800 font-bold text-lg leading-relaxed mb-8 border-l-4 border-amber-500 pl-5 bg-amber-50/60 py-4 pr-4 rounded-r-2xl">"{meta.shortDescription}"</p>}
-            <div className="prose prose-slate prose-a:text-blue-600 max-w-none text-slate-600 leading-relaxed text-lg break-words marker:text-blue-500" dangerouslySetInnerHTML={{ __html: place.description }} />
+            
+            {/* 🌟 FIX 5: Fallback to empty string to prevent React Server crash */}
+            <div className="prose prose-slate prose-a:text-blue-600 max-w-none text-slate-600 leading-relaxed text-lg break-words marker:text-blue-500" dangerouslySetInnerHTML={{ __html: place.description || '' }} />
           </section>
 
           {/* History */}
@@ -253,18 +260,17 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
           )}
 
           {/* Top Attractions */}
-          {meta.topAttractions && meta.topAttractions.length > 0 && (
+          {topAttractions.length > 0 && (
             <section className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
               <h2 className="text-2xl font-black text-slate-900 mb-6">✨ Top Attractions & Highlights</h2>
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {meta.topAttractions.map((spot: string, idx: number) => (
+                {topAttractions.map((spot: string, idx: number) => (
                   <li key={idx} className="bg-slate-50 px-5 py-4 rounded-2xl border border-slate-100 text-slate-800 font-bold flex gap-3 items-center"><span className="text-amber-500 text-xl">✦</span> {spot}</li>
                 ))}
               </ul>
             </section>
           )}
 
-          {/* AI SMART GUIDE & MAP (Passes placeId for Database Caching) */}
           <AITouristGuide 
             placeId={place.id}
             targetCity={targetCity} 
