@@ -3,10 +3,10 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-// 👇 Debugging ke liye in components ko abhi hide hi rakha hai
-// import FloatingContact from '../../components/FloatingContact'
-// import RelatedPlaceSections from '../../components/RelatedPlaceSections'
-// import AITouristGuide from '../../components/AITouristGuide'
+// 👇 Sabhi components wapas UNCOMMENT kar diye gaye hain
+import FloatingContact from '../../components/FloatingContact'
+import RelatedPlaceSections from '../../components/RelatedPlaceSections'
+import AITouristGuide from '../../components/AITouristGuide'
 
 // 🌟 FIX: Removed runtime='edge' as it conflicts with Cloudflare OpenNext sometimes
 export const revalidate = 60 
@@ -82,7 +82,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function TouristPlacePage({ params }: { params: Promise<{ slug: string }> }) {
   try {
-    // 🌟 POORE CODE KO TRY-CATCH MEIN DAAL DIYA HAI
+    // 🌟 POORE CODE KO TRY-CATCH MEIN RAKHA HAI FOR SAFETY
     const resolvedParams = await params
     const slug = resolvedParams.slug
     
@@ -278,6 +278,14 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
               </section>
             )}
 
+            {/* 👇 AI GUIDE COMPONENT UNCOMMENTED */}
+            <AITouristGuide 
+              placeId={place.id}
+              targetCity={targetCity} 
+              hasExistingFaqs={faqs.length > 0} 
+              placeTitle={place.title}
+            /> 
+
             {/* Existing FAQs */}
             {faqs.length > 0 && (
               <section className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-slate-200">
@@ -307,6 +315,10 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
 
           </div>
         </div>
+
+        {/* 👇 RELATED PLACES AUR FLOATING CONTACT UNCOMMENTED */}
+        <RelatedPlaceSections placeId={place.id} targetCity={targetCity} />
+        <FloatingContact />
 
       </main>
     )
