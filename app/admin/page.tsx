@@ -100,8 +100,8 @@ export default function AdminDashboard() {
     if (data) setListings(data)
   }
 
-  // 5. Update Vendor Account Status (🌟 Updated with Debug Alert)
-  async function updateVendorStatus(id: string, newStatus: string) {
+  // 5. Update Vendor Account Status & Send Approval Email
+  async function updateVendorStatus(id: string, newStatus: string, vendorEmail?: string, vendorName?: string) {
     const { data, error } = await supabase
       .from('profiles')
       .update({ approval_status: newStatus })
@@ -112,6 +112,24 @@ export default function AdminDashboard() {
       alert("Error updating status: " + error.message)
     } else {
       console.log("Status updated successfully:", data)
+      
+      // 🌟 Send Approval Email when status changes to 'approved'
+      if (newStatus === 'approved' && vendorEmail) {
+        try {
+          await fetch('/api/send-approval-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: vendorEmail,
+              name: vendorName || 'Partner',
+              message: "Your profile has been approved! You can now log in, update your profile, and start using the platform."
+            })
+          })
+        } catch (mailErr) {
+          console.error("Email sending failed:", mailErr)
+        }
+      }
+
       fetchVendors() // Refresh the vendor list instantly
     }
   }
@@ -315,7 +333,6 @@ export default function AdminDashboard() {
                         <div className="text-sm text-gray-800 font-bold">{booking.listing_title}</div>
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-600">
-                        {/* 🌟 FIX: Added safety check for booking_details object */}
                         {booking.booking_details && typeof booking.booking_details === 'object' && (
                           <div className="space-y-1">
                             {booking.booking_details.date && <div>📅 <span className="font-semibold">{booking.booking_details.date}</span></div>}
@@ -384,7 +401,7 @@ export default function AdminDashboard() {
 
                         {vendor.approval_status === 'pending' && (
                           <>
-                            <button onClick={() => updateVendorStatus(vendor.id, 'approved')} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
+                            <button onClick={() => updateVendorStatus(vendor.id, 'approved', vendor.email, vendor.full_name)} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
                             <button onClick={() => updateVendorStatus(vendor.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
                           </>
                         )}
@@ -519,7 +536,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
-                  <input type="tel" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />
+                  <input type="tel" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.path ? e.target.value : e.target.value)} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Agency Name</label>
