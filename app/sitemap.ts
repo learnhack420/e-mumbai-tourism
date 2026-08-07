@@ -1,9 +1,8 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 import { MetadataRoute } from 'next'
 import { createClient } from '@supabase/supabase-js'
-
-export const runtime = 'edge';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 1. Initialize Supabase INSIDE the sitemap function
@@ -12,7 +11,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! 
   );
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+  // 🌟 UPDATED: Aapka naya domain yahan set kar diya gaya hai
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://emumbaitourism.com'
 
   // 2. Static Pages
   const staticPages = [
@@ -43,10 +43,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
 
   try {
-    // 3. Fetch all dynamic listings from Supabase
+    // 3. Fetch ONLY "approved" listings with created_at for accurate SEO dates
     const { data: listings, error } = await supabase
       .from('listings')
-      .select('slug, category')
+      .select('slug, category, created_at')
+      .eq('status', 'approved') // 🌟 FIX: Google ko sirf Live/Approved listings bhejein
 
     if (error) {
       console.error("Sitemap Supabase Error:", error.message)
@@ -57,27 +58,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return staticPages
     }
 
-    // 4. Map listings to sitemap entries
+    // 4. Map listings to exactly match website routes
     const dynamicPages = listings
       .filter((item) => item.slug) // Jiska slug ho sirf wahi lein
       .map((item) => {
-        let routePrefix = 'places' // default
+        let path = `/listing/${item.slug}` // Default fallback
 
         const cat = (item.category || '').toLowerCase()
 
+        // 🌟 FIX: Matching EXACT routes used in your Admin Dashboard / Frontend
         if (cat === 'tour' || cat === 'tours') {
-          routePrefix = 'tours'
-        } else if (cat === 'blog' || cat === 'blogs') {
-          routePrefix = 'blog' 
+          path = `/tour/${item.slug}`
+        } else if (cat === 'hotel' || cat === 'hotels') {
+          path = `/hotel/${item.slug}`
         } else if (cat === 'cab' || cat === 'cabs') {
-          routePrefix = 'cabs'
+          path = `/cabs/${item.slug}`
         } else if (cat === 'destination' || cat === 'place' || cat === 'places') {
-          routePrefix = 'places'
+          path = `/places/${item.slug}`
+        } else if (cat === 'blog' || cat === 'blogs') {
+          path = `/${item.slug}` // Blogs are directly on the root url
         }
 
         return {
-          url: `${baseUrl}/${routePrefix}/${item.slug}`,
-          lastModified: new Date(),
+          url: `${baseUrl}${path}`,
+          lastModified: item.created_at ? new Date(item.created_at) : new Date(), // SEO optimized date
           changeFrequency: 'weekly' as const,
           priority: 0.8,
         }
