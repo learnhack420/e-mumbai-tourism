@@ -380,7 +380,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
                         <button onClick={() => openEditVendorModal(vendor)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</button>
-                        <button onClick={() => deleteVendor(vendor.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md inline-block">🗑️ Del</button>
+                        <button onClick={() => deleteVendor(vendor.id)} className="text-red-600 hover:text-red-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">🗑️ Del</button>
 
                         {vendor.approval_status === 'pending' && (
                           <>
