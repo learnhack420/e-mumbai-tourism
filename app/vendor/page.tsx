@@ -4,6 +4,13 @@ import { supabase } from '../../utils/supabase' // path confirm kar lijiye
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+// 🌟 FIX: Added location formatter for clean dashboard UI
+const formatLocation = (locStr?: any) => {
+  if (!locStr) return 'Not specified'
+  if (Array.isArray(locStr)) return locStr.join(', ')
+  return String(locStr).replace(/ > /g, ', ')
+}
+
 export default function VendorDashboard() {
   const [listings, setListings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -179,7 +186,7 @@ export default function VendorDashboard() {
                 <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">{listing.category}</span>
                 <h3 className="text-lg font-bold mt-2 text-gray-900 pr-16 line-clamp-2">{listing.title}</h3>
                 <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-4">
-                  <span className="text-gray-500 text-sm font-medium">📍 {listing.location}</span>
+                  <span className="text-gray-500 text-sm font-medium">📍 {formatLocation(listing.location)}</span>
                   <span className="text-xl font-bold text-gray-900">₹{listing.price}</span>
                 </div>
               </div>

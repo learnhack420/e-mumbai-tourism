@@ -30,28 +30,37 @@ export default function AdminDashboard() {
     checkAdmin()
   }, [])
 
+  // 🌟 FIX: Improved Loading State & Promise.all for faster, safer fetching
   async function checkAdmin() {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      router.push('/login')
-      return
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+        return
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single()
+
+      if (!profile || profile.role !== 'admin') {
+        router.push('/')
+        return
+      }
+
+      // Call all fetch functions simultaneously
+      await Promise.all([
+        fetchVendors(),
+        fetchListings(),
+        fetchBookings()
+      ])
+    } catch (error) {
+      console.error("Admin check failed:", error)
+    } finally {
+      setIsLoading(false)
     }
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single()
-
-    if (!profile || profile.role !== 'admin') {
-      router.push('/')
-      return
-    }
-
-    // Call all fetch functions
-    fetchVendors()
-    fetchListings()
-    fetchBookings()
   }
 
   // 1. Fetch Bookings 
@@ -89,7 +98,6 @@ export default function AdminDashboard() {
       .select('*')
       .order('created_at', { ascending: false })
     if (data) setListings(data)
-    setIsLoading(false)
   }
 
   // 5. Update Vendor Account Status
@@ -160,7 +168,7 @@ export default function AdminDashboard() {
     if (!error) fetchListings()
   }
 
-  // 🌟 NAYA FUNCTION: Delete Listing Permanently
+  // Delete Listing Permanently
   async function deleteListing(id: string) {
     if (!window.confirm("WARNING: Kya aap sach mein is listing ko permanently delete karna chahte hain? Yeh wapas recover nahi hogi.")) return
 
@@ -187,14 +195,14 @@ export default function AdminDashboard() {
     return `/vendor`
   }
 
-  // 🌟 FIXED: Helper to determine View URL
+  // Helper to determine View URL
   const getViewUrl = (listing: any) => {
     const slug = listing.slug || listing.id
     if (listing.category === 'tour') return `/tour/${slug}`
     if (listing.category === 'hotel') return `/hotel/${slug}`
     if (listing.category === 'cab') return `/cabs/${slug}`
     if (listing.category === 'destination') return `/places/${slug}`
-    if (listing.category === 'blog') return `/${slug}` // 👈 FIXED HERE: Direct root url for blogs
+    if (listing.category === 'blog') return `/${slug}`
     return `/listing/${slug}`
   }
 
@@ -213,20 +221,15 @@ export default function AdminDashboard() {
     { id: 'blog', label: 'Blogs' }
   ]
 
-  // 🌟 Helper to get counts per category
   const getCategoryCount = (categoryId: string) => {
     if (categoryId === 'all') return listings.length;
     return listings.filter(l => l.category === categoryId).length;
   }
 
-  // 🌟 Filter listings based on active sub-tab AND Search Query
   const displayedListings = listings.filter(listing => {
-    // 1. Category Filter
     const matchesCategory = activeListingCategory === 'all' ? true : listing.category === activeListingCategory;
     
-    // 2. Search Query Filter (Title or Location)
     const q = searchQuery.toLowerCase();
-    // Naya Safe Code
     const title = typeof listing.title === 'string' ? listing.title.toLowerCase() : '';
     const location = typeof listing.location === 'string' ? listing.location.toLowerCase() : '';
     const matchesSearch = title.includes(q) || location.includes(q);
@@ -234,10 +237,11 @@ export default function AdminDashboard() {
     return matchesCategory && matchesSearch;
   });
 
-  // Helper to cleanly format location strings
-  const formatLocationForList = (locStr: string) => {
+  // 🌟 FIX: Safe location string formatter to prevent dashboard crash
+  const formatLocationForList = (locStr: any) => {
     if (!locStr) return 'Online / Blog'
-    return locStr.replace(/ > /g, ', ')
+    if (Array.isArray(locStr)) return locStr.join(', ')
+    return String(locStr).replace(/ > /g, ', ')
   }
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center text-xl font-bold">Checking Security...</div>
@@ -304,7 +308,8 @@ export default function AdminDashboard() {
                         <div className="text-sm text-gray-800 font-bold">{booking.listing_title}</div>
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-600">
-                        {booking.booking_details && (
+                        {/* 🌟 FIX: Added safety check for booking_details object */}
+                        {booking.booking_details && typeof booking.booking_details === 'object' && (
                           <div className="space-y-1">
                             {booking.booking_details.date && <div>📅 <span className="font-semibold">{booking.booking_details.date}</span></div>}
                             {booking.booking_details.pickup && <div>📍 {formatLocationForList(booking.booking_details.pickup)} ➔ {formatLocationForList(booking.booking_details.drop)}</div>}
@@ -392,7 +397,6 @@ export default function AdminDashboard() {
           {activeTab === 'listings' && (
             <div className="flex flex-col">
               
-              {/* 🌟 NEW: Search Bar Section */}
               <div className="p-4 bg-white border-b border-gray-200 flex justify-between items-center gap-4 flex-wrap">
                 <div className="relative w-full md:w-96">
                   <input 
@@ -406,7 +410,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* 🌟 UPDATED: Category Tabs with Counts */}
               <div className="bg-gray-50 border-b border-gray-200 p-4 flex gap-3 overflow-x-auto whitespace-nowrap">
                 {listingCategories.map(cat => {
                   const count = getCategoryCount(cat.id);
@@ -426,7 +429,6 @@ export default function AdminDashboard() {
                 })}
               </div>
 
-              {/* Table Data */}
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -466,7 +468,6 @@ export default function AdminDashboard() {
                             <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
                           )}
                           
-                          {/* 🌟 NAYA BUTTON: Permanent Delete for declined listings */}
                           {listing.status === 'declined' && (
                             <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
                           )}
