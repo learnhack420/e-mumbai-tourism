@@ -100,13 +100,20 @@ export default function AdminDashboard() {
     if (data) setListings(data)
   }
 
-  // 5. Update Vendor Account Status
+  // 5. Update Vendor Account Status (🌟 Updated with Debug Alert)
   async function updateVendorStatus(id: string, newStatus: string) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .update({ approval_status: newStatus })
       .eq('id', id)
-    if (!error) fetchVendors()
+      .select()
+
+    if (error) {
+      alert("Error updating status: " + error.message)
+    } else {
+      console.log("Status updated successfully:", data)
+      fetchVendors() // Refresh the vendor list instantly
+    }
   }
 
   // 6. Delete Vendor
