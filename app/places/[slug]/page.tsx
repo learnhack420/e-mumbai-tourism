@@ -160,13 +160,14 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
 
           {(meta.timing || meta.entryFee || meta.bestTimeToVisit || meta.howToReach) && (
             <section className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200 mb-10 w-full">
-              <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2 border-b pb-3"><span>📋</span> Essential Visitor Information</h3>
+              {/* 🌟 HEADING UPDATED */}
+              <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2 border-b pb-3"><span>📋</span> Essential Visitor Information of {place.title}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {meta.timing && <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm"><span className="text-3xl bg-amber-100 p-3 rounded-2xl">🕒</span><div><h4 className="text-sm font-black text-slate-900 uppercase">Timings</h4><p className="font-black text-base md:text-lg">{meta.timing}</p></div></div>}
-                {meta.entryFee && <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm"><span className="text-3xl bg-amber-100 p-3 rounded-2xl">🎟️</span><div><h4 className="text-sm font-black text-slate-900 uppercase">Entry Fee</h4><p className="font-black text-base md:text-lg">{meta.entryFee}</p></div></div>}
-                {meta.bestTimeToVisit && <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm"><span className="text-3xl bg-amber-100 p-3 rounded-2xl">⛅</span><div><h4 className="text-sm font-black text-slate-900 uppercase">Best Time To Visit</h4><p className="font-black text-base md:text-lg">{meta.bestTimeToVisit}</p></div></div>}
+                {meta.timing && <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm"><span className="text-3xl bg-amber-100 p-3 rounded-2xl">🕒</span><div><h4 className="text-sm font-black text-slate-900 uppercase">Timings of {place.title}</h4><p className="font-black text-base md:text-lg">{meta.timing}</p></div></div>}
+                {meta.entryFee && <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm"><span className="text-3xl bg-amber-100 p-3 rounded-2xl">🎟️</span><div><h4 className="text-sm font-black text-slate-900 uppercase">Entry Fee of {place.title}</h4><p className="font-black text-base md:text-lg">{meta.entryFee}</p></div></div>}
+                {meta.bestTimeToVisit && <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm"><span className="text-3xl bg-amber-100 p-3 rounded-2xl">⛅</span><div><h4 className="text-sm font-black text-slate-900 uppercase">Best Time To Visit {place.title}</h4><p className="font-black text-base md:text-lg">{meta.bestTimeToVisit}</p></div></div>}
                 {/* 🌟 HOW TO REACH FULL WIDTH */}
-                {meta.howToReach && <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm sm:col-span-2 lg:col-span-3"><span className="text-3xl bg-blue-100 p-3 rounded-2xl">🚆</span><div><h4 className="text-sm font-black text-slate-900 uppercase">How To Reach</h4><p className="text-slate-800 font-bold text-base whitespace-pre-line">{meta.howToReach}</p></div></div>}
+                {meta.howToReach && <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm sm:col-span-2 lg:col-span-3"><span className="text-3xl bg-blue-100 p-3 rounded-2xl">🚆</span><div><h4 className="text-sm font-black text-slate-900 uppercase">How To Reach {place.title}</h4><p className="text-slate-800 font-bold text-base whitespace-pre-line">{meta.howToReach}</p></div></div>}
               </div>
             </section>
           )}
@@ -191,54 +192,69 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
 
             {meta.history && (
               <section className="bg-slate-900 text-slate-300 p-8 md:p-10 rounded-[2.5rem] shadow-xl">
-                <h2 className="text-2xl font-black text-white mb-4 flex items-center gap-2"><span>📜</span> History & Significance</h2>
+                {/* 🌟 HEADING UPDATED */}
+                <h2 className="text-2xl font-black text-white mb-4 flex items-center gap-2"><span>📜</span> History & Significance of {place.title}</h2>
                 <p className="leading-relaxed opacity-90 whitespace-pre-line text-lg">{meta.history}</p>
               </section>
             )}
 
             {meta.whyVisit && (
               <section className="bg-blue-50 text-blue-950 p-8 md:p-10 rounded-[2.5rem] border border-blue-100 shadow-sm">
-                <h2 className="text-2xl font-black mb-4 flex items-center gap-2"><span>💡</span> Why You Should Visit</h2>
+                {/* 🌟 HEADING UPDATED */}
+                <h2 className="text-2xl font-black mb-4 flex items-center gap-2"><span>💡</span> Why You Should Visit {place.title}</h2>
                 <p className="leading-relaxed opacity-90 whitespace-pre-line text-lg">{meta.whyVisit}</p>
               </section>
             )}
 
             {meta.rituals && (
               <section className="bg-orange-50 text-orange-950 p-8 md:p-10 rounded-[2.5rem] border border-orange-100 shadow-sm">
-                <h2 className="text-2xl font-black mb-4 flex items-center gap-2"><span>🙏</span> Rituals, Activities & Things to Do</h2>
+                {/* 🌟 HEADING UPDATED */}
+                <h2 className="text-2xl font-black mb-4 flex items-center gap-2"><span>🙏</span> Rituals, Activities & Things to Do at {place.title}</h2>
                 <p className="leading-relaxed opacity-90 whitespace-pre-line text-lg">{meta.rituals}</p>
               </section>
             )}
 
-            {/* 🌟 SLIDING CAROUSEL FOR NEARBY PLACES */}
+            {/* 🌟 AUTO SLIDING NEAREST PLACES SECTION */}
             {(finalNearbyCards.length > 0 || oldNearestText) && (
               <section className="bg-emerald-50 text-emerald-950 p-8 md:p-10 rounded-[2.5rem] border border-emerald-100 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-black flex items-center gap-2"><span>📍</span> Nearby Places & Attractions</h2>
-                  {finalNearbyCards.length > 1 && <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full hidden sm:block">Swipe to Explore →</span>}
                 </div>
                 
                 {finalNearbyCards.length > 0 ? (
-                  <div className="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    {finalNearbyCards.map((card) => (
-                      <Link 
-                        key={card.id} 
-                        href={card.link} 
-                        className="min-w-[280px] sm:min-w-[320px] flex-shrink-0 snap-center bg-white border border-emerald-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col"
-                      >
-                        <div className="h-44 w-full overflow-hidden bg-emerald-100 relative">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={card.image} alt={card.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        </div>
-                        <div className="p-5 flex-1 flex flex-col justify-between">
-                          <h3 className="font-black text-slate-800 text-lg group-hover:text-emerald-600 transition-colors line-clamp-1">{card.title}</h3>
-                          <span className="text-xs font-bold text-emerald-700 mt-3 inline-block bg-emerald-100 w-max px-4 py-2 rounded-full group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                            Explore Place →
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
+                  <>
+                    <div id="nearby-slider" className="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                      {finalNearbyCards.map((card) => (
+                        <Link key={card.id} href={card.link} className="min-w-[280px] sm:min-w-[320px] flex-shrink-0 snap-center bg-white border border-emerald-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col">
+                          <div className="h-44 w-full overflow-hidden bg-emerald-100 relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={card.image} alt={card.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          </div>
+                          <div className="p-5 flex-1 flex flex-col justify-between">
+                            <h3 className="font-black text-slate-800 text-lg group-hover:text-emerald-600 transition-colors line-clamp-1">{card.title}</h3>
+                            <span className="text-xs font-bold text-emerald-700 mt-3 inline-block bg-emerald-100 w-max px-4 py-2 rounded-full group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                              Explore Place →
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                    {/* 👇 Yeh chota script cards ko apne aap slide karega bina alag component banaye */}
+                    <script dangerouslySetInnerHTML={{
+                      __html: `
+                        setInterval(function() {
+                          var slider = document.getElementById('nearby-slider');
+                          if (slider) {
+                            if (slider.scrollLeft >= slider.scrollWidth - slider.clientWidth - 10) {
+                              slider.scrollTo({ left: 0, behavior: 'smooth' });
+                            } else {
+                              slider.scrollBy({ left: 344, behavior: 'smooth' });
+                            }
+                          }
+                        }, 3000);
+                      `
+                    }} />
+                  </>
                 ) : (
                   <p className="leading-relaxed opacity-90 whitespace-pre-line text-lg">{oldNearestText}</p>
                 )}
