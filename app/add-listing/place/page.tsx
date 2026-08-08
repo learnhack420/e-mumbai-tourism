@@ -139,7 +139,7 @@ function PlaceFormContent() {
         metaKeywords: meta.metaKeywords || "",
         category: meta.placeCategories || ["Historical"], 
         description: data.description || "",
-        image: data.image || meta.image || "", // 🌟 FIX: Db image ko priority
+        image: data.image || meta.image || "", 
         entryFee: meta.entryFee || "Free",
         timing: meta.timing || "24 Hours",
         bestTime: meta.bestTimeToVisit || "",
@@ -358,7 +358,7 @@ function PlaceFormContent() {
       whyVisit: formData.whyVisit,
       history: formData.history,
       rituals: formData.rituals,
-      image: formData.image,
+      image: formData.image, // ✅ Image yahan metadata ke andar safely save hogi
       faqItems: cleanFaqs
     }
 
@@ -369,7 +369,7 @@ function PlaceFormContent() {
       category: "destination", 
       location: location,
       price: 0,
-      image: formData.image, // 🌟 MOST IMPORTANT FIX: Main table me image save karega ab
+      // ❌ Yahan se schema fix karne ke liye 'image' field hata diya gaya hai
       metadata: metadata 
     }
 
