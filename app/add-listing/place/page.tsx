@@ -24,7 +24,7 @@ function PlaceFormContent() {
   const [userRole, setUserRole] = useState("")
 
   const [location, setLocation] = useState("")
-  const [allPlaces, setAllPlaces] = useState<any[]>([]) // 🌟 Database se saari places fetch karne ke liye state
+  const [allPlaces, setAllPlaces] = useState<any[]>([]) 
 
   const [formData, setFormData] = useState({
     placeName: "",
@@ -38,7 +38,7 @@ function PlaceFormContent() {
     entryFee: "Free",
     timing: "24 Hours",
     bestTime: "",
-    nearestPlaces: [] as string[], // 🌟 Array for multiple nearest places
+    nearestPlaces: [] as string[], 
     howToReach: "",
     whyVisit: "",
     history: "",
@@ -90,7 +90,6 @@ function PlaceFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
-    // 🌟 Fetch all destination places for "Nearest Places" selection
     const { data: placesData } = await supabase
       .from("listings")
       .select("id, title, slug")
@@ -125,7 +124,6 @@ function PlaceFormContent() {
       setLocation(data.location || "")
       const meta = data.metadata || {}
 
-      // Backward compatibility: Convert old string to array if needed
       let loadedNearest = meta.nearestPlaces;
       if (typeof loadedNearest === 'string') {
         loadedNearest = loadedNearest ? loadedNearest.split(',').map((s: string) => s.trim()) : [];
@@ -141,7 +139,7 @@ function PlaceFormContent() {
         metaKeywords: meta.metaKeywords || "",
         category: meta.placeCategories || ["Historical"], 
         description: data.description || "",
-        image: meta.image || data.image || "", 
+        image: data.image || meta.image || "", // 🌟 FIX: Db image ko priority
         entryFee: meta.entryFee || "Free",
         timing: meta.timing || "24 Hours",
         bestTime: meta.bestTimeToVisit || "",
@@ -238,7 +236,6 @@ function PlaceFormContent() {
     })
   }
 
-  // 🌟 Nearest Places Multi-select Toggle Handler
   const handleNearestToggle = (slugOrTitle: string) => {
     setFormData(prev => {
       const current = prev.nearestPlaces;
@@ -357,7 +354,7 @@ function PlaceFormContent() {
       gallery: cleanGallery,
       entryFee: formData.entryFee,
       timing: formData.timing,
-      nearestPlaces: formData.nearestPlaces, // 🌟 Saves as array of slugs
+      nearestPlaces: formData.nearestPlaces,
       whyVisit: formData.whyVisit,
       history: formData.history,
       rituals: formData.rituals,
@@ -372,6 +369,7 @@ function PlaceFormContent() {
       category: "destination", 
       location: location,
       price: 0,
+      image: formData.image, // 🌟 MOST IMPORTANT FIX: Main table me image save karega ab
       metadata: metadata 
     }
 
@@ -588,7 +586,6 @@ function PlaceFormContent() {
               </div>
             </div>
 
-            {/* 🌟 NEAREST PLACES MULTI-SELECT PICKER */}
             <div className="border border-emerald-200 p-6 rounded-xl bg-emerald-50/40">
               <label className="block text-sm font-bold text-emerald-900 mb-2">📍 Select Nearby Places (Click to attach)</label>
               <p className="text-xs text-emerald-700 mb-4">Choose from already created destinations so visitors can click and explore them easily.</p>
