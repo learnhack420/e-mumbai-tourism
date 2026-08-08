@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     
     const descriptionText = meta.shortDescription ? cleanText(meta.shortDescription) : `Complete travel guide to visit ${place.title}. Find timings, entry fees, and attractions.`;
     
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com';
     const currentUrl = `${siteUrl}/places/${slug}`;
     
     const safeGallery = Array.isArray(meta.gallery) ? meta.gallery : [];
@@ -111,7 +111,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     
     const image = place.image || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism .com';
 
     const breadcrumbSchema = {
       "@context": "https://schema.org",

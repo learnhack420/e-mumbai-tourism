@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!cab) return { title: 'Not Found' }
     
     const cleanLocation = formatLocation(cab.location)
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com'
     const currentUrl = `${siteUrl}/cabs/${resolvedParams.slug}`
     
     const meta = typeof cab.metadata === 'object' && cab.metadata !== null ? cab.metadata : {}
@@ -101,7 +101,7 @@ export default async function CabDetailPage({ params }: { params: Promise<{ slug
     const isOutstation = meta.mainType === 'Outstation'
 
     // JSON-LD Structured Data for TaxiService
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com'
     
     const breadcrumbSchema = {
       "@context": "https://schema.org",

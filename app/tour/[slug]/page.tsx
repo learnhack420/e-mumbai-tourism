@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (!tour) return { title: 'Tour Not Found' }
 
     const seo = tour.metadata?.seo || {}
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://emumbaitourism.com'
     const currentUrl = `${siteUrl}/tour/${slug}`
     
     // Array safety for gallery
@@ -144,7 +144,7 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
     }
 
     // JSON-LD Structured Data
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com'
     
     const breadcrumbSchema = {
       "@context": "https://schema.org",

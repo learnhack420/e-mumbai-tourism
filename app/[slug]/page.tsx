@@ -47,7 +47,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const meta = typeof place.metadata === 'object' && place.metadata !== null ? place.metadata : {}
     const cleanLocation = formatLocation(place.location)
     
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com'
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com'
     const currentUrl = `${siteUrl}/${resolvedParams.slug}`
     
     const safeGallery = Array.isArray(meta.gallery) ? meta.gallery : []
@@ -121,7 +121,7 @@ export default async function DestinationPage({ params }: { params: Promise<{ sl
     const targetCity = formattedLocation !== 'Not specified' ? formattedLocation.split(',')[0].trim() : ''
 
     // 🌟 SEO UPGRADE 2: JSON-LD Structured Data
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.indiatouroperators.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com';
     
     // 1. Breadcrumb Schema
     const breadcrumbSchema = {
