@@ -184,13 +184,26 @@ export default function AdminDashboard() {
     }
   }
 
-  // 7. Update Listing Status
+  // 7. Update Listing Status with Debugging
   async function updateListingStatus(id: string, newStatus: string) {
-    const { error } = await supabase
+    console.log("Updating listing ID:", id, "to status:", newStatus);
+
+    const { data, error } = await supabase
       .from('listings')
       .update({ status: newStatus })
       .eq('id', id)
-    if (!error) fetchListings()
+      .select()
+
+    if (error) {
+      alert("Error updating listing status: " + error.message)
+    } else {
+      console.log("Supabase Update Response Data:", data)
+      if (!data || data.length === 0) {
+        alert("Warning: Update successful but 0 rows affected. Check if listing ID exists!")
+      } else {
+        fetchListings() // Immediately refresh listings table
+      }
+    }
   }
 
   // Delete Listing Permanently
