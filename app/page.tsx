@@ -52,23 +52,20 @@ export default async function Home() {
     return `/listing/${slug}`
   }
 
-  // 🌟 PERFECT THUMBNAIL EXTRACTOR (Now with Custom Logo Fallback)
+  // 🌟 PERFECT THUMBNAIL EXTRACTOR
   const getThumbnail = (listing: any) => {
     const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
     
-    // 1. Direct Image Match 
     const exactImage = listing.image || listing.thumbnail || meta.thumbnail || meta.image;
     if (exactImage && typeof exactImage === 'string' && exactImage.trim() !== '') {
       return exactImage.trim();
     }
 
-    // 2. Check meta.gallery array as fallback 
     if (meta.gallery && Array.isArray(meta.gallery) && meta.gallery.length > 0) {
       const firstValidImg = meta.gallery.find((img: string) => img && typeof img === 'string' && img.trim() !== '')
       if (firstValidImg) return firstValidImg.trim()
     }
 
-    // 3. Custom Default Logo (If no image is found anywhere)
     return '/ITO LOGO.png'
   }
 
@@ -78,15 +75,15 @@ export default async function Home() {
   const cabs = listings?.filter((l) => l.category === 'cab') || []
   const blogs = listings?.filter((l) => l.category === 'blog') || []
 
+  // 🌟 CHANGED: "Trending Destinations" changed to "Tourist Attractions"
   const sections = [
     { title: "Top Tour Packages", items: tours, viewAllLink: "/tours", icon: "🗺️", badge: "Most Popular" },
-    { title: "Trending Destinations", items: destinations, viewAllLink: "/places", icon: "📍", badge: "Must Visit" },
+    { title: "Tourist Attractions", items: destinations, viewAllLink: "/places", icon: "📍", badge: "Must Visit" },
     { title: "Luxury & Budget Hotels", items: hotels, viewAllLink: "/hotels", icon: "🏨", badge: "Best Stays" },
     { title: "Outstation Cabs", items: cabs, viewAllLink: "/cabs", icon: "🚖", badge: "Safe & Reliable" },
     { title: "Travel Guides & Blogs", items: blogs, viewAllLink: "/blogs", icon: "📖", badge: "Expert Tips" },
   ]
 
-  // 🌟 GOOGLE FAQ SCHEMA FOR HOMEPAGE SEO
   const faqSchema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -100,7 +97,6 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200 selection:text-blue-900">
       
-      {/* --- INJECT GOOGLE FAQ SCHEMA --- */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
 
       {/* --- PREMIUM HERO SECTION --- */}
@@ -186,8 +182,27 @@ export default async function Home() {
                   const excerpt = listing.metadata?.shortDescription || stripHtml(listing.description);
                   const isInfoContent = listing.category === 'destination' || listing.category === 'blog';
 
+                  // 🌟 EXTRACTION: Getting placeCategories array correctly
+                  const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {});
+                  const placeCats: string[] = listing.category === 'destination' && Array.isArray(meta.placeCategories) ? meta.placeCategories : [];
+                  
+                  // 🌟 BADGE TEXT FIX
+                  let badgeText = listing.category;
+                  if (listing.category === 'blog' && meta.blogCategory) {
+                    badgeText = meta.blogCategory;
+                  } else if (listing.category === 'destination') {
+                    badgeText = placeCats.length > 0 ? placeCats[0] : 'Tourist Place';
+                  }
+
+                  // 🌟 CHANGED: Outer wrapper is now a div to allow nested Links (Categories) safely
                   return (
-                    <Link href={detailUrl} key={listing.id} className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-2xl hover:border-blue-100 transition-all duration-300 flex flex-col group cursor-pointer">
+                    <div key={listing.id} className="relative bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-2xl hover:border-blue-100 transition-all duration-300 flex flex-col group">
+                      
+                      {/* Main Card Invisible Link (Covers everything except z-20 elements) */}
+                      <Link href={detailUrl} className="absolute inset-0 z-10">
+                        <span className="sr-only">View {listing.title}</span>
+                      </Link>
+
                       <div className="relative h-60 w-full bg-slate-200 overflow-hidden flex items-center justify-center">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
@@ -197,7 +212,7 @@ export default async function Home() {
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                         <span className="absolute top-4 left-4 text-xs font-black text-white bg-slate-900/80 backdrop-blur-md px-4 py-1.5 rounded-full uppercase tracking-widest shadow-lg">
-                          {listing.category === 'blog' && listing.metadata?.blogCategory ? listing.metadata.blogCategory : listing.category === 'destination' ? 'Tourist Place' : listing.category}
+                          {badgeText}
                         </span>
                       </div>
 
@@ -206,12 +221,28 @@ export default async function Home() {
                           <h3 className="text-xl md:text-2xl font-black text-slate-800 line-clamp-2 group-hover:text-blue-600 transition-colors leading-tight mb-3">
                             {listing.title}
                           </h3>
+                          
+                          {/* 🌟 NEW: Categories Tags placed below the Title (Clickable) */}
+                          {listing.category === 'destination' && placeCats.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-3 relative z-20">
+                              {placeCats.map((cat, i) => (
+                                <Link 
+                                  key={i} 
+                                  href={`/places?category=${encodeURIComponent(cat)}`} 
+                                  className="text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-md hover:bg-amber-100 hover:text-amber-900 transition-colors"
+                                >
+                                  {cat}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+
                           <p className="text-slate-500 text-sm line-clamp-2 leading-relaxed font-medium">
                             {excerpt}
                           </p>
                         </div>
                         
-                        <div className="mt-6 flex justify-between items-end border-t border-slate-100 pt-5">
+                        <div className="mt-6 flex justify-between items-end border-t border-slate-100 pt-5 relative z-20 pointer-events-none">
                           <span className="text-slate-500 text-sm font-bold flex items-center truncate max-w-[55%]">📍 {listing.location ? listing.location.split(',')[0] : 'Mumbai'}</span>
                           <div className="text-right">
                             {isInfoContent ? (
@@ -225,7 +256,7 @@ export default async function Home() {
                           </div>
                         </div>
                       </div>
-                    </Link>
+                    </div>
                   )
                 })}
               </div>

@@ -24,6 +24,7 @@ function PlaceFormContent() {
   const [userRole, setUserRole] = useState("")
 
   const [location, setLocation] = useState("")
+  const [allPlaces, setAllPlaces] = useState<any[]>([]) // 🌟 Database se saari places fetch karne ke liye state
 
   const [formData, setFormData] = useState({
     placeName: "",
@@ -31,13 +32,13 @@ function PlaceFormContent() {
     metaTitle: "", 
     metaDescription: "",
     metaKeywords: "", 
-    category: "Historical",
+    category: ["Historical"], 
     description: "",
     image: "",
     entryFee: "Free",
     timing: "24 Hours",
     bestTime: "",
-    nearestPlaces: "",
+    nearestPlaces: [] as string[], // 🌟 Array for multiple nearest places
     howToReach: "",
     whyVisit: "",
     history: "",
@@ -56,7 +57,7 @@ function PlaceFormContent() {
 
   const [topAttractions, setTopAttractions] = useState([""])
   const [gallery, setGallery] = useState([""])
-  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null) // 🌟 Loader state for gallery
+  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null) 
 
   useEffect(() => {
     checkAccessAndLoadData()
@@ -89,6 +90,14 @@ function PlaceFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
+    // 🌟 Fetch all destination places for "Nearest Places" selection
+    const { data: placesData } = await supabase
+      .from("listings")
+      .select("id, title, slug")
+      .eq("category", "destination")
+    
+    if (placesData) setAllPlaces(placesData)
+
     const savedCats = typeof window !== "undefined" ? localStorage.getItem("adminPlaceCategories") : null
     if (savedCats) {
       try {
@@ -114,8 +123,15 @@ function PlaceFormContent() {
       }
 
       setLocation(data.location || "")
-
       const meta = data.metadata || {}
+
+      // Backward compatibility: Convert old string to array if needed
+      let loadedNearest = meta.nearestPlaces;
+      if (typeof loadedNearest === 'string') {
+        loadedNearest = loadedNearest ? loadedNearest.split(',').map((s: string) => s.trim()) : [];
+      } else if (!Array.isArray(loadedNearest)) {
+        loadedNearest = [];
+      }
 
       setFormData({
         placeName: data.title || "",
@@ -123,13 +139,13 @@ function PlaceFormContent() {
         metaTitle: meta.metaTitle || data.title || "",
         metaDescription: meta.shortDescription || "",
         metaKeywords: meta.metaKeywords || "",
-        category: data.category || "Historical",
+        category: meta.placeCategories || ["Historical"], 
         description: data.description || "",
         image: meta.image || data.image || "", 
         entryFee: meta.entryFee || "Free",
         timing: meta.timing || "24 Hours",
         bestTime: meta.bestTimeToVisit || "",
-        nearestPlaces: meta.nearestPlaces || "",
+        nearestPlaces: loadedNearest,
         howToReach: meta.howToReach || "",
         whyVisit: meta.whyVisit || "",
         history: meta.history || "",
@@ -150,24 +166,18 @@ function PlaceFormContent() {
     setLoading(false)
   }
 
-  // 🌟 IMGBB IMAGE UPLOAD HELPER FUNCTION (No Supabase Storage used)
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
-    
     const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
-    
     try {
       const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
         method: 'POST',
         body: formData,
       })
       const data = await response.json()
-      if (data.success) {
-        return data.data.url 
-      } else {
-        throw new Error('Upload failed')
-      }
+      if (data.success) return data.data.url 
+      else throw new Error('Upload failed')
     } catch (error) {
       console.error("Image upload error:", error)
       alert("Image upload fail ho gaya. Kripya image size chota rakhein ya URL direct paste karein.")
@@ -175,26 +185,19 @@ function PlaceFormContent() {
     }
   }
 
-  // 🌟 Main Image Upload (Updated to ImgBB)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     setIsUploading(true)
     setMessage({ type: "", text: "" })
-
     const url = await uploadImageToServer(file)
-    if (url) {
-      setFormData(prev => ({ ...prev, image: url }))
-    }
+    if (url) setFormData(prev => ({ ...prev, image: url }))
     setIsUploading(false)
   }
 
-  // 🌟 Gallery Upload Handler
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const file = e.target.files?.[0]
     if (!file) return
-    
     setUploadingGalleryIndex(index)
     const url = await uploadImageToServer(file)
     if (url) {
@@ -206,12 +209,7 @@ function PlaceFormContent() {
   }
 
   const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/[\s_-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
+    return name.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "")
   }
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,13 +227,36 @@ function PlaceFormContent() {
     setSlugEdited(true)
   }
 
+  const handleCategoryToggle = (cat: string) => {
+    setFormData(prev => {
+      const currentCats = prev.category;
+      if (currentCats.includes(cat)) {
+        return { ...prev, category: currentCats.filter(c => c !== cat) }
+      } else {
+        return { ...prev, category: [...currentCats, cat] }
+      }
+    })
+  }
+
+  // 🌟 Nearest Places Multi-select Toggle Handler
+  const handleNearestToggle = (slugOrTitle: string) => {
+    setFormData(prev => {
+      const current = prev.nearestPlaces;
+      if (current.includes(slugOrTitle)) {
+        return { ...prev, nearestPlaces: current.filter(item => item !== slugOrTitle) }
+      } else {
+        return { ...prev, nearestPlaces: [...current, slugOrTitle] }
+      }
+    })
+  }
+
   const handleAddNewCategory = () => {
     if (newCategory.trim() !== "") {
       const formattedCategory = newCategory.trim()
       const updatedCategories = Array.from(new Set([...availableCategories, formattedCategory]))
       setAvailableCategories(updatedCategories)
       localStorage.setItem("adminPlaceCategories", JSON.stringify(updatedCategories))
-      setFormData(prev => ({ ...prev, category: formattedCategory }))
+      setFormData(prev => ({ ...prev, category: [...prev.category, formattedCategory] }))
       setNewCategory("")
       setIsAddingCategory(false)
     }
@@ -246,9 +267,7 @@ function PlaceFormContent() {
       const updatedCategories = availableCategories.filter(c => c !== catToDelete)
       setAvailableCategories(updatedCategories)
       localStorage.setItem("adminPlaceCategories", JSON.stringify(updatedCategories))
-      if (formData.category === catToDelete) {
-        setFormData(prev => ({ ...prev, category: updatedCategories[0] || "" }))
-      }
+      setFormData(prev => ({ ...prev, category: prev.category.filter(c => c !== catToDelete) }))
     }
   }
 
@@ -264,9 +283,11 @@ function PlaceFormContent() {
       updatedCategories[index] = trimmedName
       setAvailableCategories(updatedCategories)
       localStorage.setItem("adminPlaceCategories", JSON.stringify(updatedCategories))
-      if (formData.category === oldCat) {
-        setFormData(prev => ({ ...prev, category: trimmedName }))
-      }
+      
+      setFormData(prev => ({
+        ...prev,
+        category: prev.category.map(c => c === oldCat ? trimmedName : c)
+      }))
     }
     setEditingCatIndex(null)
     setEditingCatName("")
@@ -316,6 +337,7 @@ function PlaceFormContent() {
     if (!formData.image) return alert("Please provide a Featured Image!")
     if (!formData.slug) return alert("URL Slug is required!")
     if (!location) return alert("Please select a location!")
+    if (formData.category.length === 0) return alert("Please select at least one category!")
 
     setSubmitting(true)
     setMessage({ type: "", text: "" })
@@ -328,13 +350,14 @@ function PlaceFormContent() {
       metaTitle: formData.metaTitle,
       shortDescription: formData.metaDescription,
       metaKeywords: formData.metaKeywords,
+      placeCategories: formData.category, 
       bestTimeToVisit: formData.bestTime,
       howToReach: formData.howToReach,
       topAttractions: cleanAttractions,
       gallery: cleanGallery,
       entryFee: formData.entryFee,
       timing: formData.timing,
-      nearestPlaces: formData.nearestPlaces,
+      nearestPlaces: formData.nearestPlaces, // 🌟 Saves as array of slugs
       whyVisit: formData.whyVisit,
       history: formData.history,
       rituals: formData.rituals,
@@ -387,7 +410,7 @@ function PlaceFormContent() {
             type: 'New Tourist Place Added 🏔️',
             data: {
               Place_Name: formData.placeName,
-              Category: formData.category,
+              Category: formData.category.join(", "), 
               Location: location,
               Vendor_ID: vendorId,
               Action: 'Please review and approve from Admin Panel'
@@ -470,42 +493,24 @@ function PlaceFormContent() {
             <div className="bg-indigo-50 p-6 rounded-xl border border-indigo-100 space-y-4">
               <div>
                 <label className="block text-sm font-bold mb-1 text-indigo-900">SEO Meta Title</label>
-                <input 
-                  type="text" 
-                  placeholder="Meta Title for Google search..." 
-                  className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm font-semibold" 
-                  value={formData.metaTitle} 
-                  onChange={(e) => setFormData({...formData, metaTitle: e.target.value})} 
-                />
+                <input type="text" placeholder="Meta Title for Google search..." className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm font-semibold" value={formData.metaTitle} onChange={(e) => setFormData({...formData, metaTitle: e.target.value})} />
               </div>
 
               <div>
                 <label className="block text-sm font-bold mb-1 text-indigo-900">Meta Description (SEO)*</label>
-                <textarea 
-                  rows={2} 
-                  placeholder="Write a catchy 150-160 character summary for Google search results..." 
-                  className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm" 
-                  value={formData.metaDescription} 
-                  onChange={(e) => setFormData({...formData, metaDescription: e.target.value})} 
-                />
+                <textarea rows={2} placeholder="Write a catchy 150-160 character summary for Google search results..." className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm" value={formData.metaDescription} onChange={(e) => setFormData({...formData, metaDescription: e.target.value})} />
                 <p className="text-xs text-indigo-600 mt-2 font-medium">Appears in Google search snippets. Keep it concise & engaging.</p>
               </div>
 
               <div>
                 <label className="block text-sm font-bold mb-1 text-indigo-900">SEO Meta Keywords</label>
-                <input 
-                  type="text" 
-                  placeholder="keyword 1, keyword 2, keyword 3..." 
-                  className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm" 
-                  value={formData.metaKeywords} 
-                  onChange={(e) => setFormData({...formData, metaKeywords: e.target.value})} 
-                />
+                <input type="text" placeholder="keyword 1, keyword 2, keyword 3..." className="w-full p-3.5 border border-indigo-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm" value={formData.metaKeywords} onChange={(e) => setFormData({...formData, metaKeywords: e.target.value})} />
               </div>
             </div>
 
             <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
               <div className="flex justify-between items-center mb-3">
-                <label className="block text-sm font-bold text-slate-800">Select Place Category*</label>
+                <label className="block text-sm font-bold text-slate-800">Select Place Categories (Multiple allowed)*</label>
                 <button type="button" onClick={() => setIsManagingCategories(!isManagingCategories)} className={`text-xs font-bold px-3 py-1.5 rounded-full ${isManagingCategories ? 'bg-red-100 text-red-600' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}`}>
                   {isManagingCategories ? "Done Managing" : "⚙️ Manage Categories"}
                 </button>
@@ -526,18 +531,18 @@ function PlaceFormContent() {
                     return (
                       <div key={index} className="flex items-center gap-1 bg-white px-3.5 py-1.5 rounded-full border border-slate-300 shadow-sm">
                         <span className="text-sm font-bold text-slate-700 mr-2">{cat}</span>
-                        <button type="button" onClick={() => startEditingCategory(index, cat)} className="text-blue-500 text-xs mr-2 font-bold hover:bg-blue-100 p-1 rounded">Edit</button>
+                        <button type="button" onClick={() => startEditingCategory(index, cat)} className="text-blue-50 text-xs mr-2 font-bold hover:bg-blue-100 p-1 rounded">Edit</button>
                         <button type="button" onClick={() => handleDeleteCategory(cat)} className="text-red-500 text-xs font-bold hover:bg-red-100 p-1 rounded">Del</button>
                       </div>
                     )
                   }
 
-                  const isSelected = formData.category === cat
+                  const isSelected = formData.category.includes(cat)
                   return (
                     <button
                       key={index}
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, category: cat }))}
+                      onClick={() => handleCategoryToggle(cat)}
                       className={`px-5 py-2.5 rounded-xl text-sm font-bold border transition-all ${
                         isSelected
                           ? "bg-amber-600 text-white border-amber-700 shadow-md"
@@ -583,6 +588,33 @@ function PlaceFormContent() {
               </div>
             </div>
 
+            {/* 🌟 NEAREST PLACES MULTI-SELECT PICKER */}
+            <div className="border border-emerald-200 p-6 rounded-xl bg-emerald-50/40">
+              <label className="block text-sm font-bold text-emerald-900 mb-2">📍 Select Nearby Places (Click to attach)</label>
+              <p className="text-xs text-emerald-700 mb-4">Choose from already created destinations so visitors can click and explore them easily.</p>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-48 overflow-y-auto p-2 bg-white rounded-xl border border-emerald-100">
+                {allPlaces.map((p) => {
+                  const identifier = p.slug || p.title;
+                  const isChecked = formData.nearestPlaces.includes(identifier);
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleNearestToggle(identifier)}
+                      className={`text-left px-3 py-2 rounded-lg text-xs font-bold transition-all truncate border ${
+                        isChecked 
+                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' 
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {isChecked ? "✓ " : "+ "} {p.title}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             <div className="bg-amber-50 p-6 rounded-xl border border-amber-100">
               <label className="block text-sm font-bold mb-3 text-amber-900">Featured Photo (Main Image)*</label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
@@ -597,7 +629,6 @@ function PlaceFormContent() {
                   {isUploading ? (
                     <span className="animate-pulse text-amber-600 font-bold">Uploading image...</span>
                   ) : formData.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={formData.image} className="h-32 rounded-lg shadow-md object-cover" alt="Preview" />
                   ) : (
                     <span className="text-slate-400 text-xs">Image Preview</span>
@@ -636,10 +667,6 @@ function PlaceFormContent() {
                 <textarea rows={3} placeholder="Nearest airport, railway station, bus routes..." className="w-full p-3.5 border rounded-xl outline-none bg-gray-50 focus:ring-2 focus:ring-amber-500 text-sm" value={formData.howToReach} onChange={(e) => setFormData({...formData, howToReach: e.target.value})} />
               </div>
               <div className="border border-gray-200 p-6 rounded-xl">
-                <label className="block text-sm font-bold mb-2 text-gray-800">📍 Nearest Places</label>
-                <textarea rows={3} placeholder="Other nearby tourist attractions..." className="w-full p-3.5 border rounded-xl outline-none bg-gray-50 focus:ring-2 focus:ring-amber-500 text-sm" value={formData.nearestPlaces} onChange={(e) => setFormData({...formData, nearestPlaces: e.target.value})} />
-              </div>
-              <div className="md:col-span-2 border border-gray-200 p-6 rounded-xl">
                 <label className="block text-sm font-bold mb-2 text-gray-800">🙏 Rituals / Activities / Things to Do</label>
                 <textarea rows={3} placeholder="Local rituals, festivals, or fun activities to do here..." className="w-full p-3.5 border rounded-xl outline-none bg-gray-50 focus:ring-2 focus:ring-amber-500 text-sm" value={formData.rituals} onChange={(e) => setFormData({...formData, rituals: e.target.value})} />
               </div>
@@ -662,7 +689,6 @@ function PlaceFormContent() {
               </div>
             </div>
 
-            {/* 🌟 GALLERY UPLOAD FIX HERE */}
             <div className="border border-gray-200 p-6 rounded-xl">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-gray-800">5. Photo Gallery (Extra Image URLs)</h2>
@@ -672,13 +698,10 @@ function PlaceFormContent() {
                 {gallery.map((url, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <input type="url" className="flex-1 px-4 py-2 border rounded-lg outline-none bg-gray-50 text-sm" placeholder="https://website.com/image.jpg" value={url} onChange={(e) => handleArrayChange(index, e.target.value, "gallery")} />
-                    
-                    {/* 🌟 Folder Icon logic for ImgBB gallery upload */}
                     <label className={`px-3 py-2 rounded-lg cursor-pointer flex items-center justify-center font-bold text-sm transition-colors border ${uploadingGalleryIndex === index ? 'bg-gray-200 text-gray-500 border-gray-300' : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200'}`}>
                       {uploadingGalleryIndex === index ? '⏳...' : '📁'}
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => handleGalleryUpload(e, index)} disabled={uploadingGalleryIndex === index} />
                     </label>
-
                     {gallery.length > 1 && (
                       <button type="button" onClick={() => handleRemoveArrayItem(index, "gallery")} className="text-red-500 hover:text-red-700 font-bold px-3 py-2 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100 transition-colors">✕</button>
                     )}
