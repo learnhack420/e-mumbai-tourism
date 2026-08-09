@@ -1,7 +1,7 @@
 import { supabase } from '../../../utils/supabase'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Script from 'next/script' // 🌟 Added Next.js Script component
+import Script from 'next/script'
 import type { Metadata } from 'next'
 
 import FloatingContact from '../../components/FloatingContact'
@@ -30,7 +30,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const { data: place } = await supabase.from('listings').select('title, metadata, location, image').eq('slug', slug).single()
     if (!place) return { title: 'Place Not Found' }
     
-    // 🌟 FIX: Safely parse JSON if metadata comes as a string
     const meta = typeof place.metadata === 'string' ? JSON.parse(place.metadata) : (place.metadata || {});
     
     const descriptionText = meta.shortDescription ? cleanText(meta.shortDescription) : `Travel guide to ${place.title}.`;
@@ -38,8 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const currentUrl = `${siteUrl}/places/${slug}`;
     const safeGallery = Array.isArray(meta.gallery) ? meta.gallery : [];
     
-    // 🌟 FIX: Check metadata.image as well
-    const imageUrl = place.image || meta.image || (safeGallery.length > 0 ? safeGallery[0] : `${siteUrl}/default-tour.jpg`);
+    const imageUrl = place.image || meta.image || meta.thumbnail || (safeGallery.length > 0 ? safeGallery[0] : `${siteUrl}/default-tour.jpg`);
 
     return {
       title: meta.metaTitle || meta.seo?.metaTitle || `${place.title} - Guide`,
@@ -71,7 +69,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     const formattedLocation = formatLocation(place.location);
     const targetCity = formattedLocation !== 'Not specified' ? formattedLocation.split(',')[0].trim() : '';
     
-    // 🌟 FIX: Safely parse JSON if metadata comes as a string
     const meta = typeof place.metadata === 'string' ? JSON.parse(place.metadata) : (place.metadata || {});
     
     const galleryUrls = Array.isArray(meta.gallery) ? meta.gallery : []
@@ -108,11 +105,10 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
         const realData = dbPlaces.find(p => p.slug === identifier || p.title === identifier);
         
         if (realData) {
-          // 🌟 FIX: Safely parse JSON for related places metadata too
           const nearMeta = typeof realData.metadata === 'string' ? JSON.parse(realData.metadata) : (realData.metadata || {});
           
-          // 🌟 FIX: Checked all fields where image could possibly be saved
-          let extractedImg = realData.image || nearMeta.image || nearMeta.thumbnail; 
+          // 🌟 STRICT THUMBNAIL/IMAGE LOGIC (Highest priority to exact place image)
+          let extractedImg = realData.image || nearMeta.thumbnail || nearMeta.image; 
           
           if (!extractedImg && Array.isArray(nearMeta.gallery) && nearMeta.gallery.length > 0) {
             extractedImg = nearMeta.gallery[0];
@@ -139,8 +135,8 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
       });
     }
     
-    // 🌟 FIX: Check metadata.image for the main hero image as well
-    const image = place.image || meta.image || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
+    // Main Hero Image
+    const image = place.image || meta.image || meta.thumbnail || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com';
 
     const breadcrumbSchema = { "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [ { "@type": "ListItem", "position": 1, "name": "Home", "item": `${siteUrl}/` }, { "@type": "ListItem", "position": 2, "name": "Places", "item": `${siteUrl}/places` }, { "@type": "ListItem", "position": 3, "name": place.title, "item": `${siteUrl}/places/${slug}` } ] };
@@ -180,12 +176,10 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
             <span className="text-slate-800 truncate">{place.title}</span>
           </nav>
 
-          {/* 🌟 HIGHLIGHTED VISITOR INFORMATION SECTION */}
           {(meta.timing || meta.entryFee || meta.bestTimeToVisit || meta.howToReach) && (
             <section className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200 mb-10 w-full">
               <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2 border-b pb-3"><span>📋</span> Essential Visitor Information of {place.title}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                
                 {meta.timing && (
                   <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm">
                     <span className="text-3xl bg-amber-100 p-3 rounded-2xl">🕒</span>
@@ -195,7 +189,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                 )}
-                
                 {meta.entryFee && (
                   <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm">
                     <span className="text-3xl bg-amber-100 p-3 rounded-2xl">🎟️</span>
@@ -205,7 +198,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                 )}
-                
                 {meta.bestTimeToVisit && (
                   <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm">
                     <span className="text-3xl bg-amber-100 p-3 rounded-2xl">⛅</span>
@@ -215,7 +207,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                 )}
-                
                 {meta.howToReach && (
                   <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm sm:col-span-2 lg:col-span-3">
                     <span className="text-3xl bg-blue-100 p-3 rounded-2xl">🚆</span>
@@ -225,7 +216,6 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                 )}
-                
               </div>
             </section>
           )}
@@ -300,8 +290,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                         </Link>
                       ))}
                     </div>
-                    {/* 🌟 FIX: Use Next.js Script instead of standard script tag */}
-                    <Script id="slider-auto-scroll" dangerouslySetInnerHTML={{
+                    <script dangerouslySetInnerHTML={{
                       __html: `
                         setInterval(function() {
                           var slider = document.getElementById('nearby-slider');
