@@ -107,6 +107,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
         if (realData) {
           const nearMeta = typeof realData.metadata === 'string' ? JSON.parse(realData.metadata) : (realData.metadata || {});
           
+          // 🌟 Backend se image/thumbnail/gallery fetch karne ka proper logic
           let extractedImg = realData.image || nearMeta.image || nearMeta.thumbnail; 
           
           if (!extractedImg && Array.isArray(nearMeta.gallery) && nearMeta.gallery.length > 0) {
