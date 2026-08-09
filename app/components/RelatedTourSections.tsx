@@ -14,11 +14,9 @@ const extractCityName = (locStr?: string) => {
   if (!locStr || locStr === 'Not specified') return '';
   const parts = locStr.split(',').map(s => s.trim());
   
-  // Agar "Area, City, State" format hai, toh 2nd item (City) lega
   if (parts.length >= 3) {
-    return parts[parts.length - 2]; // hamesha state ke pehle wala city hota hai
+    return parts[parts.length - 2];
   } 
-  // Agar "City, State" ya sirf "City" hai, toh 1st item lega
   return parts[0];
 }
 
@@ -52,7 +50,6 @@ export default function RelatedTourSections({
   useEffect(() => {
     async function fetchRelatedData() {
       try {
-        // 🌟 NAYA FIX: Sirf City fetch karega, Area nahi
         const shortOrigin = extractCityName(originCity);
         const shortTarget = extractCityName(targetCity);
 
@@ -71,14 +68,14 @@ export default function RelatedTourSections({
           supabase.from('listings').select('title, slug').eq('category', 'tour').limit(10),
           supabase.from('listings').select('title, slug').eq('category', 'cab').limit(10),
           
-          // 🌟 Places strictly using shortTarget (Exact City)
           shortTarget ? supabase.from('listings').select('id, title, slug, location, image, metadata').eq('category', 'destination').ilike('location', `%${shortTarget}%`).limit(8) : Promise.resolve({ data: [] }),
           
           shortOrigin ? supabase.from('listings').select('id, title, slug, location, price, metadata').eq('category', 'tour').ilike('location', `%${shortOrigin}%`).limit(8) : Promise.resolve({ data: [] }),
           
           shortTarget ? supabase.from('listings').select('id, title, slug, location, price, metadata').eq('category', 'tour').ilike('location', `%${shortTarget}%`).limit(8) : Promise.resolve({ data: [] }),
 
-          supabase.from('listings').select('title, slug').eq('category', 'destination').limit(10)
+          // 🌟 BUILD FIX: Yahan 'id, location, image, metadata' add kiya gaya hai taaki TypeScript error na de
+          supabase.from('listings').select('id, title, slug, location, image, metadata').eq('category', 'destination').limit(10)
         ]);
 
         let finalPlaces = cityPlaces || [];
@@ -125,7 +122,7 @@ export default function RelatedTourSections({
   const renderTourCard = (item: any) => {
     const img = item.metadata?.thumbnail || item.metadata?.gallery?.[0] || 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?w=600&q=80';
     return (
-      <Link key={item.id} href={`/tour/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden snap-start hover:shadow-md transition-all group flex flex-col">
+      <Link key={item.id} href={`/tour/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden snap-start hover:shadow-md transition-all group flex flex-col items-stretch h-auto self-stretch">
         <div className="h-48 overflow-hidden shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
@@ -151,17 +148,17 @@ export default function RelatedTourSections({
     const img = extractedImg || 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?w=600&q=80';
 
     return (
-      <Link key={item.id} href={`/places/${item.slug || item.id}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden snap-start hover:shadow-xl transition-all duration-300 group flex flex-col">
+      <Link key={item.id} href={`/places/${item.slug || item.id}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-emerald-100 overflow-hidden snap-start hover:shadow-xl transition-all duration-300 group flex flex-col items-stretch h-auto self-stretch">
         <div className="h-48 overflow-hidden bg-emerald-50 relative shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={img} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         </div>
-        <div className="p-5 flex-1 flex flex-col justify-between">
+        <div className="p-5 flex-1 flex flex-col">
           <div>
             <h3 className="font-black text-slate-800 text-lg group-hover:text-emerald-600 transition-colors line-clamp-1">{item.title}</h3>
             <p className="text-xs text-slate-500 truncate mt-1">📍 {formatLocation(item.location)}</p>
           </div>
-          <div className="mt-4 border-t border-slate-50 pt-4 text-right">
+          <div className="mt-auto border-t border-slate-50 pt-4 text-right">
             <span className="text-xs font-bold text-emerald-700 inline-block bg-emerald-50 px-4 py-2 rounded-full group-hover:bg-emerald-600 group-hover:text-white transition-colors">
               Explore Place →
             </span>
@@ -171,7 +168,6 @@ export default function RelatedTourSections({
     )
   }
 
-  // Final exact city names for headings
   const finalOrigin = extractCityName(originCity);
   const finalTarget = extractCityName(targetCity);
 
@@ -208,7 +204,7 @@ export default function RelatedTourSections({
         </section>
       )}
 
-      {/* 🌟 SECTION: Places To Visit in Destination */}
+      {/* SECTION: Places To Visit in Destination */}
       {data.destinationPlaces.length > 0 && finalTarget && (
         <section className="bg-emerald-50/50 p-6 md:p-8 rounded-[2rem] border border-emerald-100 shadow-sm">
           <h2 className="text-2xl font-black text-emerald-950 mb-6 flex items-center gap-2">
