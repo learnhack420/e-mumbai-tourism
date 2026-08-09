@@ -30,12 +30,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     const { data: place } = await supabase.from('listings').select('title, metadata, location, image').eq('slug', slug).single()
     if (!place) return { title: 'Place Not Found' }
     
-    const meta = typeof place.metadata === 'object' && place.metadata !== null ? place.metadata : {};
+    // 🌟 FIX: Safely parse JSON if metadata comes as a string
+    const meta = typeof place.metadata === 'string' ? JSON.parse(place.metadata) : (place.metadata || {});
+    
     const descriptionText = meta.shortDescription ? cleanText(meta.shortDescription) : `Travel guide to ${place.title}.`;
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com';
     const currentUrl = `${siteUrl}/places/${slug}`;
     const safeGallery = Array.isArray(meta.gallery) ? meta.gallery : [];
-    const imageUrl = place.image || (safeGallery.length > 0 ? safeGallery[0] : `${siteUrl}/default-tour.jpg`);
+    
+    // 🌟 FIX: Check metadata.image as well
+    const imageUrl = place.image || meta.image || (safeGallery.length > 0 ? safeGallery[0] : `${siteUrl}/default-tour.jpg`);
 
     return {
       title: meta.metaTitle || meta.seo?.metaTitle || `${place.title} - Guide`,
@@ -66,7 +70,9 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
 
     const formattedLocation = formatLocation(place.location);
     const targetCity = formattedLocation !== 'Not specified' ? formattedLocation.split(',')[0].trim() : '';
-    const meta = typeof place.metadata === 'object' && place.metadata !== null ? place.metadata : {}
+    
+    // 🌟 FIX: Safely parse JSON if metadata comes as a string
+    const meta = typeof place.metadata === 'string' ? JSON.parse(place.metadata) : (place.metadata || {});
     
     const galleryUrls = Array.isArray(meta.gallery) ? meta.gallery : []
     const faqs = Array.isArray(meta.faqItems) ? meta.faqItems : []
@@ -102,14 +108,16 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
         const realData = dbPlaces.find(p => p.slug === identifier || p.title === identifier);
         
         if (realData) {
-          const nearMeta = typeof realData.metadata === 'object' && realData.metadata !== null ? realData.metadata : {};
+          // 🌟 FIX: Safely parse JSON for related places metadata too
+          const nearMeta = typeof realData.metadata === 'string' ? JSON.parse(realData.metadata) : (realData.metadata || {});
           
-          let extractedImg = realData.image; 
+          // 🌟 FIX: Checked all fields where image could possibly be saved
+          let extractedImg = realData.image || nearMeta.image || nearMeta.thumbnail; 
           
           if (!extractedImg && Array.isArray(nearMeta.gallery) && nearMeta.gallery.length > 0) {
             extractedImg = nearMeta.gallery[0];
           }
-          if (!extractedImg || extractedImg.trim() === '') {
+          if (!extractedImg || typeof extractedImg !== 'string' || extractedImg.trim() === '') {
             extractedImg = '/ITO LOGO.png';
           }
 
@@ -131,7 +139,8 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
       });
     }
     
-    const image = place.image || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
+    // 🌟 FIX: Check metadata.image for the main hero image as well
+    const image = place.image || meta.image || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com';
 
     const breadcrumbSchema = { "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [ { "@type": "ListItem", "position": 1, "name": "Home", "item": `${siteUrl}/` }, { "@type": "ListItem", "position": 2, "name": "Places", "item": `${siteUrl}/places` }, { "@type": "ListItem", "position": 3, "name": place.title, "item": `${siteUrl}/places/${slug}` } ] };
