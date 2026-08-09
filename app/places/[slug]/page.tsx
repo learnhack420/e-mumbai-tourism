@@ -1,7 +1,7 @@
 import { supabase } from '../../../utils/supabase'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import Script from 'next/script'
+import Script from 'next/script' // 🌟 Next.js ka official Script component
 import type { Metadata } from 'next'
 
 import FloatingContact from '../../components/FloatingContact'
@@ -107,8 +107,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
         if (realData) {
           const nearMeta = typeof realData.metadata === 'string' ? JSON.parse(realData.metadata) : (realData.metadata || {});
           
-          // 🌟 STRICT THUMBNAIL/IMAGE LOGIC (Highest priority to exact place image)
-          let extractedImg = realData.image || nearMeta.thumbnail || nearMeta.image; 
+          let extractedImg = realData.image || nearMeta.image || nearMeta.thumbnail; 
           
           if (!extractedImg && Array.isArray(nearMeta.gallery) && nearMeta.gallery.length > 0) {
             extractedImg = nearMeta.gallery[0];
@@ -135,8 +134,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
       });
     }
     
-    // Main Hero Image
-    const image = place.image || meta.image || meta.thumbnail || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
+    const image = place.image || meta.image || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com';
 
     const breadcrumbSchema = { "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [ { "@type": "ListItem", "position": 1, "name": "Home", "item": `${siteUrl}/` }, { "@type": "ListItem", "position": 2, "name": "Places", "item": `${siteUrl}/places` }, { "@type": "ListItem", "position": 3, "name": place.title, "item": `${siteUrl}/places/${slug}` } ] };
@@ -180,6 +178,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
             <section className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-slate-200 mb-10 w-full">
               <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2 border-b pb-3"><span>📋</span> Essential Visitor Information of {place.title}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                
                 {meta.timing && (
                   <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm">
                     <span className="text-3xl bg-amber-100 p-3 rounded-2xl">🕒</span>
@@ -189,6 +188,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                 )}
+                
                 {meta.entryFee && (
                   <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm">
                     <span className="text-3xl bg-amber-100 p-3 rounded-2xl">🎟️</span>
@@ -198,6 +198,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                 )}
+                
                 {meta.bestTimeToVisit && (
                   <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm">
                     <span className="text-3xl bg-amber-100 p-3 rounded-2xl">⛅</span>
@@ -207,6 +208,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                 )}
+                
                 {meta.howToReach && (
                   <div className="flex gap-4 items-start bg-slate-50 p-5 rounded-2xl border shadow-sm sm:col-span-2 lg:col-span-3">
                     <span className="text-3xl bg-blue-100 p-3 rounded-2xl">🚆</span>
@@ -216,6 +218,7 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                     </div>
                   </div>
                 )}
+                
               </div>
             </section>
           )}
@@ -290,8 +293,9 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                         </Link>
                       ))}
                     </div>
-                    <script dangerouslySetInnerHTML={{
-                      __html: `
+                    {/* 🌟 FIX: Official Next.js <Script> Tag */}
+                    <Script id="nearby-auto-slider" strategy="lazyOnload">
+                      {`
                         setInterval(function() {
                           var slider = document.getElementById('nearby-slider');
                           if (slider) {
@@ -302,8 +306,8 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
                             }
                           }
                         }, 3000);
-                      `
-                    }} />
+                      `}
+                    </Script>
                   </>
                 ) : (
                   <p className="leading-relaxed opacity-90 whitespace-pre-line text-lg">{oldNearestText}</p>

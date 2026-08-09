@@ -9,13 +9,16 @@ const formatLocation = (locStr?: string) => {
   return locStr.replace(/ > /g, ', ')
 }
 
-// 🌟 SMART CITY EXTRACTOR
+// 🌟 SMART CITY EXTRACTOR FIX: India ke location format me city humesha last se 3rd hoti hai (City, State, Country)
 const extractCityName = (locStr?: string) => {
   if (!locStr || locStr === 'Not specified') return '';
   const parts = locStr.split(',').map(s => s.trim());
+  
   if (parts.length >= 3) {
-    return parts[parts.length - 2];
-  } 
+    // Example: "Colaba, Mumbai, Maharashtra, India" -> "Mumbai" (length 4 - 3 = index 1)
+    // Example: "Mumbai, Maharashtra, India" -> "Mumbai" (length 3 - 3 = index 0)
+    return parts[parts.length - 3];
+  }
   return parts[0];
 }
 
@@ -27,15 +30,18 @@ export default function RelatedPlaceSections({
   targetCity: string 
 }) {
   const [data, setData] = useState<any>({
-    cityTours: [],
+    destinationTours: [],
     cityPlaces: [],
     cityVendors: [],
-    categoryPlaces: {}, 
+    categoryPlaces: {}, // 🌟 Category based places yahan store honge
     topTours: [],
     topCabs: [],
     topPlaces: []
   });
   const [loading, setLoading] = useState(true);
+
+  // Is variable ko bahar nikal liya taaki dono jagah use ho sake
+  const finalTarget = extractCityName(targetCity);
 
   useEffect(() => {
     async function fetchRelatedData() {
@@ -43,8 +49,8 @@ export default function RelatedPlaceSections({
         const finalTargetCity = extractCityName(targetCity);
 
         const [
-          { data: cityTours },
-          { data: cityPlaces },
+          { data: destinationTours }, // 🌟 TOUR FIX: Strictly location based fetch
+          { data: cityPlaces },       // 🌟 PLACES FIX: Same City Places
           { data: cityVendors },
           { data: topTours },
           { data: topCabs },
@@ -52,39 +58,63 @@ export default function RelatedPlaceSections({
           { data: currentPlace },   
           { data: allDestinations } 
         ] = await Promise.all([
+          // Strictly location par search
           supabase.from('listings').select('id, title, slug, location, price, metadata').eq('category', 'tour').ilike('location', `%${finalTargetCity}%`).limit(8),
+          
+          // Same city tourist places
           supabase.from('listings').select('id, title, slug, location, image, metadata').eq('category', 'destination').ilike('location', `%${finalTargetCity}%`).neq('id', placeId).limit(8),
+          
           supabase.from('profiles').select('id, full_name, company_name, location').eq('role', 'vendor').eq('approval_status', 'approved').ilike('location', `%${finalTargetCity}%`).limit(8),
           supabase.from('listings').select('title, slug').eq('category', 'tour').limit(10),
           supabase.from('listings').select('title, slug').eq('category', 'cab').limit(10),
           supabase.from('listings').select('title, slug').eq('category', 'destination').limit(10),
+          
           supabase.from('listings').select('metadata').eq('id', placeId).single(),
           supabase.from('listings').select('id, title, slug, location, image, metadata').eq('category', 'destination').neq('id', placeId).limit(100)
         ]);
 
+        // 🌟 Current place ki categories fetch karna
         let currentCategories: string[] = [];
         if (currentPlace) {
           const meta = typeof currentPlace.metadata === 'string' ? JSON.parse(currentPlace.metadata) : (currentPlace.metadata || {});
-          currentCategories = Array.isArray(meta.placeCategories) ? meta.placeCategories : [];
+          
+          // Smart Category Extraction: array ya string dono handle karega
+          if (Array.isArray(meta.placeCategories) && meta.placeCategories.length > 0) {
+            currentCategories = meta.placeCategories;
+          } else if (typeof meta.placeCategories === 'string') {
+            currentCategories = [meta.placeCategories];
+          } else if (Array.isArray(meta.category) && meta.category.length > 0) {
+            currentCategories = meta.category;
+          }
         }
 
+        // 🌟 Categories ke aadhar par places filter karna
         const catPlacesResult: Record<string, any[]> = {};
         const safeDests = allDestinations || [];
 
         currentCategories.forEach(cat => {
+          if (!cat) return;
+
           const matchedPlaces = safeDests.filter(d => {
             const m = typeof d.metadata === 'string' ? JSON.parse(d.metadata) : (d.metadata || {});
-            const placeCats = Array.isArray(m.placeCategories) ? m.placeCategories : [];
-            return placeCats.includes(cat);
+            
+            let pCats: string[] = [];
+            if (Array.isArray(m.placeCategories)) pCats = m.placeCategories;
+            else if (typeof m.placeCategories === 'string') pCats = [m.placeCategories];
+            else if (Array.isArray(m.category)) pCats = m.category;
+            
+            // Case-insensitive exact match
+            return pCats.some(c => c.toLowerCase().trim() === cat.toLowerCase().trim());
           });
 
+          // Sirf wahi category dikhegi jisme kam se kam ek aur place hoga
           if (matchedPlaces.length > 0) {
             catPlacesResult[cat] = matchedPlaces.slice(0, 8);
           }
         });
 
         setData({
-          cityTours: cityTours || [],
+          destinationTours: destinationTours || [],
           cityPlaces: cityPlaces || [],
           cityVendors: cityVendors || [],
           categoryPlaces: catPlacesResult, 
@@ -115,93 +145,112 @@ export default function RelatedPlaceSections({
     );
   }
 
-  const renderPlaceCard = (item: any) => {
+  // 🌟 NAYA LOGIC: Tour Card me Destination ko clearly point out karna
+  const renderTourCard = (item: any) => {
     const meta = typeof item.metadata === 'string' ? JSON.parse(item.metadata) : (item.metadata || {});
-    const img = item.image || meta?.thumbnail || meta?.image || meta?.gallery?.[0] || 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?w=600&q=80';
+    const img = item.image || meta?.thumbnail || meta?.image || meta?.gallery?.[0] || 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80';
     
+    // Check agar metadata me destination specifically mentioned hai, nahi toh target city use karein
+    const tourDestination = meta?.destination || finalTarget || 'Explore Destination';
+
     return (
-      <Link key={item.id} href={`/places/${item.slug || item.id}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden snap-start hover:shadow-md transition-all group flex flex-col items-stretch h-auto self-stretch">
-        <div className="h-48 overflow-hidden relative shrink-0">
+      <Link key={item.id} href={`/tour/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden snap-start hover:shadow-md transition-all group flex flex-col self-stretch h-auto">
+        <div className="h-48 overflow-hidden shrink-0 relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
-          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur text-slate-900 text-xs font-bold px-2 py-1 rounded-md shadow-sm">
-            Explore
+          
+          <div className="absolute top-3 left-3 bg-blue-600/90 text-white text-xs font-bold px-2 py-1 rounded-md shadow-sm">
+            Tour Package
+          </div>
+          
+          {/* 🌟 DESTINATION BADGE ADDED HERE */}
+          <div className="absolute bottom-3 right-3 bg-slate-900/80 backdrop-blur text-white text-[10px] font-black px-2 py-1.5 rounded-md shadow-sm">
+            🚩 To: {tourDestination}
           </div>
         </div>
-        <div className="p-5 flex-1 flex flex-col justify-between">
-          <div>
-            <h3 className="font-black text-slate-900 truncate mb-1">{item.title}</h3>
-            <p className="text-xs text-slate-500 truncate">📍 {formatLocation(item.location)}</p>
+        <div className="p-5 flex-1 flex flex-col">
+          <h3 className="font-bold text-slate-900 truncate mb-1">{item.title}</h3>
+          <p className="text-xs text-slate-500 truncate mb-3">📍 Starts from: {formatLocation(item.location)}</p>
+          <div className="flex justify-between items-center mt-auto pt-3 border-t border-slate-100">
+            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">⏱️ {meta?.duration || 'Custom'}</span>
+            <span className="font-black text-slate-900">₹{item.price}</span>
           </div>
         </div>
       </Link>
     )
   }
 
-  const finalTarget = extractCityName(targetCity);
+  // 🌟 FIX: Updated Place Card to match the beautiful UI of Tour Package and Nearby Places
+  const renderPlaceCard = (item: any) => {
+    const meta = typeof item.metadata === 'string' ? JSON.parse(item.metadata) : (item.metadata || {});
+    const img = item.image || meta?.thumbnail || meta?.image || meta?.gallery?.[0] || 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?w=600&q=80';
+    
+    return (
+      <Link key={item.id} href={`/places/${item.slug || item.id}`} className="min-w-[280px] sm:min-w-[320px] bg-white rounded-2xl shadow-sm border border-emerald-200 overflow-hidden snap-start hover:shadow-xl transition-all duration-300 group flex flex-col h-full self-stretch">
+        <div className="h-44 w-full overflow-hidden bg-emerald-100 relative shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={img} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
+        </div>
+        <div className="p-5 flex-1 flex flex-col">
+          <h3 className="font-black text-slate-800 text-lg group-hover:text-emerald-600 transition-colors line-clamp-2 h-[3.5rem] mb-2 leading-tight">{item.title}</h3>
+          <p className="text-xs text-slate-500 truncate mb-3 font-medium">📍 {formatLocation(item.location)}</p>
+          <div className="mt-auto pt-2 border-t border-slate-100">
+            <span className="text-xs font-bold text-emerald-700 inline-block bg-emerald-100 w-max px-4 py-2 rounded-full group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+              Explore Place →
+            </span>
+          </div>
+        </div>
+      </Link>
+    )
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-12 mt-6 space-y-12">
       
-      {/* Section 1: Tour Packages in This City */}
-      {data.cityTours.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-200 pb-2">Top Tour Packages in {finalTarget || 'This Area'}</h2>
-          <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide items-stretch">
-            {data.cityTours.map((item: any) => {
-              const meta = typeof item.metadata === 'string' ? JSON.parse(item.metadata) : (item.metadata || {});
-              const img = item.image || meta?.thumbnail || meta?.image || meta?.gallery?.[0] || 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80';
-              return (
-                <Link key={item.id} href={`/tour/${item.slug}`} className="min-w-[280px] md:min-w-[320px] bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden snap-start hover:shadow-md transition-all group flex flex-col self-stretch h-auto">
-                  <div className="h-48 overflow-hidden shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={img} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.title} />
-                  </div>
-                  <div className="p-5 flex-1 flex flex-col">
-                    <h3 className="font-bold text-slate-900 truncate mb-1">{item.title}</h3>
-                    <p className="text-xs text-slate-500 truncate mb-3">📍 {formatLocation(item.location)}</p>
-                    <div className="flex justify-between items-center mt-auto pt-3 border-t border-slate-100">
-                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md">⏱️ {meta?.duration || 'Custom'}</span>
-                      <span className="font-black text-slate-900">₹{item.price}</span>
-                    </div>
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* Section 2: More Tourist Places in This City */}
-      {data.cityPlaces.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-200 pb-2">More Places to Visit in {finalTarget || 'This Area'}</h2>
-          <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide items-stretch">
-            {data.cityPlaces.map(renderPlaceCard)}
-          </div>
-        </section>
-      )}
-
-      {/* 🌟 Dynamic Category Sliders */}
+      {/* 🌟 1. DYNAMIC CATEGORY SLIDERS */}
       {Object.entries(data.categoryPlaces).map(([category, places]: [string, any]) => {
         if (!places || places.length === 0) return null;
         return (
-          <section key={category} className="bg-blue-50/50 p-6 md:p-8 rounded-[2rem] border border-blue-100 shadow-sm">
-            <h2 className="text-2xl font-black text-blue-950 mb-6 flex items-center gap-2">
-              <span>🌟</span> More {category} Places
+          <section key={category} className="bg-amber-50/50 p-6 md:p-8 rounded-[2rem] border border-amber-100 shadow-sm">
+            <h2 className="text-2xl font-black text-amber-950 mb-6 flex items-center gap-2">
+              <span>🌟</span> Top {category} Places To Visit
             </h2>
-            <div className="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory scrollbar-hide items-stretch">
+            <div className="flex overflow-x-auto gap-6 pb-4 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-stretch">
               {places.map(renderPlaceCard)}
             </div>
           </section>
         );
       })}
 
-      {/* Section 3: Verified Vendors/Travel Agents in This City */}
+      {/* 🌟 2. TOUR PACKAGES */}
+      {data.destinationTours.length > 0 && (
+        <section>
+          <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-200 pb-2">
+            Top Tour Packages from {finalTarget || 'This Area'}
+          </h2>
+          <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-stretch">
+            {data.destinationTours.map(renderTourCard)}
+          </div>
+        </section>
+      )}
+
+      {/* 🌟 3. MORE TOURIST PLACES IN THIS CITY */}
+      {data.cityPlaces.length > 0 && (
+        <section>
+          <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-200 pb-2">
+            More Places to Visit in {finalTarget || 'This Area'}
+          </h2>
+          <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-stretch">
+            {data.cityPlaces.map(renderPlaceCard)}
+          </div>
+        </section>
+      )}
+
+      {/* 4. Verified Vendors/Travel Agents in This City */}
       {data.cityVendors.length > 0 && (
         <section>
           <h2 className="text-2xl font-black text-slate-900 mb-6 border-b border-slate-200 pb-2">Travel Agents & Providers in {finalTarget || 'This Area'}</h2>
-          <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory scrollbar-hide items-stretch">
+          <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] items-stretch">
             {data.cityVendors.map((vendor: any) => (
               <div key={vendor.id} className="min-w-[260px] bg-white p-6 rounded-3xl border border-slate-200 shadow-sm snap-start flex flex-col items-center text-center self-stretch h-auto">
                 <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-black mb-4 border-2 border-white shadow-sm shrink-0">
@@ -220,7 +269,7 @@ export default function RelatedPlaceSections({
         </section>
       )}
 
-      {/* Section 4: Top 10 Lists */}
+      {/* 5. Top 10 Lists */}
       <section className="bg-white p-8 md:p-10 rounded-[2.5rem] border border-slate-200 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           
