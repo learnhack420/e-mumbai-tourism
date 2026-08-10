@@ -25,6 +25,8 @@ function PlaceFormContent() {
 
   const [location, setLocation] = useState("")
   const [allPlaces, setAllPlaces] = useState<any[]>([]) 
+  // 🌟 NEW: Nearest places search state
+  const [nearestSearch, setNearestSearch] = useState("")
 
   const [formData, setFormData] = useState({
     placeName: "",
@@ -90,15 +92,18 @@ function PlaceFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
+    // 🌟 ADDED 'location' to select query for search filtering
     const { data: placesData } = await supabase
       .from("listings")
-      .select("id, title, slug")
+      .select("id, title, slug, location")
       .eq("category", "destination")
     
     if (placesData) setAllPlaces(placesData)
 
-    // 🌟 CATEGORY BUG FIX LOGIC YAHAN SHURU HOTA HAI
     const savedCats = typeof window !== "undefined" ? localStorage.getItem("adminPlaceCategories") : null
+    // 🌟 Fetching Permanently Deleted Categories
+    const deletedCats = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("deletedPlaceCategories") || "[]") : []
+    
     let loadedAvailableCats = ["Historical", "Pilgrimage", "Nature", "Beach", "Hill Station"]
     
     if (savedCats) {
@@ -106,6 +111,9 @@ function PlaceFormContent() {
         loadedAvailableCats = JSON.parse(savedCats)
       } catch (e) {}
     }
+
+    // Ensure strictly deleted ones are removed
+    loadedAvailableCats = loadedAvailableCats.filter(cat => !deletedCats.includes(cat))
 
     if (editId) {
       const { data, error } = await supabase
@@ -130,17 +138,16 @@ function PlaceFormContent() {
         loadedNearest = [];
       }
 
-      // 🌟 BUG FIX: Agar aisi category hai jo database se aayi hai lekin availableCats me nahi hai, 
-      // toh usko availableCats array me daal kar display karao.
+      // Check categories safely
       const placeCategories = meta.placeCategories || ["Historical"]
       placeCategories.forEach((cat: string) => {
-        if (!loadedAvailableCats.includes(cat)) {
+        // 🌟 Do not push if it was permanently deleted
+        if (!loadedAvailableCats.includes(cat) && !deletedCats.includes(cat)) {
           loadedAvailableCats.push(cat)
         }
       })
       
       setAvailableCategories(loadedAvailableCats)
-      // Optional: Backup to local storage
       if (typeof window !== "undefined") {
         localStorage.setItem("adminPlaceCategories", JSON.stringify(loadedAvailableCats))
       }
@@ -151,7 +158,7 @@ function PlaceFormContent() {
         metaTitle: meta.metaTitle || data.title || "",
         metaDescription: meta.shortDescription || "",
         metaKeywords: meta.metaKeywords || "",
-        category: placeCategories, 
+        category: placeCategories.filter((c: string) => !deletedCats.includes(c)), // Don't pre-fill deleted cats
         description: data.description || "",
         image: data.image || meta.image || "", 
         entryFee: meta.entryFee || "Free",
@@ -174,7 +181,6 @@ function PlaceFormContent() {
       }
       setSlugEdited(true)
     } else {
-      // 🌟 Naye form ke liye defaults set karna
       setAvailableCategories(loadedAvailableCats)
     }
 
@@ -277,10 +283,18 @@ function PlaceFormContent() {
   }
 
   const handleDeleteCategory = (catToDelete: string) => {
-    if (window.confirm(`Are you sure you want to delete "${catToDelete}"?`)) {
+    if (window.confirm(`Are you sure you want to PERMANENTLY delete "${catToDelete}"?`)) {
       const updatedCategories = availableCategories.filter(c => c !== catToDelete)
       setAvailableCategories(updatedCategories)
       localStorage.setItem("adminPlaceCategories", JSON.stringify(updatedCategories))
+      
+      // 🌟 PERMANENT DELETE LOGIC
+      const deletedCats = JSON.parse(localStorage.getItem("deletedPlaceCategories") || "[]");
+      if (!deletedCats.includes(catToDelete)) {
+        deletedCats.push(catToDelete);
+        localStorage.setItem("deletedPlaceCategories", JSON.stringify(deletedCats));
+      }
+
       setFormData(prev => ({ ...prev, category: prev.category.filter(c => c !== catToDelete) }))
     }
   }
@@ -602,29 +616,75 @@ function PlaceFormContent() {
               </div>
             </div>
 
+            {/* 🌟 NEW: Searchable Nearby Places UI */}
             <div className="border border-emerald-200 p-6 rounded-xl bg-emerald-50/40">
-              <label className="block text-sm font-bold text-emerald-900 mb-2">📍 Select Nearby Places (Click to attach)</label>
-              <p className="text-xs text-emerald-700 mb-4">Choose from already created destinations so visitors can click and explore them easily.</p>
+              <label className="block text-sm font-bold text-emerald-900 mb-2">📍 Select Nearby Places (Search & Attach)</label>
+              <p className="text-xs text-emerald-700 mb-4">Search by name or city to attach nearby destinations.</p>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-48 overflow-y-auto p-2 bg-white rounded-xl border border-emerald-100">
-                {allPlaces.map((p) => {
-                  const identifier = p.slug || p.title;
-                  const isChecked = formData.nearestPlaces.includes(identifier);
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleNearestToggle(identifier)}
-                      className={`text-left px-3 py-2 rounded-lg text-xs font-bold transition-all truncate border ${
-                        isChecked 
-                          ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm' 
-                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      {isChecked ? "✓ " : "+ "} {p.title}
-                    </button>
-                  )
-                })}
+              {/* Selected Places Tags */}
+              {formData.nearestPlaces.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {formData.nearestPlaces.map(np => {
+                    const placeObj = allPlaces.find(p => (p.slug || p.title) === np);
+                    const displayName = placeObj ? placeObj.title : np;
+                    return (
+                      <span key={np} className="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm">
+                        {displayName}
+                        <button type="button" onClick={() => handleNearestToggle(np)} className="hover:text-red-200 bg-emerald-700 rounded-full w-4 h-4 flex items-center justify-center">✕</button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Search Input Box */}
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="🔍 Search places by name or city..." 
+                  value={nearestSearch} 
+                  onChange={(e) => setNearestSearch(e.target.value)} 
+                  className="w-full px-4 py-3 border border-emerald-200 rounded-xl outline-none bg-white text-sm focus:ring-2 focus:ring-emerald-500 shadow-sm" 
+                />
+                
+                {/* Dropdown Results */}
+                {nearestSearch.trim() !== "" && (
+                  <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto bg-white rounded-xl border border-emerald-200 shadow-xl">
+                    {allPlaces.filter(p => {
+                      const term = nearestSearch.toLowerCase();
+                      return (p.title || "").toLowerCase().includes(term) || (p.location || "").toLowerCase().includes(term);
+                    }).map(p => {
+                      const identifier = p.slug || p.title;
+                      const isChecked = formData.nearestPlaces.includes(identifier);
+                      
+                      if (isChecked) return null; // Hide already selected
+
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            handleNearestToggle(identifier);
+                            setNearestSearch(""); 
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm font-medium border-b border-slate-50 hover:bg-emerald-50 transition-colors flex justify-between items-center"
+                        >
+                          <div className="flex flex-col">
+                            <span className="text-slate-800">{p.title}</span>
+                            <span className="text-[10px] text-slate-400 mt-0.5">📍 {p.location || 'Unknown Location'}</span>
+                          </div>
+                          <span className="text-emerald-600 font-bold text-xs bg-emerald-100 px-2 py-1 rounded-md">+ Add</span>
+                        </button>
+                      )
+                    })}
+                    {allPlaces.filter(p => {
+                      const term = nearestSearch.toLowerCase();
+                      return (p.title || "").toLowerCase().includes(term) || (p.location || "").toLowerCase().includes(term);
+                    }).length === 0 && (
+                      <div className="p-4 text-center text-xs text-slate-500 font-medium">No places found matching "{nearestSearch}"</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
