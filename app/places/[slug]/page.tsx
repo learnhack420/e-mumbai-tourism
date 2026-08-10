@@ -138,16 +138,29 @@ export default async function TouristPlacePage({ params }: { params: Promise<{ s
     const image = place.image || meta.image || (galleryUrls.length > 0 ? galleryUrls[0] : 'https://images.unsplash.com/photo-1506461883276-594c8e0eb500?auto=format&fit=crop&q=80&w=1200')
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com';
 
-    // 🌟 SEO ENHANCEMENT 1 & 2: Added AggregateRating to Place Schema
     const breadcrumbSchema = { "@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [ { "@type": "ListItem", "position": 1, "name": "Home", "item": `${siteUrl}/` }, { "@type": "ListItem", "position": 2, "name": "Places", "item": `${siteUrl}/places` }, { "@type": "ListItem", "position": 3, "name": place.title, "item": `${siteUrl}/places/${slug}` } ] };
+    
+    // 🌟 THE FIX: Updated Place Schema with LocalBusiness, Telephone, PriceRange, and strict number formatting for aggregateRating
     const placeSchema = { 
       "@context": "https://schema.org", 
-      "@type": "TouristAttraction", 
+      "@type": ["TouristAttraction", "LocalBusiness"], 
       "name": place.title, 
       "description": meta.metaDescription || meta.shortDescription || `Explore ${place.title}.`, 
-      "image": image, 
-      "address": { "@type": "PostalAddress", "addressLocality": targetCity || "India", "addressCountry": "IN" },
-      "aggregateRating": { "@type": "AggregateRating", "ratingValue": meta.rating || "4.8", "reviewCount": meta.reviewCount || "124" }
+      "image": image,
+      "telephone": "+919869996669", 
+      "priceRange": meta.entryFee || "₹₹", 
+      "address": { 
+        "@type": "PostalAddress", 
+        "addressLocality": targetCity || "India", 
+        "addressCountry": "IN" 
+      },
+      "aggregateRating": { 
+        "@type": "AggregateRating", 
+        "ratingValue": parseFloat(meta.rating || "4.8"), 
+        "reviewCount": parseInt(meta.reviewCount || "124", 10), 
+        "bestRating": 5,
+        "worstRating": 1
+      }
     };
 
     // 🌟 SEO ENHANCEMENT 3: Dynamic FAQ Schema Generator
