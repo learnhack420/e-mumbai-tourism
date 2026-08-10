@@ -1,6 +1,7 @@
 import { supabase } from '../../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import MainSearchBox from '../components/MainSearchBox' // 🌟 Search box import kiya
 
 export const runtime = 'edge';
 
@@ -27,12 +28,22 @@ const getListingUrl = (listing: any) => {
   return `/listing/${slug}`
 }
 
-// Thumbnail Helper
+// 🌟 THUMBNAIL HELPER UPDATED: Ab exact wahi image aayegi jo aapne package me set ki hai
 const getThumbnail = (listing: any) => {
-  const meta = listing.metadata || {}
-  if (meta.gallery && meta.gallery.length > 0 && meta.gallery[0].trim() !== '') {
+  const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
+  
+  // Pehle check karega ki listing.image ya metadata.thumbnail hai ya nahi
+  const mainImage = listing.image || meta.thumbnail || meta.image;
+  if (mainImage && mainImage.trim() !== '') {
+    return mainImage;
+  }
+  
+  // Agar main image nahi hai, tab gallery ki pehli photo lega
+  if (Array.isArray(meta.gallery) && meta.gallery.length > 0 && meta.gallery[0].trim() !== '') {
     return meta.gallery[0]
   }
+  
+  // Fallback image
   return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=600'
 }
 
@@ -94,7 +105,7 @@ export default async function SearchResultsPage({
     <main className="min-h-screen bg-gray-50 pb-20">
       
       {/* Search Header */}
-      <div className="bg-blue-800 text-white py-12 px-4 md:px-8">
+      <div className="bg-blue-800 text-white pt-12 pb-24 px-4 md:px-8">
         <div className="max-w-6xl mx-auto">
           <Link href="/" className="text-blue-200 hover:text-white text-sm font-bold mb-4 inline-block">
             ← Back to Home
@@ -104,6 +115,11 @@ export default async function SearchResultsPage({
             Found {results ? results.length : 0} verified options matching your search.
           </p>
         </div>
+      </div>
+
+      {/* 🌟 MAIN SEARCH BOX ADDED HERE (Floating over the blue header) */}
+      <div className="max-w-6xl mx-auto px-4 md:px-8 -mt-16 relative z-10 mb-12">
+        <MainSearchBox />
       </div>
 
       {/* Results Grid */}
