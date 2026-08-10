@@ -97,15 +97,14 @@ function PlaceFormContent() {
     
     if (placesData) setAllPlaces(placesData)
 
+    // 🌟 CATEGORY BUG FIX LOGIC YAHAN SHURU HOTA HAI
     const savedCats = typeof window !== "undefined" ? localStorage.getItem("adminPlaceCategories") : null
+    let loadedAvailableCats = ["Historical", "Pilgrimage", "Nature", "Beach", "Hill Station"]
+    
     if (savedCats) {
       try {
-        setAvailableCategories(JSON.parse(savedCats))
-      } catch (e) {
-        setAvailableCategories(["Historical", "Pilgrimage", "Nature", "Beach", "Hill Station"])
-      }
-    } else {
-      setAvailableCategories(["Historical", "Pilgrimage", "Nature", "Beach", "Hill Station"])
+        loadedAvailableCats = JSON.parse(savedCats)
+      } catch (e) {}
     }
 
     if (editId) {
@@ -131,13 +130,28 @@ function PlaceFormContent() {
         loadedNearest = [];
       }
 
+      // 🌟 BUG FIX: Agar aisi category hai jo database se aayi hai lekin availableCats me nahi hai, 
+      // toh usko availableCats array me daal kar display karao.
+      const placeCategories = meta.placeCategories || ["Historical"]
+      placeCategories.forEach((cat: string) => {
+        if (!loadedAvailableCats.includes(cat)) {
+          loadedAvailableCats.push(cat)
+        }
+      })
+      
+      setAvailableCategories(loadedAvailableCats)
+      // Optional: Backup to local storage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("adminPlaceCategories", JSON.stringify(loadedAvailableCats))
+      }
+
       setFormData({
         placeName: data.title || "",
         slug: data.slug || "",
         metaTitle: meta.metaTitle || data.title || "",
         metaDescription: meta.shortDescription || "",
         metaKeywords: meta.metaKeywords || "",
-        category: meta.placeCategories || ["Historical"], 
+        category: placeCategories, 
         description: data.description || "",
         image: data.image || meta.image || "", 
         entryFee: meta.entryFee || "Free",
@@ -159,6 +173,9 @@ function PlaceFormContent() {
         setGallery(meta.gallery)
       }
       setSlugEdited(true)
+    } else {
+      // 🌟 Naye form ke liye defaults set karna
+      setAvailableCategories(loadedAvailableCats)
     }
 
     setLoading(false)
@@ -358,7 +375,7 @@ function PlaceFormContent() {
       whyVisit: formData.whyVisit,
       history: formData.history,
       rituals: formData.rituals,
-      image: formData.image, // ✅ Image yahan metadata ke andar safely save hogi
+      image: formData.image, 
       faqItems: cleanFaqs
     }
 
@@ -369,7 +386,6 @@ function PlaceFormContent() {
       category: "destination", 
       location: location,
       price: 0,
-      // ❌ Yahan se schema fix karne ke liye 'image' field hata diya gaya hai
       metadata: metadata 
     }
 
