@@ -53,27 +53,27 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
     if (meta.personPrices.min8) packageOptions.push(`Min 8+ Pax: ₹${meta.personPrices.min8}/pax (Total: ₹${meta.personPrices.min8 * 8})`)
   }
 
-  // Cab Prices with Extra Time Logic
+  // 🌟 UPDATE: Added Seating Capacity in Dropdown Options
   if (meta.cabPrices) {
     if (meta.cabPrices.hatchback) {
       const ext = meta.cabExtraCharges?.hatchback ? ` (+₹${meta.cabExtraCharges.hatchback}/hr)` : '';
-      packageOptions.push(`Hatchback Cab: ₹${meta.cabPrices.hatchback}${ext}`)
+      packageOptions.push(`Hatchback (4+1D): ₹${meta.cabPrices.hatchback}${ext}`)
     }
     if (meta.cabPrices.sedan) {
       const ext = meta.cabExtraCharges?.sedan ? ` (+₹${meta.cabExtraCharges.sedan}/hr)` : '';
-      packageOptions.push(`Sedan Cab: ₹${meta.cabPrices.sedan}${ext}`)
+      packageOptions.push(`Sedan (4+1D): ₹${meta.cabPrices.sedan}${ext}`)
     }
     if (meta.cabPrices.suv) {
       const ext = meta.cabExtraCharges?.suv ? ` (+₹${meta.cabExtraCharges.suv}/hr)` : '';
-      packageOptions.push(`SUV/Ertiga Cab: ₹${meta.cabPrices.suv}${ext}`)
+      packageOptions.push(`SUV/Ertiga (6+1D): ₹${meta.cabPrices.suv}${ext}`)
     }
     if (meta.cabPrices.innova) {
       const ext = meta.cabExtraCharges?.innova ? ` (+₹${meta.cabExtraCharges.innova}/hr)` : '';
-      packageOptions.push(`Innova/Crysta Cab: ₹${meta.cabPrices.innova}${ext}`)
+      packageOptions.push(`Innova/Crysta (6+1D): ₹${meta.cabPrices.innova}${ext}`)
     }
     if (meta.cabPrices.tempo) {
       const ext = meta.cabExtraCharges?.tempo ? ` (+₹${meta.cabExtraCharges.tempo}/hr)` : '';
-      packageOptions.push(`Tempo Traveller: ₹${meta.cabPrices.tempo}${ext}`)
+      packageOptions.push(`Tempo Traveller (12+1D): ₹${meta.cabPrices.tempo}${ext}`)
     }
   }
 
@@ -115,8 +115,8 @@ export default function TourBookingSidebar({ tour, meta, destinations }: { tour:
       body: JSON.stringify({ type: 'New Tour Booking Lead', data: bookingDataPayload })
     }).catch(err => console.error("Email bhejte waqt error aaya:", err))
 
-    // 2. WhatsApp Message Format
-    const waNumber = '919867600452' // Helpline/vendor number
+    // WhatsApp Number
+    const waNumber = '919892455466'
     const text = `🚀 *New Booking Request*
 -----------------------------
 *Tour Name:* ${tour.title}
@@ -157,20 +157,24 @@ ${meta.exclusions || 'N/A'}
   })
 
   const handleInquiryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setInquiryData({ ...inquiryData, [e.target.name]: e.target.value })
+    if (e.target.name === 'mobile') {
+      setInquiryData({ ...inquiryData, [e.target.name]: e.target.value.replace(/\D/g, '') })
+    } else {
+      setInquiryData({ ...inquiryData, [e.target.name]: e.target.value })
+    }
   }
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
 
-    const waNumber = '919867600452'
+    const waNumber = '919892455466'
 
     // Save Inquiry to DB (Admin Leads)
     const inquiryPayload = {
       customer_name: inquiryData.name,
       customer_mobile: inquiryData.mobile,
-      booking_type: 'tour_inquiry', // Separate type for admin dashboard
+      booking_type: 'tour_inquiry',
       listing_title: tour.title,
       booking_details: {
         requestType: 'Inquiry',
@@ -216,8 +220,7 @@ Kindly provide more details.`.trim()
       <div className="bg-white p-6 rounded-2xl shadow-xl border border-blue-100 sticky top-24">
         
         {/* Available Packages Pricing Section */}
-        <div className="mb-8">
-          {/* 🌟 DYNAMIC HEADING: Package Cost */}
+        <div className="mb-2">
           <h3 className="text-gray-900 font-extrabold text-xl border-b pb-2 mb-4">{tour.title || 'Tour'} Package Cost</h3>
           
           {/* TOUR DURATION DISPLAY */}
@@ -242,9 +245,9 @@ Kindly provide more details.`.trim()
                   <div className="text-right">
                     <div className="flex justify-end items-center gap-1.5 mb-1">
                       <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min2)}</span>
-                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                     </div>
-                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min2} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="font-black text-green-600 text-lg">₹{meta.personPrices.min2} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min2 * 2}</span>
                   </div>
                 </div>
@@ -256,9 +259,9 @@ Kindly provide more details.`.trim()
                   <div className="text-right">
                     <div className="flex justify-end items-center gap-1.5 mb-1">
                       <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min4)}</span>
-                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                     </div>
-                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min4} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="font-black text-green-600 text-lg">₹{meta.personPrices.min4} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min4 * 4}</span>
                   </div>
                 </div>
@@ -270,9 +273,9 @@ Kindly provide more details.`.trim()
                   <div className="text-right">
                     <div className="flex justify-end items-center gap-1.5 mb-1">
                       <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min6)}</span>
-                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                     </div>
-                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min6} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="font-black text-green-600 text-lg">₹{meta.personPrices.min6} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min6 * 6}</span>
                   </div>
                 </div>
@@ -284,9 +287,9 @@ Kindly provide more details.`.trim()
                   <div className="text-right">
                     <div className="flex justify-end items-center gap-1.5 mb-1">
                       <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.personPrices.min8)}</span>
-                      <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                      <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                     </div>
-                    <span className="font-bold text-blue-700 text-base">₹{meta.personPrices.min8} <span className="text-xs font-normal text-gray-500">/pax</span></span>
+                    <span className="font-black text-green-600 text-lg">₹{meta.personPrices.min8} <span className="text-xs font-normal text-gray-500">/pax</span></span>
                     <span className="block text-xs font-black text-emerald-600 mt-0.5">Total: ₹{meta.personPrices.min8 * 8}</span>
                   </div>
                 </div>
@@ -299,16 +302,20 @@ Kindly provide more details.`.trim()
             <div className="space-y-2">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Cab Wise Pricing</h4>
               
+              {/* 🌟 UPDATE: Added Seating Capacity inside the Cab UI Box */}
               {meta.cabPrices.hatchback && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">Hatchback:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">Hatchback</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">4+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.hatchback)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.hatchback}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.hatchback}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.hatchback && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.hatchback}/hr</span>}
@@ -316,15 +323,18 @@ Kindly provide more details.`.trim()
               )}
               
               {meta.cabPrices.sedan && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">Sedan:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">Sedan</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">4+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.sedan)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.sedan}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.sedan}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.sedan && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.sedan}/hr</span>}
@@ -332,15 +342,18 @@ Kindly provide more details.`.trim()
               )}
               
               {meta.cabPrices.suv && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">SUV/Ertiga:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">SUV/Ertiga</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">6+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.suv)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.suv}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.suv}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.suv && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.suv}/hr</span>}
@@ -348,15 +361,18 @@ Kindly provide more details.`.trim()
               )}
               
               {meta.cabPrices.innova && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">Innova/Crysta:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">Innova/Crysta</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">6+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.innova)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.innova}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.innova}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.innova && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.innova}/hr</span>}
@@ -364,15 +380,18 @@ Kindly provide more details.`.trim()
               )}
               
               {meta.cabPrices.tempo && (
-                <div className="flex flex-col text-sm bg-orange-50 p-2.5 rounded-lg border border-orange-100">
+                <div className="flex flex-col text-sm bg-orange-50 p-3 rounded-lg border border-orange-100">
                   <div className="flex justify-between items-start">
-                    <span className="text-gray-800 font-medium mt-1">Tempo Traveller:</span> 
+                    <div>
+                      <span className="text-gray-900 font-black block">Tempo Traveller</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mt-0.5">12+1D Seater</span>
+                    </div>
                     <div className="text-right">
                       <div className="flex justify-end items-center gap-1.5 mb-0.5">
                         <span className="line-through text-gray-400 text-xs font-medium">₹{getOriginalPrice(meta.cabPrices.tempo)}</span>
-                        <span className="bg-red-100 text-red-600 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
+                        <span className="bg-purple-100 text-purple-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded">15% OFF</span>
                       </div>
-                      <span className="font-bold text-orange-700 text-base">₹{meta.cabPrices.tempo}</span>
+                      <span className="font-black text-green-600 text-lg">₹{meta.cabPrices.tempo}</span>
                     </div>
                   </div>
                   {meta.cabExtraCharges?.tempo && <span className="text-xs font-bold text-orange-600 mt-1 text-right">+ Extra: ₹{meta.cabExtraCharges.tempo}/hr</span>}
@@ -382,8 +401,31 @@ Kindly provide more details.`.trim()
           )}
         </div>
 
+        {/* QUICK LINK FOR INCLUSIONS & EXCLUSIONS */}
+        <div className="mt-3 mb-1 text-center">
+          <a href="#inclusions" className="text-[13px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-4 decoration-blue-200 hover:decoration-blue-600 transition-all">
+            See What's Included & Excluded ↓
+          </a>
+        </div>
+
+        {/* TRUST BADGES */}
+        <div className="mt-4 mb-6 grid grid-cols-3 gap-2 text-center border-t border-gray-100 pt-5">
+          <div className="flex flex-col items-center">
+            <span className="text-xl mb-1">🔒</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">Secure</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xl mb-1">✅</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">No Hidden<br/>Fees</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xl mb-1">🆓</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase">Easy<br/>Cancel</span>
+          </div>
+        </div>
+
         {/* Action Buttons */}
-        <div className="space-y-3 mt-6">
+        <div className="space-y-3">
           <button 
             onClick={() => setActiveModal('book')}
             className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 transition-colors shadow-lg text-lg flex items-center justify-center gap-2"
@@ -398,6 +440,7 @@ Kindly provide more details.`.trim()
             💬 Send Inquiry
           </button>
         </div>
+
       </div>
 
       {/* ========================================== */}
@@ -443,7 +486,7 @@ Kindly provide more details.`.trim()
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Contact Number</label>
-                    <input type="tel" required className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} placeholder="WhatsApp Number" />
+                    <input type="tel" required pattern="[0-9]{10}" maxLength={10} title="Please enter a valid 10-digit mobile number" className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g, '')})} placeholder="10-digit WhatsApp Number" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 mb-1">Date of Travel</label>
@@ -509,7 +552,7 @@ Kindly provide more details.`.trim()
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mobile Number</label>
-                <input type="tel" name="mobile" required className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-slate-500" placeholder="+91 XXXXX XXXXX" onChange={handleInquiryChange} />
+                <input type="tel" name="mobile" required pattern="[0-9]{10}" maxLength={10} title="Please enter a valid 10-digit mobile number" className="w-full border-2 border-slate-100 rounded-xl px-4 py-3 font-bold outline-none focus:border-slate-500" placeholder="10-digit Mobile No." onChange={handleInquiryChange} />
               </div>
 
               <div>

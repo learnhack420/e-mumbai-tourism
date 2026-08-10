@@ -143,6 +143,47 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
       ))
     }
 
+    // 🌟 SMART TIMELINE PARSER FUNCTION
+    const parseItineraryToTimeline = (htmlContent: string) => {
+      if (!htmlContent) return null;
+      // Strip HTML tags for clean parsing
+      const cleanText = htmlContent.replace(/<[^>]*>?/gm, '\n');
+      const lines = cleanText.split('\n').filter(line => line.trim() !== '');
+      
+      const timelineItems: { time: string, description: string }[] = [];
+      let currentItem = { time: '', description: '' };
+
+      lines.forEach(line => {
+        const timeMatch = line.match(/^(\d{1,2}:\d{2}\s*(?:AM|PM))\s*(?:–|-)\s*(.*)/i);
+        if (timeMatch) {
+          if (currentItem.time) timelineItems.push({...currentItem});
+          currentItem = { time: timeMatch[1].trim(), description: `<strong class="text-gray-900 block mb-1 text-lg">${timeMatch[2].trim()}</strong>` };
+        } else if (currentItem.time) {
+          currentItem.description += `<br/>${line.trim()}`;
+        } else {
+          // If no time is found yet, just add as general description
+          currentItem.description += `${line.trim()}<br/>`;
+        }
+      });
+      if (currentItem.time || currentItem.description) timelineItems.push(currentItem);
+
+      return (
+        <div className="relative border-l-2 border-blue-200 ml-4 md:ml-6 space-y-8 mt-6">
+          {timelineItems.map((item, idx) => (
+            <div key={idx} className="relative pl-8 md:pl-10">
+              <div className="absolute w-4 h-4 bg-blue-600 rounded-full -left-[9px] top-1.5 ring-4 ring-white shadow-sm"></div>
+              {item.time && (
+                <span className="inline-block bg-blue-50 text-blue-700 font-black text-sm px-3 py-1 rounded-lg mb-2 border border-blue-100">
+                  {item.time}
+                </span>
+              )}
+              <div className="text-gray-600 leading-relaxed font-medium" dangerouslySetInnerHTML={{ __html: item.description }} />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     // JSON-LD Structured Data
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.emumbaitourism.com'
     
@@ -246,8 +287,18 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
           
           {/* Left Content Column */}
           <div className="lg:col-span-2 space-y-10">
+
+            {/* 🌟 SEO UPGRADE: Table of Contents (Jump Links) */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+              <span className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Quick Links</span>
+              <div className="flex flex-wrap gap-3">
+                <a href="#overview" className="bg-gray-50 hover:bg-blue-50 hover:text-blue-600 text-gray-700 text-sm font-bold px-4 py-2 rounded-xl border border-gray-200 transition-colors">Overview</a>
+                <a href="#itinerary" className="bg-gray-50 hover:bg-blue-50 hover:text-blue-600 text-gray-700 text-sm font-bold px-4 py-2 rounded-xl border border-gray-200 transition-colors">Itinerary</a>
+                <a href="#inclusions" className="bg-gray-50 hover:bg-blue-50 hover:text-blue-600 text-gray-700 text-sm font-bold px-4 py-2 rounded-xl border border-gray-200 transition-colors">Inclusions</a>
+              </div>
+            </div>
             
-            <section className="bg-white p-0 rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+            <section id="overview" className="bg-white p-0 rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="bg-gradient-to-r from-blue-700 to-indigo-800 p-5 md:p-8">
                 <h2 className="text-2xl md:text-3xl font-black text-white">📋 Information of {tour.title} </h2>
                 <p className="text-blue-100 text-sm md:text-base mt-2 font-medium">Key details about {tour.title}</p>
@@ -358,10 +409,12 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
             )}
 
             {(itineraryDays.length > 0 || meta.itinerary) && (
-              <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+              <section id="itinerary" className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
                 <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
                   Itinerary of {tour.title}
                 </h2>
+                
+                {/* 🌟 SEO UPGRADE: Smart Timeline Formatting */}
                 {itineraryDays.length > 0 ? (
                   <div className="space-y-8">
                     {itineraryDays.map((day: any, idx: number) => (
@@ -384,24 +437,27 @@ export default async function TourDetailPage({ params }: { params: Promise<{ slu
                   </div>
                 ) : (
                   typeof meta.itinerary === 'string' && (
-                    <div 
-                      className="prose prose-lg max-w-none text-gray-600 leading-relaxed marker:text-blue-500"
-                      dangerouslySetInnerHTML={{ 
-                        __html: meta.itinerary
-                          .replace(/&nbsp;/g, ' ')
-                          .replace(/&lt;/g, '<')
-                          .replace(/&gt;/g, '>')
-                      }} 
-                    />
+                    // Smart detection: If itinerary has times like "7:00 AM -", use Timeline, else use normal Prose
+                    meta.itinerary.match(/\d{1,2}:\d{2}\s*(?:AM|PM)/i) 
+                      ? parseItineraryToTimeline(meta.itinerary)
+                      : <div 
+                          className="prose prose-lg max-w-none text-gray-600 leading-relaxed marker:text-blue-500"
+                          dangerouslySetInnerHTML={{ 
+                            __html: meta.itinerary
+                              .replace(/&nbsp;/g, ' ')
+                              .replace(/&lt;/g, '<')
+                              .replace(/&gt;/g, '>')
+                          }} 
+                        />
                   )
                 )}
               </section>
             )}
 
             {(meta.inclusions || meta.exclusions) && (
-              <section className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
+              <section id="inclusions" className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-gray-200">
                 <h2 className="text-3xl font-black text-gray-900 mb-8 border-b border-gray-100 pb-4">
-                  What is Including and Not including in {tour.title}
+                  What is Included and Not Included
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {meta.inclusions && (
