@@ -16,6 +16,17 @@ const stripHtml = (html: string) => {
   return html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');   
 }
 
+// 🌟 SMART CITY EXTRACTOR: Lambe address se sirf City nikalne ke liye
+const extractCityName = (locStr: string = '') => {
+  if (!locStr || locStr === 'Not specified') return '';
+  let cleanStr = locStr.split(/➔|->/)[0].trim();
+  const parts = cleanStr.split(/,| > /).map(s => s.trim());
+  if (parts.length >= 4) return parts[parts.length - 3];
+  if (parts.length >= 3) return parts[parts.length - 3];
+  if (parts.length === 2) return parts[0];
+  return parts[0];
+}
+
 // 🌟 MOCK DATA FOR SEO & UX
 const testimonials = [
   { name: "Rahul Sharma", location: "Mumbai", text: "Booked a Lonavala & Mahabaleshwar tour package through this portal. The local operator was extremely professional, and the price was 20% lower than other big sites!", rating: 5 },
@@ -182,23 +193,25 @@ export default async function Home() {
                   const excerpt = listing.metadata?.shortDescription || stripHtml(listing.description);
                   const isInfoContent = listing.category === 'destination' || listing.category === 'blog';
 
-                  // 🌟 EXTRACTION: Getting placeCategories array correctly
                   const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {});
                   const placeCats: string[] = listing.category === 'destination' && Array.isArray(meta.placeCategories) ? meta.placeCategories : [];
                   
-                  // 🌟 BADGE TEXT FIX
+                  // 🌟 PLACES TO VISIT EXTRACTION
+                  const placesToVisit = meta.topAttractions || meta.placesToVisit;
+                  
+                  // 🌟 BADGE TEXT FIX (DURATION FOR TOURS)
                   let badgeText = listing.category;
-                  if (listing.category === 'blog' && meta.blogCategory) {
+                  if (listing.category === 'tour') {
+                    badgeText = meta.duration || 'TOUR';
+                  } else if (listing.category === 'blog' && meta.blogCategory) {
                     badgeText = meta.blogCategory;
                   } else if (listing.category === 'destination') {
                     badgeText = placeCats.length > 0 ? placeCats[0] : 'Tourist Place';
                   }
 
-                  // 🌟 CHANGED: Outer wrapper is now a div to allow nested Links (Categories) safely
                   return (
                     <div key={listing.id} className="relative bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden hover:shadow-2xl hover:border-blue-100 transition-all duration-300 flex flex-col group">
                       
-                      {/* Main Card Invisible Link (Covers everything except z-20 elements) */}
                       <Link href={detailUrl} className="absolute inset-0 z-10">
                         <span className="sr-only">View {listing.title}</span>
                       </Link>
@@ -222,7 +235,6 @@ export default async function Home() {
                             {listing.title}
                           </h3>
                           
-                          {/* 🌟 NEW: Categories Tags placed below the Title (Clickable) */}
                           {listing.category === 'destination' && placeCats.length > 0 && (
                             <div className="flex flex-wrap gap-2 mb-3 relative z-20">
                               {placeCats.map((cat, i) => (
@@ -240,10 +252,21 @@ export default async function Home() {
                           <p className="text-slate-500 text-sm line-clamp-2 leading-relaxed font-medium">
                             {excerpt}
                           </p>
+
+                          {/* 🌟 PLACES TO VISIT BLOCK ADDED */}
+                          {listing.category === 'tour' && placesToVisit && (
+                            <div className="mt-3 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 relative z-20">
+                              <p className="line-clamp-2 leading-snug">
+                                <span className="font-bold text-slate-900">🗺️ Places: </span> 
+                                {Array.isArray(placesToVisit) ? placesToVisit.join(', ') : placesToVisit}
+                              </p>
+                            </div>
+                          )}
                         </div>
                         
                         <div className="mt-6 flex justify-between items-end border-t border-slate-100 pt-5 relative z-20 pointer-events-none">
-                          <span className="text-slate-500 text-sm font-bold flex items-center truncate max-w-[55%]">📍 {listing.location ? listing.location.split(',')[0] : 'Mumbai'}</span>
+                          {/* 🌟 SHORT CITY NAME APPLIED HERE */}
+                          <span className="text-slate-500 text-sm font-bold flex items-center truncate max-w-[55%]">📍 {extractCityName(listing.location)}</span>
                           <div className="text-right">
                             {isInfoContent ? (
                               <span className="block text-sm font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-colors">Explore →</span>

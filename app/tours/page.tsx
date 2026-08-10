@@ -18,7 +18,20 @@ interface Tour {
     duration?: string;
     thumbnail?: string;
     image?: string;
+    topAttractions?: string | string[]; // 🌟 Added for places
+    placesToVisit?: string | string[];  // 🌟 Added for places
   };
+}
+
+// 🌟 SMART CITY EXTRACTOR
+const extractCityName = (locStr: string = '') => {
+  if (!locStr || locStr === 'Not specified') return '';
+  let cleanStr = locStr.split(/➔|->/)[0].trim();
+  const parts = cleanStr.split(/,| > /).map(s => s.trim());
+  if (parts.length >= 4) return parts[parts.length - 3];
+  if (parts.length >= 3) return parts[parts.length - 3];
+  if (parts.length === 2) return parts[0];
+  return parts[0];
 }
 
 export default function ToursListingPage() {
@@ -100,7 +113,7 @@ export default function ToursListingPage() {
         </div>
       </section>
 
-      {/* 🌟 NEW: PREMIUM SEARCH BAR OVERLAPPING HERO SECTION */}
+      {/* 🌟 PREMIUM SEARCH BAR OVERLAPPING HERO SECTION (Untouched) */}
       <div className="max-w-4xl mx-auto px-4 md:px-8 -mt-10 relative z-20 mb-8">
         <div className="bg-white p-2.5 rounded-2xl shadow-xl border border-slate-200 flex items-center gap-2">
           <span className="pl-4 text-2xl text-slate-400">🔍</span>
@@ -164,7 +177,7 @@ export default function ToursListingPage() {
           
         ) : filteredTours.length === 0 ? (
           
-          /* 🌟 NEW: No search results found state */
+          /* No search results found state */
           <div className="text-center py-24 bg-white rounded-3xl shadow-sm border border-slate-100 px-8 max-w-2xl mx-auto mt-12">
             <div className="text-6xl mb-6">🔍</div>
             <h3 className="text-2xl font-black text-slate-800 mb-2">No Match Found</h3>
@@ -180,11 +193,13 @@ export default function ToursListingPage() {
         ) : (
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
-            {/* 🌟 CHANGED: Now mapping over filteredTours instead of tours */}
             {filteredTours.map((tour) => {
               const meta = tour.metadata || {}
               
               const imageUrl = tour.image || tour.thumbnail || meta.thumbnail || meta.image || null;
+
+              // 🌟 Metadata extraction for Places To Visit
+              const placesToVisit = meta.topAttractions || meta.placesToVisit;
 
               let cleanDescription = 'Experience an unforgettable journey with our curated travel itinerary.';
               if (meta.shortDescription) {
@@ -219,9 +234,10 @@ export default function ToursListingPage() {
                       </div>
                     )}
                     
-                    <div className="absolute top-4 right-4 flex flex-col gap-2">
-                      <span className="bg-white/95 backdrop-blur-md text-slate-900 text-xs font-black px-3 py-1.5 rounded-full shadow-md uppercase tracking-wider flex items-center gap-1">
-                        {meta.duration ? `⏳ ${meta.duration}` : (tour.category || 'Package')}
+                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                      {/* 🌟 1. DURATION BADGE (Glassmorphism look applied) */}
+                      <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-black px-3 py-1.5 rounded-lg uppercase tracking-widest shadow-sm border border-white/10">
+                        {meta.duration || 'TOUR PACKAGE'}
                       </span>
                     </div>
                   </div>
@@ -231,7 +247,8 @@ export default function ToursListingPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-amber-500 text-sm">📍</span>
                       <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                        {tour.location || 'India'}
+                        {/* 🌟 2. SMART CITY EXTRACTOR APPLIED */}
+                        {extractCityName(tour.location) || 'India'}
                       </span>
                     </div>
                     
@@ -239,15 +256,25 @@ export default function ToursListingPage() {
                       {tour.title}
                     </h3>
                     
-                    <p className="text-slate-600 text-sm leading-relaxed line-clamp-3 mb-6 flex-grow">
+                    <p className="text-slate-600 text-sm leading-relaxed line-clamp-2 flex-grow">
                       {cleanDescription}
                     </p>
 
+                    {/* 🌟 3. PLACES TO VISIT BLOCK */}
+                    {placesToVisit && (
+                      <div className="mt-4 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-inner">
+                        <p className="line-clamp-2 leading-relaxed">
+                          <span className="font-black text-slate-800">📌 Places: </span> 
+                          {Array.isArray(placesToVisit) ? placesToVisit.join(', ') : placesToVisit}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Footer Section */}
-                    <div className="pt-5 border-t border-slate-100 flex items-center justify-between mt-auto">
+                    <div className="pt-5 border-t border-slate-100 flex items-center justify-between mt-5">
                       <div>
-                        <span className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Starting from</span>
-                        <span className="text-lg font-black text-slate-900">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Starting from</span>
+                        <span className="text-xl font-black text-slate-900 tracking-tight">
                           {meta.price ? `₹${meta.price}` : 'On Request'}
                         </span>
                       </div>

@@ -19,6 +19,17 @@ const stripHtml = (html: string) => {
     .replace(/&amp;/g, '&');   // Replace ampersands
 }
 
+// 🌟 SMART CITY EXTRACTOR
+const extractCityName = (locStr: string = '') => {
+  if (!locStr || locStr === 'Not specified') return '';
+  let cleanStr = locStr.split(/➔|->/)[0].trim();
+  const parts = cleanStr.split(/,| > /).map(s => s.trim());
+  if (parts.length >= 4) return parts[parts.length - 3];
+  if (parts.length >= 3) return parts[parts.length - 3];
+  if (parts.length === 2) return parts[0];
+  return parts[0];
+}
+
 // Listing URL Helper
 const getListingUrl = (listing: any) => {
   const slug = listing.slug || listing.id
@@ -28,22 +39,19 @@ const getListingUrl = (listing: any) => {
   return `/listing/${slug}`
 }
 
-// 🌟 THUMBNAIL HELPER UPDATED: Ab exact wahi image aayegi jo aapne package me set ki hai
+// 🌟 THUMBNAIL HELPER UPDATED
 const getThumbnail = (listing: any) => {
   const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
   
-  // Pehle check karega ki listing.image ya metadata.thumbnail hai ya nahi
   const mainImage = listing.image || meta.thumbnail || meta.image;
   if (mainImage && mainImage.trim() !== '') {
     return mainImage;
   }
   
-  // Agar main image nahi hai, tab gallery ki pehli photo lega
   if (Array.isArray(meta.gallery) && meta.gallery.length > 0 && meta.gallery[0].trim() !== '') {
     return meta.gallery[0]
   }
   
-  // Fallback image
   return 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=600'
 }
 
@@ -102,70 +110,91 @@ export default async function SearchResultsPage({
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-20">
+    <main className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-blue-600 selection:text-white">
       
-      {/* Search Header */}
-      <div className="bg-blue-800 text-white pt-12 pb-24 px-4 md:px-8">
+      {/* 🌟 Search Header (Slightly enhanced gradient) */}
+      <div className="bg-gradient-to-r from-blue-900 to-blue-800 text-white pt-14 pb-28 px-4 md:px-8 shadow-inner">
         <div className="max-w-6xl mx-auto">
-          <Link href="/" className="text-blue-200 hover:text-white text-sm font-bold mb-4 inline-block">
+          <Link href="/" className="text-blue-300 hover:text-white text-sm font-bold mb-4 inline-block transition-colors">
             ← Back to Home
           </Link>
-          <h1 className="text-3xl md:text-4xl font-extrabold mt-2">{searchHeading}</h1>
-          <p className="text-blue-200 mt-2 text-lg">
+          <h1 className="text-3xl md:text-5xl font-black mt-2 tracking-tight">{searchHeading}</h1>
+          <p className="text-blue-200 mt-3 text-lg font-medium opacity-90">
             Found {results ? results.length : 0} verified options matching your search.
           </p>
         </div>
       </div>
 
       {/* 🌟 MAIN SEARCH BOX ADDED HERE (Floating over the blue header) */}
-      <div className="max-w-6xl mx-auto px-4 md:px-8 -mt-16 relative z-10 mb-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-8 -mt-20 relative z-10 mb-14">
         <MainSearchBox />
       </div>
 
       {/* Results Grid */}
-      <div className="max-w-6xl mx-auto px-4 md:px-8 mt-12">
+      <div className="max-w-6xl mx-auto px-4 md:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {results && results.length > 0 ? (
             results.map((listing) => {
               const detailUrl = getListingUrl(listing)
               const imageUrl = getThumbnail(listing)
               const cleanDescription = stripHtml(listing.description)
+              
+              // 🌟 NAYA LOGIC: Metadata se Duration aur Places To Visit nikalna
+              const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {})
+              const placesToVisit = meta.topAttractions || meta.placesToVisit;
 
               return (
                 <Link 
                   href={detailUrl} 
                   key={listing.id} 
-                  className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 flex flex-col group cursor-pointer"
+                  // 🌟 Premium Card Hover Effect
+                  className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group cursor-pointer"
                 >
-                  <div className="relative h-56 w-full bg-gray-200 overflow-hidden">
+                  <div className="relative h-56 w-full bg-slate-100 overflow-hidden">
                     <img 
                       src={imageUrl} 
                       alt={listing.title} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                     />
-                    <span className="absolute top-3 left-3 text-xs font-bold text-white bg-blue-600 px-3 py-1 rounded-full uppercase tracking-wide shadow-md">
-                      {listing.category}
+                    {/* 🌟 DURATION BADGE (Glassmorphism Design) */}
+                    <span className="absolute top-4 left-4 text-[10px] font-black text-white bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg uppercase tracking-widest shadow-sm border border-white/10">
+                      {listing.category === 'tour' ? (meta.duration || 'TOUR') : listing.category}
                     </span>
                   </div>
 
                   <div className="p-6 flex-1 flex flex-col justify-between">
                     <div>
-                      <h3 className="text-xl font-bold text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                      {/* 🌟 Tighter tracking for Title */}
+                      <h3 className="text-xl font-black text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors tracking-tight">
                         {listing.title}
                       </h3>
-                      <p className="text-gray-600 mt-2 text-sm line-clamp-2 leading-relaxed">
+                      {/* 🌟 Softer text color for Overview */}
+                      <p className="text-slate-500 mt-2 text-sm line-clamp-2 leading-relaxed font-medium">
                         {cleanDescription}
                       </p>
+                      
+                      {/* 🌟 PLACES TO VISIT BLOCK (Softer background, rounded corners) */}
+                      {listing.category === 'tour' && placesToVisit && (
+                        <div className="mt-4 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-inner">
+                          <p className="line-clamp-2 leading-relaxed">
+                            <span className="font-black text-slate-800">📌 Places: </span> 
+                            {Array.isArray(placesToVisit) ? placesToVisit.join(', ') : placesToVisit}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     
                     <div>
-                      <div className="mt-6 flex justify-between items-end border-t border-gray-100 pt-4">
-                        <span className="text-gray-500 text-sm font-medium flex items-center truncate max-w-[60%]">
-                          📍 {listing.location}
+                      {/* 🌟 Footer section with better alignments */}
+                      <div className="mt-5 flex justify-between items-end border-t border-slate-100 pt-5">
+                        <span className="text-slate-500 text-sm font-bold flex items-center gap-1.5 truncate max-w-[50%]">
+                          {/* 🌟 SHORT CITY NAME */}
+                          <span className="text-lg">📍</span> {extractCityName(listing.location)}
                         </span>
                         <div className="text-right">
-                          <span className="block text-xs text-gray-400 font-medium mb-1">Starting from</span>
-                          <span className="text-xl font-extrabold text-green-600">
+                          <span className="block text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-0.5">Starting from</span>
+                          {/* 🌟 Price popping out more */}
+                          <span className="text-2xl font-black text-emerald-600 tracking-tight">
                             ₹{listing.price}
                           </span>
                         </div>
@@ -176,13 +205,13 @@ export default async function SearchResultsPage({
               )
             })
           ) : (
-            <div className="col-span-full text-center py-20 bg-white rounded-xl border border-gray-200 shadow-sm">
-              <span className="text-6xl block mb-4">🔍</span>
-              <h2 className="text-2xl font-bold text-gray-800">No results found</h2>
-              <p className="text-gray-500 mt-2 max-w-md mx-auto">
+            <div className="col-span-full text-center py-24 bg-white rounded-3xl border border-slate-200 shadow-sm mt-8">
+              <span className="text-6xl block mb-6 drop-shadow-sm">🔍</span>
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">No results found</h2>
+              <p className="text-slate-500 mt-3 max-w-md mx-auto text-lg font-medium leading-relaxed">
                 We couldn't find any {service} services matching your search criteria right now. Try searching for a different city or category.
               </p>
-              <Link href="/" className="inline-block mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors">
+              <Link href="/" className="inline-block mt-8 bg-blue-600 hover:bg-blue-700 text-white font-black py-4 px-10 rounded-xl transition-all hover:-translate-y-1 hover:shadow-lg shadow-md uppercase tracking-wider text-sm">
                 Go Back Home
               </Link>
             </div>
