@@ -2,6 +2,7 @@ import { supabase } from '../utils/supabase'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import MainSearchBox from './components/MainSearchBox'
+import WeekendGetawaysSlider from './components/WeekendGetawaysSlider'
 
 // 🌟 SEO Metadata for E-Mumbai Tourism
 export const metadata: Metadata = {
@@ -34,7 +35,7 @@ const testimonials = [
   { name: "Amit Patel", location: "Ahmedabad", text: "Finding authentic local tour guides for Mumbai darshan used to be hard. This platform made it so easy to compare prices and book a luxury hotel safely.", rating: 5 }
 ];
 
-// 🌟 Extended FAQs for Better SEO & User Trust
+// 🌟 Extended FAQs for Better SEO
 const homeFaqs = [
   { q: "Why should I book through E-Mumbai Tourism?", a: "We connect you directly with verified local tour operators in Mumbai and Maharashtra, cutting out middlemen to ensure authentic experiences at the best guaranteed prices." },
   { q: "Are the outstation cabs and drivers verified?", a: "Yes, all our cab partners and drivers undergo a strict background check. We prioritize your safety, comfort, and reliability for outstation and local trips." },
@@ -42,6 +43,48 @@ const homeFaqs = [
   { q: "Are there any hidden booking fees?", a: "No! We believe in 100% transparency. The prices you see are directly from local operators with zero hidden charges or surprise platform fees." },
   { q: "How do I know the travel agents are genuine?", a: "We have a rigorous vetting process. Every travel agency, hotel, and cab provider listed on our portal is manually verified for quality, safety, and customer satisfaction." },
   { q: "What if I need help during my trip?", a: "We provide 24/7 expert customer support. In case of any emergencies or queries during your travel, our dedicated team is always just a call away to assist you." }
+];
+
+// 🌟 1. POPULAR OUTSTATION CAB ROUTES (10 Routes from Mumbai)
+const popularCabRoutes = [
+  { text: "Mumbai to Pune Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Pune" },
+  { text: "Mumbai to Lonavala Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Lonavala" },
+  { text: "Mumbai to Mahabaleshwar Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Mahabaleshwar" },
+  { text: "Mumbai to Nashik Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Nashik" },
+  { text: "Mumbai to Shirdi Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Shirdi" },
+  { text: "Mumbai to Alibag Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Alibag" },
+  { text: "Mumbai to Goa Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Goa" },
+  { text: "Mumbai to Surat Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Surat" },
+  { text: "Mumbai to Igatpuri Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Igatpuri" },
+  { text: "Mumbai to Matheran Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Matheran" },
+];
+
+// 🌟 2. TRENDING OUTSTATION CAB ROUTES (10 Routes from Mumbai)
+const trendingCabRoutes = [
+  { text: "Mumbai to Trimbakeshwar Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Trimbakeshwar" },
+  { text: "Mumbai to Bhimashankar Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Bhimashankar" },
+  { text: "Mumbai to Lavasa Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Lavasa" },
+  { text: "Mumbai to Panchgani Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Panchgani" },
+  { text: "Mumbai to Karjat Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Karjat" },
+  { text: "Mumbai to Ganpatipule Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Ganpatipule" },
+  { text: "Mumbai to Kolhapur Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Kolhapur" },
+  { text: "Mumbai to Ahmedabad Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Ahmedabad" },
+  { text: "Mumbai to Vadodara Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Vadodara" },
+  { text: "Mumbai to Saputara Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Saputara" },
+];
+
+// 🌟 3. TOP OUTSTATION CAB ROUTES (10 Routes from Mumbai)
+const topCabRoutes = [
+  { text: "Mumbai to Aurangabad Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Aurangabad" },
+  { text: "Mumbai to Daman Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Daman" },
+  { text: "Mumbai to Silvassa Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Silvassa" },
+  { text: "Mumbai to Kashid Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Kashid" },
+  { text: "Mumbai to Murud Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Murud" },
+  { text: "Mumbai to Vapi Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Vapi" },
+  { text: "Mumbai to Ratnagiri Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Ratnagiri" },
+  { text: "Mumbai to Tarkarli Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Tarkarli" },
+  { text: "Mumbai to Pawna Lake Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Pawna%20Lake" },
+  { text: "Mumbai to Jawhar Cab", link: "/search?service=cab&type=outstation&pickup=Mumbai&drop=Jawhar" },
 ];
 
 export default async function Home() {
@@ -86,7 +129,6 @@ export default async function Home() {
   const cabs = listings?.filter((l) => l.category === 'cab') || []
   const blogs = listings?.filter((l) => l.category === 'blog') || []
 
-  // 🌟 CHANGED: "Trending Destinations" changed to "Tourist Attractions"
   const sections = [
     { title: "Top Tour Packages", items: tours, viewAllLink: "/tours", icon: "🗺️", badge: "Most Popular" },
     { title: "Tourist Attractions", items: destinations, viewAllLink: "/places", icon: "📍", badge: "Must Visit" },
@@ -195,11 +237,8 @@ export default async function Home() {
 
                   const meta = typeof listing.metadata === 'string' ? JSON.parse(listing.metadata) : (listing.metadata || {});
                   const placeCats: string[] = listing.category === 'destination' && Array.isArray(meta.placeCategories) ? meta.placeCategories : [];
-                  
-                  // 🌟 PLACES TO VISIT EXTRACTION
                   const placesToVisit = meta.topAttractions || meta.placesToVisit;
                   
-                  // 🌟 BADGE TEXT FIX (DURATION FOR TOURS)
                   let badgeText = listing.category;
                   if (listing.category === 'tour') {
                     badgeText = meta.duration || 'TOUR';
@@ -253,7 +292,6 @@ export default async function Home() {
                             {excerpt}
                           </p>
 
-                          {/* 🌟 PLACES TO VISIT BLOCK ADDED */}
                           {listing.category === 'tour' && placesToVisit && (
                             <div className="mt-3 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-200 relative z-20">
                               <p className="line-clamp-2 leading-snug">
@@ -265,7 +303,6 @@ export default async function Home() {
                         </div>
                         
                         <div className="mt-6 flex justify-between items-end border-t border-slate-100 pt-5 relative z-20 pointer-events-none">
-                          {/* 🌟 SHORT CITY NAME APPLIED HERE */}
                           <span className="text-slate-500 text-sm font-bold flex items-center truncate max-w-[55%]">📍 {extractCityName(listing.location)}</span>
                           <div className="text-right">
                             {isInfoContent ? (
@@ -296,7 +333,92 @@ export default async function Home() {
         })}
       </div>
 
-      {/* --- ⭐ TESTIMONIALS SECTION --- */}
+      {/* 🌟 12 WEEKEND GETAWAYS AUTO-SCROLL SLIDER COMPONENT */}
+      <WeekendGetawaysSlider />
+
+      {/* 🌟 OUTSTATION CAB ROUTES SECTION (3 COLUMNS x 10 ROUTES) */}
+      <section className="bg-white py-16 px-4 md:px-8 border-t border-slate-200">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-10 text-center md:text-left">
+            <h2 className="text-3xl md:text-4xl font-black text-slate-900 mb-2">
+              Outstation Cab Routes
+            </h2>
+            <p className="text-slate-600 font-medium text-base">
+              Book affordable, safe, and comfortable outstation cabs from Mumbai to top destinations.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Column 1: Popular Outstation Cab Routes */}
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+              <h3 className="text-xl font-black text-slate-900 mb-4 pb-3 border-b-2 border-blue-600 flex items-center gap-2">
+                <span>🔥</span> Popular Outstation Cab Routes
+              </h3>
+              <ul className="space-y-2.5">
+                {popularCabRoutes.map((route, i) => (
+                  <li key={i}>
+                    <Link 
+                      href={route.link} 
+                      className="text-slate-700 hover:text-blue-600 font-bold text-sm flex items-center justify-between group py-1.5 px-3 rounded-xl hover:bg-blue-50 transition-all"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-blue-500 font-black text-xs">➔</span> {route.text}
+                      </span>
+                      <span className="text-xs text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 2: Trending Outstation Cab Routes */}
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+              <h3 className="text-xl font-black text-slate-900 mb-4 pb-3 border-b-2 border-amber-500 flex items-center gap-2">
+                <span>⚡</span> Trending Outstation Cab Routes
+              </h3>
+              <ul className="space-y-2.5">
+                {trendingCabRoutes.map((route, i) => (
+                  <li key={i}>
+                    <Link 
+                      href={route.link} 
+                      className="text-slate-700 hover:text-amber-600 font-bold text-sm flex items-center justify-between group py-1.5 px-3 rounded-xl hover:bg-amber-50 transition-all"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-amber-500 font-black text-xs">➔</span> {route.text}
+                      </span>
+                      <span className="text-xs text-slate-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Column 3: Top Outstation Cab Routes */}
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+              <h3 className="text-xl font-black text-slate-900 mb-4 pb-3 border-b-2 border-emerald-600 flex items-center gap-2">
+                <span>🏆</span> Top Outstation Cab Routes
+              </h3>
+              <ul className="space-y-2.5">
+                {topCabRoutes.map((route, i) => (
+                  <li key={i}>
+                    <Link 
+                      href={route.link} 
+                      className="text-slate-700 hover:text-emerald-600 font-bold text-sm flex items-center justify-between group py-1.5 px-3 rounded-xl hover:bg-emerald-50 transition-all"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="text-emerald-500 font-black text-xs">➔</span> {route.text}
+                      </span>
+                      <span className="text-xs text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all">→</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* --- TESTIMONIALS --- */}
       <section className="bg-slate-900 py-20 px-4 md:px-8 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl"></div>
         <div className="max-w-6xl mx-auto relative z-10">
@@ -322,7 +444,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* --- 📝 SEO KEYWORD TEXT & FAQ SECTION --- */}
+      {/* --- FAQ SECTION --- */}
       <section className="bg-white py-20 px-4 md:px-8">
         <div className="max-w-5xl mx-auto">
           
@@ -338,11 +460,8 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* --- 📝 PREMIUM SEO KEYWORD TEXT SECTION --- */}
           <div className="mt-20">
             <div className="bg-gradient-to-br from-slate-50 to-blue-50/50 p-8 md:p-12 rounded-[2.5rem] border border-blue-100 shadow-sm relative overflow-hidden">
-              
-              {/* Decorative elements */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-200/40 rounded-full blur-3xl -mr-10 -mt-10"></div>
               <div className="absolute bottom-0 left-0 w-40 h-40 bg-amber-200/30 rounded-full blur-3xl -ml-10 -mb-10"></div>
 
@@ -366,7 +485,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* --- MASSIVE BOTTOM CTA SECTION --- */}
+      {/* --- BOTTOM CTA --- */}
       <section className="bg-blue-600 text-white py-16 px-4 md:px-8 border-t-[8px] border-amber-500">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
           <div className="text-center md:text-left">
