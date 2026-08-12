@@ -1,19 +1,17 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { supabase } from '../../utils/supabase'
+import { supabase } from '@/utils/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState('bookings') // Default tab now 'bookings'
-  const [activeListingCategory, setActiveListingCategory] = useState('all') // Sub-tab state for listings
-  
-  // 🌟 NEW: Search query state for filtering listings
+  const [activeTab, setActiveTab] = useState('bookings')
+  const [activeListingCategory, setActiveListingCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('') 
   
   const [listings, setListings] = useState<any[]>([])
   const [vendors, setVendors] = useState<any[]>([])
-  const [bookings, setBookings] = useState<any[]>([]) // STATE FOR BOOKINGS
+  const [bookings, setBookings] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // Edit Vendor Modal States
@@ -30,7 +28,6 @@ export default function AdminDashboard() {
     checkAdmin()
   }, [])
 
-  // 🌟 FIX: Improved Loading State & Promise.all for faster, safer fetching
   async function checkAdmin() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -50,7 +47,6 @@ export default function AdminDashboard() {
         return
       }
 
-      // Call all fetch functions simultaneously
       await Promise.all([
         fetchVendors(),
         fetchListings(),
@@ -113,7 +109,6 @@ export default function AdminDashboard() {
     } else {
       console.log("Status updated successfully:", data)
       
-      // 🌟 Send Approval Email when status changes to 'approved'
       if (newStatus === 'approved' && vendorEmail) {
         try {
           await fetch('/api/send-approval-email', {
@@ -129,38 +124,39 @@ export default function AdminDashboard() {
           console.error("Email sending failed:", mailErr)
         }
       }
-
-      fetchVendors() // Refresh the vendor list instantly
+      fetchVendors() 
     }
   }
 
   // 6. Delete Vendor
   async function deleteVendor(id: string) {
-    if (!window.confirm("WARNING: Kya aap sach mein is vendor ko delete karna chahte hain? Inki saari listings bhi remove ho sakti hain.")) return
+    if (!window.confirm("WARNING: Kya aap sach mein is vendor ko permanently delete karna chahte hain? Inka login access aur database data hamesha ke liye delete ho jayega.")) return
 
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', id)
+    try {
+      const res = await fetch('/api/delete-vendor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Failed to delete vendor")
 
-    if (error) {
+      alert("Vendor successfully deleted from database!")
+      fetchVendors() 
+    } catch (error: any) {
       alert("Error deleting vendor: " + error.message)
-    } else {
-      fetchVendors()
     }
   }
 
-  // Open Edit Vendor Modal
   const openEditVendorModal = (vendor: any) => {
     setEditingVendor(vendor)
     setEditName(vendor.full_name || '')
     setEditEmail(vendor.email || '')
     setEditPhone(vendor.phone || '')
     setEditCompany(vendor.company_name || '')
-    setEditAddress(vendor.address || '')
+    setEditAddress(vendor.address || vendor.location || '') 
   }
 
-  // Save Edited Vendor Details
   async function handleUpdateVendor(e: React.FormEvent) {
     e.preventDefault()
     if (!editingVendor) return
@@ -180,14 +176,12 @@ export default function AdminDashboard() {
       alert("Error updating vendor: " + error.message)
     } else {
       setEditingVendor(null)
-      fetchVendors()
+      fetchVendors() 
     }
   }
 
-  // 7. Update Listing Status with Debugging
+  // 7. Update Listing Status
   async function updateListingStatus(id: string, newStatus: string) {
-    console.log("Updating listing ID:", id, "to status:", newStatus);
-
     const { data, error } = await supabase
       .from('listings')
       .update({ status: newStatus })
@@ -197,32 +191,21 @@ export default function AdminDashboard() {
     if (error) {
       alert("Error updating listing status: " + error.message)
     } else {
-      console.log("Supabase Update Response Data:", data)
       if (!data || data.length === 0) {
         alert("Warning: Update successful but 0 rows affected. Check if listing ID exists!")
       } else {
-        fetchListings() // Immediately refresh listings table
+        fetchListings() 
       }
     }
   }
 
-  // Delete Listing Permanently
   async function deleteListing(id: string) {
     if (!window.confirm("WARNING: Kya aap sach mein is listing ko permanently delete karna chahte hain? Yeh wapas recover nahi hogi.")) return
-
-    const { error } = await supabase
-      .from('listings')
-      .delete()
-      .eq('id', id)
-
-    if (error) {
-      alert("Error deleting listing: " + error.message)
-    } else {
-      fetchListings() // Table update karne ke liye
-    }
+    const { error } = await supabase.from('listings').delete().eq('id', id)
+    if (error) alert("Error deleting listing: " + error.message)
+    else fetchListings()
   }
 
-  // Helper to determine Edit URL
   const getEditUrl = (listing: any) => {
     const cat = listing.category
     if (cat === 'tour') return `/add-listing/tour?edit=${listing.id}`
@@ -233,7 +216,6 @@ export default function AdminDashboard() {
     return `/vendor`
   }
 
-  // Helper to determine View URL
   const getViewUrl = (listing: any) => {
     const slug = listing.slug || listing.id
     if (listing.category === 'tour') return `/tour/${slug}`
@@ -249,7 +231,6 @@ export default function AdminDashboard() {
     router.push('/login')
   }
 
-  // Sub-tabs categories configuration
   const listingCategories = [
     { id: 'all', label: 'All Listings' },
     { id: 'destination', label: 'Tourist Places' },
@@ -266,16 +247,12 @@ export default function AdminDashboard() {
 
   const displayedListings = listings.filter(listing => {
     const matchesCategory = activeListingCategory === 'all' ? true : listing.category === activeListingCategory;
-    
     const q = searchQuery.toLowerCase();
     const title = typeof listing.title === 'string' ? listing.title.toLowerCase() : '';
     const location = typeof listing.location === 'string' ? listing.location.toLowerCase() : '';
-    const matchesSearch = title.includes(q) || location.includes(q);
-
-    return matchesCategory && matchesSearch;
+    return matchesCategory && (title.includes(q) || location.includes(q));
   });
 
-  // 🌟 FIX: Safe location string formatter to prevent dashboard crash
   const formatLocationForList = (locStr: any) => {
     if (!locStr) return 'Online / Blog'
     if (Array.isArray(locStr)) return locStr.join(', ')
@@ -385,6 +362,7 @@ export default function AdminDashboard() {
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Partner Info</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Contact & Agency</th>
+                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Verification Docs</th>
                     <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -400,6 +378,30 @@ export default function AdminDashboard() {
                         <div className="text-sm font-bold text-gray-700">{vendor.company_name || 'N/A'}</div>
                         <div className="text-sm text-gray-500">{vendor.phone || 'No Phone'}</div>
                       </td>
+                      
+                      {/* 🌟 ADDED ICONS COLUMN FOR SUPABASE/IMGBB URLs */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          {vendor.logo_url ? (
+                            <a href={vendor.logo_url} target="_blank" rel="noopener noreferrer" 
+                               className="flex items-center gap-1 text-xs font-bold bg-cyan-50 text-cyan-700 px-2.5 py-1 rounded-md hover:bg-cyan-100 transition-colors" title="View Company Logo">
+                              🖼️ Logo
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">No Logo</span>
+                          )}
+
+                          {vendor.visiting_card_url ? (
+                            <a href={vendor.visiting_card_url} target="_blank" rel="noopener noreferrer" 
+                               className="flex items-center gap-1 text-xs font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md hover:bg-blue-100 transition-colors" title="View Visiting Card">
+                              🪪 Card
+                            </a>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">No Card</span>
+                          )}
+                        </div>
+                      </td>
+
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${
                           vendor.approval_status === 'approved' ? 'bg-green-100 text-green-800' : 
@@ -418,8 +420,13 @@ export default function AdminDashboard() {
                             <button onClick={() => updateVendorStatus(vendor.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
                           </>
                         )}
+                        
                         {vendor.approval_status === 'approved' && (
-                           <button onClick={() => updateVendorStatus(vendor.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Revoke</button>
+                            <button onClick={() => updateVendorStatus(vendor.id, 'declined')} className="text-orange-600 hover:text-orange-900 font-bold ml-1">Revoke</button>
+                        )}
+
+                        {vendor.approval_status === 'declined' && (
+                            <button onClick={() => updateVendorStatus(vendor.id, 'approved', vendor.email, vendor.full_name)} className="text-green-600 hover:text-green-900 font-bold ml-1 bg-green-50 px-3 py-1 rounded-md">Approve Again</button>
                         )}
                       </td>
                     </tr>
@@ -549,7 +556,8 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Phone Number</label>
-<input type="tel" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />                </div>
+                  <input type="tel" required className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />
+                </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Agency Name</label>
                   <input type="text" className="w-full px-4 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={editCompany} onChange={(e) => setEditCompany(e.target.value)} placeholder="Travel Agency" />

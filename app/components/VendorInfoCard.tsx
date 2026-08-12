@@ -8,7 +8,8 @@ export default function VendorInfoCard({ vendorId }: { vendorId?: string }) {
     company_name: 'Raj Cabs Official',
     phone: '9892455466',
     address: 'Mumbai, Maharashtra',
-    website: 'https://www.tourismdna.com'
+    website: 'https://www.tourismdna.com',
+    logo_url: '' // 🌟 Fallback for logo
   })
   const [loading, setLoading] = useState(false)
 
@@ -39,13 +40,21 @@ export default function VendorInfoCard({ vendorId }: { vendorId?: string }) {
   const address = vendor?.address || vendor?.location || 'Mumbai, Maharashtra'
   const website = (vendor?.website || 'https://www.tourismdna.com').trim()
   const formattedWebsite = website.startsWith('http') ? website : `https://${website}`
+  const logoUrl = vendor?.logo_url // 🌟 Fetching uploaded Logo URL
 
   return (
     <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-3xl shadow-xl border border-slate-700 my-6">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-xl font-black shadow-inner">
-          🏢
+        
+        {/* 🌟 LOGO AREA UPDATED */}
+        <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center text-xl font-black shadow-inner overflow-hidden shrink-0 border border-slate-600">
+          {logoUrl ? (
+            <img src={logoUrl} alt={`${firmName} Logo`} className="w-full h-full object-cover bg-white" />
+          ) : (
+            "🏢"
+          )}
         </div>
+
         <div>
           <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Listed By Partner</span>
           <h3 className="text-lg font-black text-white">{firmName}</h3>

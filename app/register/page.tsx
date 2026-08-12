@@ -6,21 +6,68 @@ import Link from 'next/link'
 
 export default function Register() {
   const [formData, setFormData] = useState({
-    fullName: '',       // Will be used for 'Name of Vendor'
+    fullName: '',       
     email: '',
     password: '',
     phone: '',          
+    companyName: '',    
     location: '',       
-    role: 'vendor'      // Role is strictly fixed to 'vendor' now
+    role: 'vendor'      
   })
+
+  // 🌟 NAYA: File store karne ke liye states
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [cardFile, setCardFile] = useState<File | null>(null)
+
   const [status, setStatus] = useState({ loading: false, success: false, error: '', message: '' })
   const router = useRouter()
 
+  // 🌟 Supabase Storage Upload Helper Function
+  const uploadFileToSupabaseStorage = async (file: File, folder: string) => {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `${folder}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('vendor_documents')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      // Public URL generate karna
+      const { data } = supabase.storage
+        .from('vendor_documents')
+        .getPublicUrl(filePath)
+
+      return data.publicUrl
+    } catch (error: any) {
+      console.error("Storage upload error:", error.message)
+      return null
+    }
+  }
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    setStatus({ loading: true, success: false, error: '', message: '' })
+    setStatus({ loading: true, success: false, error: '', message: 'Uploading documents to Supabase...' })
 
-    // Supabase Auth se naya user create karna aur metadata mein extra fields bhejna
+    let logoUrl = ''
+    let cardUrl = ''
+
+    // Agar user ne files select ki hain toh pehle Supabase par upload karein
+    if (logoFile) {
+      const uploadedLogo = await uploadFileToSupabaseStorage(logoFile, 'logos')
+      if (uploadedLogo) logoUrl = uploadedLogo
+    }
+
+    if (cardFile) {
+      const uploadedCard = await uploadFileToSupabaseStorage(cardFile, 'visiting_cards')
+      if (uploadedCard) cardUrl = uploadedCard
+    }
+
+    setStatus({ loading: true, success: false, error: '', message: 'Creating account...' })
+
+    // Supabase Auth se naya user create karna aur metadata bhejna
     const { data, error } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
@@ -29,7 +76,10 @@ export default function Register() {
           full_name: formData.fullName,
           role: formData.role,
           phone: formData.phone,
-          location: formData.location
+          company_name: formData.companyName,
+          address: formData.location,
+          logo_url: logoUrl,                 // 🌟 Supabase Logo URL
+          visiting_card_url: cardUrl         // 🌟 Supabase Card URL
         }
       }
     })
@@ -45,11 +95,14 @@ export default function Register() {
           type: 'New Vendor / Partner Registration 🏢',
           data: {
             Name_of_Vendor: formData.fullName,
+            Agency_Name: formData.companyName, 
             Email: formData.email,
             Phone: formData.phone,
-            Account_Type: 'VENDOR',
             Operating_Location: formData.location || 'N/A',
-            Admin_Action: 'Pending Approval (Please approve from Admin Panel)'
+            Company_Logo: logoUrl ? `<a href="${logoUrl}" target="_blank">View Logo</a>` : 'Not uploaded',
+            Visiting_Card: cardUrl ? `<a href="${cardUrl}" target="_blank">View Visiting Card</a>` : 'Not uploaded',
+            Account_Type: 'VENDOR',
+            Admin_Action: 'Pending Approval (Please review documents from Admin Panel)'
           }
         })
       }).catch(err => console.error("Email bhejte waqt error aaya:", err))
@@ -89,24 +142,17 @@ export default function Register() {
       `}} />
 
       {/* --- ANIMATED BACKGROUND ELEMENTS --- */}
-      {/* Sun */}
       <div className="absolute top-10 right-10 md:top-20 md:right-32 w-32 h-32 md:w-48 md:h-48 bg-gradient-to-br from-yellow-200 to-orange-400 rounded-full sun-glow"></div>
-      
-      {/* Clouds */}
       <div className="absolute top-20 left-10 md:left-32 text-6xl opacity-80 animate-float">☁️</div>
       <div className="absolute top-32 right-1/4 text-5xl opacity-60 animate-float-delayed">☁️</div>
-      
-      {/* Ocean / Waves */}
       <div className="absolute bottom-0 w-full h-1/4 bg-gradient-to-t from-blue-500/80 to-cyan-400/30 backdrop-blur-sm border-t border-white/20"></div>
-
-      {/* Coconut Trees */}
       <div className="absolute -bottom-5 left-2 md:left-10 text-8xl md:text-[10rem] animate-sway">🌴</div>
       <div className="absolute bottom-0 right-5 md:right-20 text-7xl md:text-[8rem] animate-sway-slow">🌴</div>
       <div className="absolute bottom-5 right-2 md:right-10 text-5xl md:text-[6rem] animate-sway opacity-80">🌴</div>
 
 
       {/* --- REGISTRATION CARD (GLASSMORPHISM) --- */}
-      <div className="relative z-10 w-full max-w-md bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.15)] p-8 border border-white/50">
+      <div className="relative z-10 w-full max-w-lg bg-white/90 backdrop-blur-xl rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.15)] p-8 border border-white/50 my-8">
         
         {/* SUCCESS SCREEN */}
         {status.success ? (
@@ -117,7 +163,6 @@ export default function Register() {
               Congratulations!<br/>Registration Successful
             </h2>
             
-            {/* 🌟 NEW: CHECK EMAIL BANNER */}
             <div className="bg-amber-50 border-2 border-amber-200 p-5 rounded-2xl mb-8 shadow-sm">
               <div className="text-4xl mb-2">📧</div>
               <h3 className="text-xl font-black text-amber-800 mb-2">Check Your Email & Confirm!</h3>
@@ -143,33 +188,44 @@ export default function Register() {
 
             <form onSubmit={handleRegister} className="space-y-5">
               
-              {/* Name of Vendor */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Name of Vendor / Agency
-                </label>
-                <input type="text" required 
-                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
-                  value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
-                  placeholder="Ex: Raj Travels & Tours" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Name of Vendor */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Owner Name</label>
+                  <input type="text" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                    value={formData.fullName} onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
+                    placeholder="Ex: Rahul Kumar" />
+                </div>
+                
+                {/* Agency Name */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Company Name</label>
+                  <input type="text" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                    value={formData.companyName} onChange={(e) => setFormData({...formData, companyName: e.target.value})} 
+                    placeholder="Ex: Raj Travels" />
+                </div>
               </div>
 
-              {/* Email Address */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
-                <input type="email" required 
-                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
-                  value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} 
-                  placeholder="email@example.com" />
-              </div>
-
-              {/* Mobile Number */}
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">Mobile Number</label>
-                <input type="tel" required 
-                  className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
-                  value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} 
-                  placeholder="Ex: 9876543210" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Email Address */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Email Address</label>
+                  <input type="email" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                    value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                    placeholder="email@example.com" />
+                </div>
+                
+                {/* Mobile Number */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">Mobile Number</label>
+                  <input type="tel" required 
+                    className="w-full px-4 py-3 rounded-xl border border-white/60 bg-white/50 focus:bg-white focus:ring-2 focus:ring-cyan-400 outline-none transition-all text-slate-800 font-medium placeholder-slate-400 shadow-sm"
+                    value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} 
+                    placeholder="9876543210" />
+                </div>
               </div>
 
               {/* Operating Location */}
@@ -180,6 +236,25 @@ export default function Register() {
                   value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} 
                   placeholder="Ex: Kochi, Kerala or Mumbai" />
                 <p className="text-xs text-cyan-700 mt-2 font-medium">📍 Aap kis sheher se apni services operate karte hain?</p>
+              </div>
+
+              {/* 🌟 Document Upload Fields */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <h3 className="text-sm font-black text-slate-800 mb-4 border-b pb-2">Verification Documents</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Company Logo (Optional)</label>
+                    <input type="file" accept="image/*" 
+                      onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                      className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">Visiting Card (Required)</label>
+                    <input type="file" accept="image/*" required
+                      onChange={(e) => setCardFile(e.target.files?.[0] || null)}
+                      className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all" />
+                  </div>
+                </div>
               </div>
 
               {/* Password */}
@@ -196,9 +271,9 @@ export default function Register() {
                 {status.loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> 
-                    Processing...
+                    {status.message || 'Processing...'}
                   </span>
-                ) : 'Sign Up as Partner'}
+                ) : 'Submit Application'}
               </button>
             </form>
 

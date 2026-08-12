@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { supabase } from '@/utils/supabase' // Path alias check kar lein
+import { supabase } from '@/utils/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -17,7 +17,17 @@ export default function VendorProfile() {
   const [phone, setPhone] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [address, setAddress] = useState('')
-  const [website, setWebsite] = useState('') // 🌟 NEW: Website State
+  const [website, setWebsite] = useState('') 
+  
+  // Logo aur Visiting Card URLs ke states
+  const [logoUrl, setLogoUrl] = useState('')
+  const [cardUrl, setCardUrl] = useState('')
+  const [newLogoFile, setNewLogoFile] = useState<File | null>(null)
+  const [newCardFile, setNewCardFile] = useState<File | null>(null)
+
+  // Live Preview States for Newly Selected Files
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [cardPreview, setCardPreview] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProfile()
@@ -47,14 +57,76 @@ export default function VendorProfile() {
     setPhone(profile.phone || '')
     setCompanyName(profile.company_name || '')
     setAddress(profile.address || '')
-    setWebsite(profile.website || '') // 🌟 NEW: Set Website
+    setWebsite(profile.website || '') 
+    setLogoUrl(profile.logo_url || '')
+    setCardUrl(profile.visiting_card_url || '')
     setLoading(false)
+  }
+
+  // Handle Logo File Selection & Preview
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null
+    if (file) {
+      setNewLogoFile(file)
+      setLogoPreview(URL.createObjectURL(file))
+    }
+  }
+
+  // Handle Visiting Card File Selection & Preview
+  const handleCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null
+    if (file) {
+      setNewCardFile(file)
+      setCardPreview(URL.createObjectURL(file))
+    }
+  }
+
+  // 🌟 NAYA: Supabase Storage Upload Helper Function
+  const uploadFileToSupabaseStorage = async (file: File, folder: string) => {
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`
+      const filePath = `${folder}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('vendor_documents')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      // Public URL generate karna
+      const { data } = supabase.storage
+        .from('vendor_documents')
+        .getPublicUrl(filePath)
+
+      return data.publicUrl
+    } catch (error: any) {
+      console.error("Storage upload error:", error.message)
+      return null
+    }
   }
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     setUpdating(true)
     setMessage({ type: '', text: '' })
+
+    let updatedLogoUrl = logoUrl
+    let updatedCardUrl = cardUrl
+
+    if (newLogoFile) {
+      setMessage({ type: '', text: 'Uploading new logo to Supabase...' })
+      const uploaded = await uploadFileToSupabaseStorage(newLogoFile, 'logos')
+      if (uploaded) updatedLogoUrl = uploaded
+    }
+
+    if (newCardFile) {
+      setMessage({ type: '', text: 'Uploading new visiting card to Supabase...' })
+      const uploaded = await uploadFileToSupabaseStorage(newCardFile, 'visiting_cards')
+      if (uploaded) updatedCardUrl = uploaded
+    }
+
+    setMessage({ type: '', text: 'Saving profile...' })
 
     const { error } = await supabase
       .from('profiles')
@@ -63,13 +135,21 @@ export default function VendorProfile() {
         phone: phone,
         company_name: companyName,
         address: address,
-        website: website, // 🌟 NEW: Update Website
+        website: website, 
+        logo_url: updatedLogoUrl,
+        visiting_card_url: updatedCardUrl,
       })
       .eq('id', userId)
 
     if (error) {
       setMessage({ type: 'error', text: 'Profile update fail ho gaya: ' + error.message })
     } else {
+      setLogoUrl(updatedLogoUrl)
+      setCardUrl(updatedCardUrl)
+      setNewLogoFile(null)
+      setNewCardFile(null)
+      setLogoPreview(null)
+      setCardPreview(null)
       setMessage({ type: 'success', text: '✅ Profile successfully update ho gayi!' })
     }
     setUpdating(false)
@@ -123,7 +203,6 @@ export default function VendorProfile() {
                 </div>
               </div>
 
-              {/* 🌟 NEW: Website URL Input Field */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Business Website URL</label>
                 <input type="url" className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://www.yourtravelwebsite.com" />
@@ -132,6 +211,49 @@ export default function VendorProfile() {
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">Full Address / Location</label>
                 <textarea rows={3} className="w-full px-4 py-3 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 resize-none" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Aapka office ya business address..."></textarea>
+              </div>
+
+              {/* 🌟 DOCUMENTS & PREVIEW SECTION */}
+              <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-6">
+                <h3 className="text-sm font-black text-slate-800 border-b pb-2">Verification Documents & Previews</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  {/* Company Logo Box */}
+                  <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <label className="block text-xs font-bold text-slate-700">Company Logo</label>
+                    <div className="flex items-center justify-center h-28 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 overflow-hidden relative">
+                      {logoPreview ? (
+                        <img src={logoPreview} alt="Logo Preview" className="h-full object-contain" />
+                      ) : logoUrl ? (
+                        <img src={logoUrl} alt="Current Logo" className="h-full object-contain" />
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium">No Logo Uploaded</span>
+                      )}
+                    </div>
+                    <input type="file" accept="image/*" 
+                      onChange={handleLogoChange}
+                      className="block w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-bold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100" />
+                  </div>
+
+                  {/* Visiting Card Box */}
+                  <div className="space-y-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <label className="block text-xs font-bold text-slate-700">Visiting Card</label>
+                    <div className="flex items-center justify-center h-28 bg-slate-100 rounded-lg border-2 border-dashed border-slate-300 overflow-hidden relative">
+                      {cardPreview ? (
+                        <img src={cardPreview} alt="Card Preview" className="h-full object-contain" />
+                      ) : cardUrl ? (
+                        <img src={cardUrl} alt="Current Visiting Card" className="h-full object-contain" />
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium">No Visiting Card Uploaded</span>
+                      )}
+                    </div>
+                    <input type="file" accept="image/*" 
+                      onChange={handleCardChange}
+                      className="block w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+                  </div>
+
+                </div>
               </div>
 
               <div className="pt-4 border-t border-gray-100">
