@@ -21,6 +21,10 @@ function TourFormContent() {
   const [userRole, setUserRole] = useState('') 
   const [message, setMessage] = useState({ type: '', text: '' })
 
+  // 🌟 NAYA: Admin Vendor Assignment States
+  const [assignedVendorId, setAssignedVendorId] = useState('')
+  const [vendorsList, setVendorsList] = useState<any[]>([])
+
   // 1. Basic Info & SEO States
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
@@ -28,7 +32,7 @@ function TourFormContent() {
   
   // Thumbnail & Metadata
   const [thumbnail, setThumbnail] = useState('')
-  const [isUploadingThumb, setIsUploadingThumb] = useState(false) // 🌟 New state for thumbnail upload loader
+  const [isUploadingThumb, setIsUploadingThumb] = useState(false)
 
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
@@ -65,7 +69,7 @@ function TourFormContent() {
 
   // 4. Image Gallery
   const [gallery, setGallery] = useState([''])
-  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null) // 🌟 New state for gallery upload loader
+  const [uploadingGalleryIndex, setUploadingGalleryIndex] = useState<number | null>(null)
 
   // 5. FAQs State
   const [faqs, setFaqs] = useState([{ question: '', answer: '' }])
@@ -112,6 +116,16 @@ function TourFormContent() {
     setVendorId(session.user.id)
     setUserRole(profile.role)
 
+    // 🌟 Agar user Admin hai, toh saare vendors ki list fetch karo
+    if (profile.role === 'admin') {
+      const { data: vList } = await supabase
+        .from('profiles')
+        .select('id, full_name, company_name')
+        .eq('role', 'vendor')
+        .eq('approval_status', 'approved')
+      if (vList) setVendorsList(vList)
+    }
+
     if (editId) {
       const { data: listing, error } = await supabase
         .from('listings')
@@ -124,6 +138,8 @@ function TourFormContent() {
         setLoading(false)
         return
       }
+
+      setAssignedVendorId(listing.vendor_id || session.user.id) // 🌟 Set existing vendor
 
       setTitle(listing.title || '')
       setSlug(listing.slug || '')
@@ -175,18 +191,17 @@ function TourFormContent() {
 
       if (meta.gallery?.length > 0) setGallery(meta.gallery)
       if (meta.faqs?.length > 0) setFaqs(meta.faqs)
+    } else {
+      setAssignedVendorId(session.user.id) // 🌟 Default to current user for new listings
     }
 
     setLoading(false)
   }
 
-  // 🌟 NAYA FUNCTION: Image upload offloading to ImgBB (Free, No storage limit on your server)
   const uploadImageToServer = async (file: File) => {
     const formData = new FormData()
     formData.append('image', file)
     
-    // IMPORTANT: Get a free API key from https://api.imgbb.com/ and paste it here, 
-    // or add it in your .env file as NEXT_PUBLIC_IMGBB_API_KEY
     const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || 'YOUR_IMGBB_API_KEY_HERE' 
     
     try {
@@ -196,7 +211,7 @@ function TourFormContent() {
       })
       const data = await response.json()
       if (data.success) {
-        return data.data.url // Returns the direct image URL
+        return data.data.url
       } else {
         throw new Error('Upload failed')
       }
@@ -229,7 +244,6 @@ function TourFormContent() {
     setUploadingGalleryIndex(null)
   }
 
-  // --- BAKI SARE HANDLERS WAISE HI HAIN ---
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value
     setTitle(newTitle)
@@ -420,13 +434,21 @@ ${formattedFaqs}
 
     let error;
 
-    const dbPayload = {
+    // 🌟 NAYA: Assignment Logic
+    const finalVendorId = userRole === 'admin' ? assignedVendorId : vendorId
+
+    const dbPayload: any = {
       title: title,
       slug: slug,
       location: fullLocationString, 
       price: parseFloat(price),
       description: detailedDescription,
       metadata: metadata
+    }
+
+    // Only update vendor_id if user is admin (allows admin to transfer listings)
+    if (userRole === 'admin') {
+      dbPayload.vendor_id = finalVendorId
     }
 
     if (editId) {
@@ -440,7 +462,7 @@ ${formattedFaqs}
         .from('listings')
         .insert([{
           ...dbPayload,
-          vendor_id: vendorId,
+          vendor_id: finalVendorId, // 🌟 Assign to selected vendor directly on creation
           category: 'tour',
           status: 'pending',
         }])
@@ -467,7 +489,7 @@ ${formattedFaqs}
               Duration: finalDuration,
               Route: fullLocationString,
               Starting_Price: `₹${price}`,
-              Vendor_ID: vendorId,
+              Vendor_ID: finalVendorId,
               Action: 'Please review and approve from Admin Panel'
             }
           })
@@ -511,6 +533,30 @@ ${formattedFaqs}
           )}
 
           <form onSubmit={handleSubmit} className="space-y-10">
+
+            {/* 🌟 NAYA: Admin Vendor Assignment Section */}
+            {userRole === 'admin' && (
+              <div className="bg-purple-50 p-6 rounded-xl border border-purple-200">
+                <h2 className="text-lg font-bold text-purple-900 mb-3 flex items-center gap-2">
+                  <span>👑</span> Admin Control: Assign Vendor
+                </h2>
+                <p className="text-sm text-purple-700 mb-4">
+                  Aap is listing ko kis partner ke account me transfer ya create karna chahte hain?
+                </p>
+                <select
+                  className="w-full md:w-1/2 px-4 py-3 border border-purple-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 bg-white font-medium text-gray-800"
+                  value={assignedVendorId}
+                  onChange={(e) => setAssignedVendorId(e.target.value)}
+                >
+                  <option value={vendorId}>Assign to Me (Admin)</option>
+                  {vendorsList.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.company_name ? `${v.company_name} ` : ''}({v.full_name})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Section 1: Basic Info */}
             <div>
@@ -586,7 +632,6 @@ ${formattedFaqs}
                 </div>
               </div>
 
-              {/* 🌟 THUMBNAIL UPLOAD FIX HERE */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">Starting Price (₹)</label>
@@ -774,7 +819,7 @@ ${formattedFaqs}
               </div>
             </div>
 
-            {/* 🌟 GALLERY UPLOAD FIX HERE */}
+            {/* GALLERY */}
             <div>
               <div className="flex justify-between items-center border-b pb-2 mb-6">
                 <h2 className="text-xl font-bold text-gray-800">7. Tour Gallery</h2>

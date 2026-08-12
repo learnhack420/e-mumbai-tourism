@@ -87,7 +87,7 @@ export default function AdminDashboard() {
     if (data) setVendors(data)
   }
 
-  // 4. Fetch Listings
+  // 4. Fetch Listings (Order ensures latest added shows at the top)
   async function fetchListings() {
     const { data } = await supabase
       .from('listings')
@@ -379,7 +379,6 @@ export default function AdminDashboard() {
                         <div className="text-sm text-gray-500">{vendor.phone || 'No Phone'}</div>
                       </td>
                       
-                      {/* 🌟 ADDED ICONS COLUMN FOR SUPABASE/IMGBB URLs */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           {vendor.logo_url ? (
@@ -479,45 +478,56 @@ export default function AdminDashboard() {
                     <tr>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title & Location</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Category & Price</th>
+                      <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vendor</th>
                       <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {displayedListings.map((listing) => (
-                      <tr key={listing.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-bold text-gray-900">{listing.title}</div>
-                          <div className="text-sm text-gray-500">📍 {formatLocationForList(listing.location)}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm font-bold text-blue-600 uppercase">{listing.category}</div>
-                          <div className="text-sm text-gray-600 font-bold">{listing.category === 'destination' || listing.category === 'blog' ? 'Free / Info' : `₹${listing.price}`}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${listing.status === 'approved' ? 'bg-green-100 text-green-800' : listing.status === 'declined' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                            {listing.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
-                          <Link href={getViewUrl(listing)} target="_blank" className="text-purple-600 hover:text-purple-900 font-bold bg-purple-50 px-3 py-1 rounded-md inline-block">👁️ View</Link>
-                          <Link href={getEditUrl(listing)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</Link>
-                          {listing.status === 'pending' && (
-                            <>
-                              <button onClick={() => updateListingStatus(listing.id, 'approved')} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
-                              <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
-                            </>
-                          )}
-                          {listing.status === 'approved' && (
-                            <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
-                          )}
-                          
-                          {listing.status === 'declined' && (
-                            <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {displayedListings.map((listing) => {
+                      const assignedVendor = vendors.find(v => v.id === listing.vendor_id);
+                      const vendorName = assignedVendor ? (assignedVendor.company_name || assignedVendor.full_name) : 'Admin';
+
+                      return (
+                        <tr key={listing.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-bold text-gray-900">{listing.title}</div>
+                            <div className="text-sm text-gray-500">📍 {formatLocationForList(listing.location)}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-bold text-blue-600 uppercase">{listing.category}</div>
+                            <div className="text-sm text-gray-600 font-bold">{listing.category === 'destination' || listing.category === 'blog' ? 'Free / Info' : `₹${listing.price}`}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-bold text-gray-800 bg-gray-100 px-2.5 py-1 rounded-md inline-block border border-gray-200">
+                              {vendorName}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 text-xs font-bold rounded-full uppercase ${listing.status === 'approved' ? 'bg-green-100 text-green-800' : listing.status === 'declined' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                              {listing.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right text-sm font-medium space-x-2">
+                            <Link href={getViewUrl(listing)} target="_blank" className="text-purple-600 hover:text-purple-900 font-bold bg-purple-50 px-3 py-1 rounded-md inline-block">👁️ View</Link>
+                            <Link href={getEditUrl(listing)} className="text-blue-600 hover:text-blue-900 font-bold bg-blue-50 px-3 py-1 rounded-md inline-block">✏️ Edit</Link>
+                            {listing.status === 'pending' && (
+                              <>
+                                <button onClick={() => updateListingStatus(listing.id, 'approved')} className="text-green-600 hover:text-green-900 font-bold ml-1">Approve</button>
+                                <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Decline</button>
+                              </>
+                            )}
+                            {listing.status === 'approved' && (
+                              <button onClick={() => updateListingStatus(listing.id, 'declined')} className="text-red-600 hover:text-red-900 font-bold ml-1">Remove</button>
+                            )}
+                            
+                            {listing.status === 'declined' && (
+                              <button onClick={() => deleteListing(listing.id)} className="text-red-600 hover:text-red-900 font-bold bg-red-50 px-3 py-1 rounded-md ml-1 inline-block border border-red-100">🗑️ Delete</button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
                 {displayedListings.length === 0 && (
